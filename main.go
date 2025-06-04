@@ -1,9 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"github.com/SpandanBG/logctrl/ui"
 )
 
 func main() {
-	fmt.Println("Hello, world!")
+	// create new app
+	app := ui.New()
+
+	// run app
+	app.Run()
 }

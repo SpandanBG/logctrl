@@ -2,6 +2,10 @@ package ui
 
 import "github.com/rivo/tview"
 
+const (
+	appTitle = "<Ctrl+LOG>"
+)
+
 type App interface {
 	Run()
 }
@@ -14,6 +18,8 @@ type app struct {
 func New() App {
 	tui := tview.NewApplication()
 
+	createRoot(tui)
+
 	return &app{
 		tui: tui,
 	}
@@ -24,4 +30,13 @@ func (a *app) Run() {
 	if err := a.tui.Run(); err != nil {
 		panic(err)
 	}
+}
+
+// --------------------- private methods and function
+
+// createRoot - creates a fullscreen box window with the app title at top as
+// the root of the viewport.
+func createRoot(app *tview.Application) {
+	box := tview.NewBox().SetBorder(true).SetTitle(appTitle)
+	app.SetRoot(box, true)
 }

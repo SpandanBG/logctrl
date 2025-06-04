@@ -9,12 +9,13 @@ const (
 
 type App interface {
 	Run()
+	Close()
 }
 
 type app struct {
 	tui    *tview.Application
 	root   *tview.Flex
-	logBox *tview.Box
+	logBox *tview.TextView
 	prompt *tview.InputField
 }
 
@@ -36,6 +37,12 @@ func (a *app) Run() {
 	}
 }
 
+// Close - ends the app.
+func (a *app) Close() {
+	// TODO: add to kill if any addtional process are added
+	a.tui.Stop()
+}
+
 // --------------------- private methods and function
 
 // createRoot - creates a fullscreen flex window as the root of the viewport.
@@ -44,9 +51,9 @@ func (a *app) createRoot() {
 	a.tui.SetRoot(a.root, true).EnableMouse(true)
 }
 
-// createLogBox - creates a box with app title at the top as log dialog box.
+// createLogBox - creates a text view as log dialog box.
 func (a *app) createLogBox() {
-	a.logBox = tview.NewBox().SetBorder(true).SetTitle(appTitle)
+	a.logBox = tview.NewTextView().SetDynamicColors(true)
 	a.root.AddItem(a.logBox, 0, 1, false)
 }
 

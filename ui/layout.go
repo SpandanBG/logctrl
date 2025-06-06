@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/rivo/tview"
+import (
+	"github.com/SpandanBG/logctrl/reader"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
 
 const (
 	appTitle   = "<Ctrl+LOG>"
@@ -14,14 +18,18 @@ type App interface {
 
 type app struct {
 	tui    *tview.Application
+	src    reader.Source
 	root   *tview.Flex
 	logBox *tview.TextView
 	prompt *tview.InputField
 }
 
 // New - creates a new logctr app using tview package.
-func New() App {
-	app := &app{tui: tview.NewApplication()}
+func New(src reader.Source) App {
+	app := &app{
+		tui: tview.NewApplication(),
+		src: src,
+	}
 
 	app.createRoot()
 	app.createLogBox()
@@ -32,6 +40,13 @@ func New() App {
 
 // Run - starts the app. panics with an error if unable to run
 func (a *app) Run() {
+	// Attach stdin to log dialog
+	go a.attachLog()
+
+	// Attach key strokes
+	a.attachKeyStrokes()
+
+	// Start app
 	if err := a.tui.Run(); err != nil {
 		panic(err)
 	}
@@ -39,7 +54,7 @@ func (a *app) Run() {
 
 // Close - ends the app.
 func (a *app) Close() {
-	// TODO: add to kill if any addtional process are added
+	a.src.Close()
 	a.tui.Stop()
 }
 
@@ -61,4 +76,31 @@ func (a *app) createLogBox() {
 func (a *app) createPrompt() {
 	a.prompt = tview.NewInputField().SetLabel(inputLabel)
 	a.root.AddItem(a.prompt, 1, 0, true)
+}
+
+// writeLog - writes the log string to the `logBox`
+func (a *app) writeLog(log string) {
+	a.tui.QueueUpdateDraw(func() {
+		a.logBox.Write([]byte(log))
+	})
+}
+
+// attachLog - attaches the stdin buffer from `src` to `logBox`
+func (a *app) attachLog() {
+	for log := range a.src.Stream() {
+		a.writeLog(log + "\n")
+	}
+}
+
+// attachKeyStrokes - registrers all app realated keys strokes
+func (a *app) attachKeyStrokes() {
+	a.tui.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlC:
+			a.Close()
+			return nil
+		}
+
+		return event
+	})
 }

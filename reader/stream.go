@@ -10,13 +10,15 @@ import (
 type Source interface {
 	Stream() chan string
 	Close()
+	IsPiped() bool
 }
 
 type src struct {
 	logStream *os.File
 	reader    *bufio.Scanner
 	stream    chan string
-	open      bool // tells if the stream channel is open
+	open      bool // tells if the stream channel is open.
+	isPiped   bool // if `true` the the app has been run as `A | B`.
 }
 
 // ResolveSource - get's the source of the log and attaches it to the buffer
@@ -26,11 +28,8 @@ func ResolveSource() Source {
 		stream: make(chan string),
 	}
 
-	// Get the file info of Stdin
-	stat, _ := os.Stdin.Stat()
-
-	// verify if Stdin is from a char device (i.e. executed as a pipe - `./a.out | logctrl`)
-	if (stat.Mode() & os.ModeCharDevice) != 0 {
+	// verify if app is ran as piped
+	if !source.isRanAsPipe() {
 		return nil
 	}
 
@@ -43,8 +42,14 @@ func ResolveSource() Source {
 	return source
 }
 
+// Stream - returns the string channel where Stdin is written into.
 func (s *src) Stream() chan string {
 	return s.stream
+}
+
+// IsPiped - returns `true` if app is ran as `A | B` where A is the logger.
+func (s *src) IsPiped() bool {
+	return s.isPiped
 }
 
 // Close - closes stream
@@ -105,4 +110,19 @@ func (s *src) prepareLogStream() {
 	if err := syscall.Dup2(int(ttyOut.Fd()), 1); err != nil {
 		log.Fatalf("unable to dup2 tty to 1: %v", err.Error())
 	}
+}
+
+// isRanAsPipe - verifies if the app has be ran as `A | B` where A is the logger.
+func (s *src) isRanAsPipe() bool {
+	// Get the file info of Stdin
+	stat, _ := os.Stdin.Stat()
+
+	// verify if Stdin is from a char device (i.e. executed as a pipe - `./a.out | logctrl`)
+	if (stat.Mode() & os.ModeCharDevice) != 0 {
+		s.isPiped = false
+	} else {
+		s.isPiped = true
+	}
+
+	return s.isPiped
 }

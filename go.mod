@@ -3,6 +3,7 @@ module github.com/SpandanBG/logctrl
 go 1.22.4
 
 require (
+	github.com/creack/pty v1.1.24 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gdamore/tcell/v2 v2.7.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect

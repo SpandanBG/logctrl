@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"syscall"
 )
 
 type Source interface {
@@ -33,23 +34,16 @@ func ResolveSource() Source {
 		return nil
 	}
 
-	// prepare log stream
+	// prepare log stream for piped logs
 	source.prepareLogStream()
 
-	// Attach log stream to buffer
-	source.reader = bufio.NewScanner(source.logStream)
+	// start streaming
+	go source.startStream()
+
 	return source
 }
 
 func (s *src) Stream() chan string {
-	go func() {
-		for s.reader.Scan() {
-			s.stream <- s.reader.Text()
-		}
-		close(s.stream)
-		s.open = false
-	}()
-
 	return s.stream
 }
 
@@ -58,23 +52,57 @@ func (s *src) Close() {
 	if s.open {
 		close(s.stream)
 	}
-
-	os.Stdin = s.logStream
 }
 
 // --------------------- private methods and function
 
+// startStream - starts reading from `os.Stdin` into `buffer.Reader`.
+func (s *src) startStream() {
+	// Attach log stream to buffer
+	s.reader = bufio.NewScanner(s.logStream)
+
+	// read till `os.Stdin` closes
+	for s.reader.Scan() {
+		if !s.open {
+			break
+		}
+
+		s.stream <- s.reader.Text()
+	}
+
+	// close stream channel
+	close(s.stream)
+	s.open = false
+}
+
 // prepareLogStream - since `tview` captures the `stdin`, we need to make sure
-// `tview` uses `/dev/tty` as the `stdin` to unblock programs that have piped
-// into `stdin`.
+// `tview` uses `/dev/tty` as f0 & f1, and move `stdin` to next unsued fd (f3).
 //
 // TODO: use file `CONIN$` for `Windows` platform.
 func (s *src) prepareLogStream() {
-	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	logPipe, err := syscall.Dup(int(os.Stdin.Fd()))
 	if err != nil {
-		log.Fatalf("cannot open /dev/tty: %v", err)
+		log.Fatalf("unable to dup stdin: %v", err)
 	}
 
-	s.logStream = os.Stdin
-	os.Stdin = tty
+	s.logStream = os.NewFile(uintptr(logPipe), "logPipe")
+	if err := syscall.Dup2(0, int(s.logStream.Fd())); err != nil {
+		log.Fatalf("unable to dup2 Stdin to LogStream: %v", err.Error())
+	}
+
+	ttyIn, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
+	if err != nil {
+		log.Fatalf("cannot open /dev/tty as read only: %v", err)
+	}
+	ttyOut, err := os.OpenFile("/dev/tty", os.O_WRONLY, 0)
+	if err != nil {
+		log.Fatalf("cannot open /dev/tty as write only: %v", err)
+	}
+
+	if err := syscall.Dup2(int(ttyIn.Fd()), 0); err != nil {
+		log.Fatalf("unable to dup2 tty to 0: %v", err.Error())
+	}
+	if err := syscall.Dup2(int(ttyOut.Fd()), 1); err != nil {
+		log.Fatalf("unable to dup2 tty to 1: %v", err.Error())
+	}
 }

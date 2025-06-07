@@ -24,7 +24,9 @@ func SetupCleanUpSignal(cleanUp func(), proc *os.Process) {
 		}
 
 		// Call cleanUp for app clean up routine
-		cleanUp()
+		if cleanUp != nil {
+			cleanUp()
+		}
 
 		// Graceful exit
 		os.Exit(0)

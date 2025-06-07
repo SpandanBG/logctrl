@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"log"
+
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -26,8 +28,13 @@ type app struct {
 
 // New - creates a new logctr app using tview package.
 func New(src reader.Source) App {
+	ttyScreen, err := tcell.NewTerminfoScreen()
+	if err != nil {
+		log.Fatalf("unable to create ttyp screen: %v", err.Error())
+	}
+
 	app := &app{
-		tui: tview.NewApplication(),
+		tui: tview.NewApplication().SetScreen(ttyScreen),
 		src: src,
 	}
 
@@ -43,12 +50,12 @@ func (a *app) Run() {
 	// Attach stdin to log dialog
 	go a.attachLog()
 
-	// Attach key strokes
-	a.attachKeyStrokes()
+	// Registers default key strokes
+	a.registerKeys()
 
 	// Start app
 	if err := a.tui.Run(); err != nil {
-		panic(err)
+		log.Fatalf("app runtime err: %v", err.Error())
 	}
 }
 
@@ -90,10 +97,17 @@ func (a *app) attachLog() {
 	for log := range a.src.Stream() {
 		a.writeLog(log + "\n")
 	}
+
+	a.writeLog("Log ended. Please press Ctrl+C to close.")
+
+	a.tui.QueueUpdateDraw(func() {
+		a.tui.SetFocus(a.prompt)
+	})
 }
 
-// attachKeyStrokes - registrers all app realated keys strokes
-func (a *app) attachKeyStrokes() {
+// registerKeys - registrers all app realated keys strokes:
+// - <Ctrl+c> : closes app
+func (a *app) registerKeys() {
 	a.tui.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlC:

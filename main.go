@@ -28,11 +28,15 @@ func main() {
 
 			log := bufio.NewScanner(logPipe)
 			for log.Scan() {
-				fmt.Println(log.Text())
+				fmt.Println("> ", log.Text())
 			}
 
 			close(ch)
 		}()
+
+		var data string
+		fmt.Scanln(&data)
+		fmt.Println("bro: ", data)
 
 		<-ch
 
@@ -55,9 +59,11 @@ func main() {
 
 	go func() {
 		io.Copy(pw, os.Stdin)
-		pw.Write([]byte("bye"))
 		pw.Close()
 	}()
+
+	tty, _ := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
+	go io.Copy(f, tty)
 
 	io.Copy(os.Stdout, f)
 }

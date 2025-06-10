@@ -32,3 +32,22 @@ func SetupCleanUpSignal(cleanUp func(), proc *os.Process) {
 		os.Exit(0)
 	}()
 }
+
+func SetupEnterSignal(cleanUp func(), proc *os.Process) {
+	enter := make(chan os.Signal, 2)
+
+	// Listen to <Enter> into channel
+	signal.Notify(enter, syscall.SIGPIPE)
+
+	go func() {
+		// wait for <Enter> user input
+		for range enter {
+
+			// Call cleanUp for app clean up routine
+			if cleanUp != nil {
+				cleanUp()
+			}
+		}
+
+	}()
+}

@@ -12,7 +12,6 @@ import (
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/SpandanBG/logctrl/utils"
-	"github.com/creack/pty"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -21,6 +20,9 @@ func main() {
 	if os.Getenv("child") != "" {
 		pipeFD, _ := strconv.Atoi(os.Getenv("child"))
 		pipe := os.NewFile(uintptr(pipeFD), "log")
+
+		groupFD, _ := strconv.Atoi(os.Getenv("group"))
+		group := os.NewFile(uintptr(groupFD), "group")
 
 		app := tview.NewApplication()
 		root := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -46,9 +48,14 @@ func main() {
 			return event
 		})
 
+		go func() {
+		}()
+
 		go app.QueueUpdateDraw(func() {
 			app.SetFocus(prompt)
 		})
+
+		go io.Copy(os.Stdin, group)
 
 		go func() {
 			in := bufio.NewScanner(pipe)
@@ -59,38 +66,43 @@ func main() {
 			}
 		}()
 
-		app.Run()
+		if err := app.Run(); err != nil {
+			log.Fatalf("error runing %v", err)
+		}
 		return
 	}
 
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		log.Fatalf("unable to create pipe: %v", err)
-	}
+	pr, pw, _ := os.Pipe()
+	gr, gw, _ := os.Pipe()
 
 	child := exec.Command(os.Args[0])
+
 	child.Env = append(
 		child.Environ(),
 		fmt.Sprintf("child=%d", pr.Fd()),
+		fmt.Sprintf("group=%d", gr.Fd()),
 	)
-	child.ExtraFiles = append(child.ExtraFiles, pr)
 
-	f, _ := pty.Start(child)
+	child.ExtraFiles = append(child.ExtraFiles, pr, gr)
+
+	utils.SetupCleanUpSignal(func() {
+		gw.Write([]byte{0x03})
+		_ = child.Wait()
+	}, nil)
+
+	utils.SetupEnterSignal(func() {
+		gw.Write([]byte{0xd})
+	}, nil)
 
 	go func() {
 		io.Copy(pw, os.Stdin)
 		pw.Close()
 	}()
 
-	tty, _ := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
-	go io.Copy(f, tty)
-
-	utils.SetupCleanUpSignal(func() {
-		f.Write([]byte{0x03})
-		_ = child.Wait()
-	}, nil)
-
-	io.Copy(os.Stdout, f)
+	child.Run()
+	if err := child.Wait(); err != nil {
+		log.Fatalf("didn't wait for the child: %v", err)
+	}
 }
 
 func app() {

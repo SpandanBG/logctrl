@@ -22,15 +22,11 @@ type src struct {
 }
 
 // ResolveSource - get's the source of the log and attaches it to the buffer
-func ResolveSource() Source {
+func ResolveSource(isPiped bool) Source {
 	source := &src{
-		open:   true,
-		stream: make(chan string),
-	}
-
-	// verify if app is ran as piped
-	if !source.isRanAsPipe() {
-		return nil
+		open:    true,
+		stream:  make(chan string),
+		isPiped: isPiped,
 	}
 
 	// prepare log stream for piped logs
@@ -110,19 +106,4 @@ func (s *src) prepareLogStream() {
 	if err := syscall.Dup2(int(ttyOut.Fd()), 1); err != nil {
 		log.Fatalf("unable to dup2 tty to 1: %v", err.Error())
 	}
-}
-
-// isRanAsPipe - verifies if the app has be ran as `A | B` where A is the logger.
-func (s *src) isRanAsPipe() bool {
-	// Get the file info of Stdin
-	stat, _ := os.Stdin.Stat()
-
-	// verify if Stdin is from a char device (i.e. executed as a pipe - `./a.out | logctrl`)
-	if (stat.Mode() & os.ModeCharDevice) != 0 {
-		s.isPiped = false
-	} else {
-		s.isPiped = true
-	}
-
-	return s.isPiped
 }

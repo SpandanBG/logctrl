@@ -11,35 +11,55 @@ import (
 
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
+	"github.com/SpandanBG/logctrl/utils"
 	"github.com/creack/pty"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 func main() {
 	if os.Getenv("child") != "" {
-		ch := make(chan bool)
+		pipeFD, _ := strconv.Atoi(os.Getenv("child"))
+		pipe := os.NewFile(uintptr(pipeFD), "log")
+
+		app := tview.NewApplication()
+		root := tview.NewFlex().SetDirection(tview.FlexRow)
+
+		logView := tview.NewTextView()
+		root.AddItem(logView, 0, 1, false)
+
+		prompt := tview.NewInputField().SetLabel(":")
+		root.AddItem(prompt, 1, 0, true)
+
+		app.SetRoot(root, true).EnableMouse(true)
+
+		app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyCtrlC:
+				app.Stop()
+				return nil
+			case tcell.KeyEnter:
+				prompt.SetText("")
+				return nil
+			}
+
+			return event
+		})
+
+		go app.QueueUpdateDraw(func() {
+			app.SetFocus(prompt)
+		})
 
 		go func() {
-			pipeFd, err := strconv.Atoi(os.Getenv("child"))
-			if err != nil {
-				log.Fatalf("unable to parse to int of child env: %v", err)
+			in := bufio.NewScanner(pipe)
+			for in.Scan() {
+				app.QueueUpdateDraw(func() {
+					logView.Write([]byte(in.Text() + "\n"))
+				})
 			}
-
-			logPipe := os.NewFile(uintptr(pipeFd), "logpipe")
-
-			log := bufio.NewScanner(logPipe)
-			for log.Scan() {
-				fmt.Println("> ", log.Text())
-			}
-
-			close(ch)
 		}()
 
-		var data string
-		fmt.Scanln(&data)
-		fmt.Println("bro: ", data)
-
-		<-ch
-
+		app.Run()
 		return
 	}
 
@@ -64,6 +84,11 @@ func main() {
 
 	tty, _ := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
 	go io.Copy(f, tty)
+
+	utils.SetupCleanUpSignal(func() {
+		f.Write([]byte{0x03})
+		_ = child.Wait()
+	}, nil)
 
 	io.Copy(os.Stdout, f)
 }

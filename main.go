@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/creack/pty"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -28,6 +30,9 @@ func main() {
 		runChild(childFd)
 		os.Exit(0)
 	}
+
+	pg := unix.Getpgrp()
+	defer unix.Kill(pg, syscall.SIGTERM)
 
 	rP, wP, err := os.Pipe()
 	if err != nil {

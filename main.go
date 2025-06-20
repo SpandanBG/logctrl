@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/SpandanBG/logctrl/reader"
-	"github.com/SpandanBG/logctrl/ui"
 	"github.com/creack/pty"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -177,15 +175,4 @@ func runChild(childFd int) {
 	}()
 
 	app.Run() // blocking
-}
-
-func app() {
-	// Attach log input source
-	src := reader.ResolveSource(true)
-
-	// create new app
-	app := ui.New(src)
-
-	// run app
-	app.Run()
 }

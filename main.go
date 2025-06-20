@@ -11,98 +11,68 @@ import (
 
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
-	"github.com/SpandanBG/logctrl/utils"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
+	"github.com/creack/pty"
 )
 
 func main() {
-	if os.Getenv("child") != "" {
-		pipeFD, _ := strconv.Atoi(os.Getenv("child"))
-		pipe := os.NewFile(uintptr(pipeFD), "log")
-
-		groupFD, _ := strconv.Atoi(os.Getenv("group"))
-		group := os.NewFile(uintptr(groupFD), "group")
-
-		app := tview.NewApplication()
-		root := tview.NewFlex().SetDirection(tview.FlexRow)
-
-		logView := tview.NewTextView()
-		root.AddItem(logView, 0, 1, false)
-
-		prompt := tview.NewInputField().SetLabel(":")
-		root.AddItem(prompt, 1, 0, true)
-
-		app.SetRoot(root, true).EnableMouse(true)
-
-		app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			switch event.Key() {
-			case tcell.KeyCtrlC:
-				app.Stop()
-				return nil
-			case tcell.KeyEnter:
-				prompt.SetText("")
-				return nil
-			}
-
-			return event
-		})
-
-		go func() {
-		}()
-
-		go app.QueueUpdateDraw(func() {
-			app.SetFocus(prompt)
-		})
-
-		go io.Copy(os.Stdin, group)
-
-		go func() {
-			in := bufio.NewScanner(pipe)
-			for in.Scan() {
-				app.QueueUpdateDraw(func() {
-					logView.Write([]byte(in.Text() + "\n"))
-				})
-			}
-		}()
-
-		if err := app.Run(); err != nil {
-			log.Fatalf("error runing %v", err)
+	childFdStr := os.Getenv("child")
+	if len(childFdStr) > 0 {
+		childFd, err := strconv.Atoi(childFdStr)
+		if err != nil {
+			log.Fatalf("unable to parse child env var - %v", err)
 		}
-		return
+
+		runChild(childFd)
+		os.Exit(0)
 	}
 
-	pr, pw, _ := os.Pipe()
-	gr, gw, _ := os.Pipe()
+	rP, wP, err := os.Pipe()
+	if err != nil {
+		log.Fatalf("unable to create pipe to child - %v", err)
+	}
 
-	child := exec.Command(os.Args[0])
+	console, err := os.Open("/dev/tty")
+	if err != nil {
+		log.Fatalf("unable to to open /dev/tty - %v", err)
+	}
 
-	child.Env = append(
-		child.Environ(),
-		fmt.Sprintf("child=%d", pr.Fd()),
-		fmt.Sprintf("group=%d", gr.Fd()),
-	)
+	self := os.Args[0]
+	cmd := exec.Command(self)
+	cmd.Env = append(cmd.Environ(), fmt.Sprintf("child=%d", rP.Fd()))
+	cmd.ExtraFiles = append(cmd.ExtraFiles, rP)
 
-	child.ExtraFiles = append(child.ExtraFiles, pr, gr)
-
-	utils.SetupCleanUpSignal(func() {
-		gw.Write([]byte{0x03})
-		_ = child.Wait()
-	}, nil)
-
-	utils.SetupEnterSignal(func() {
-		gw.Write([]byte{0xd})
-	}, nil)
+	f, err := pty.Start(cmd)
+	if err != nil {
+		log.Fatalf("unable to start pty - %v", err)
+	}
 
 	go func() {
-		io.Copy(pw, os.Stdin)
-		pw.Close()
+		io.Copy(wP, os.Stdin)
+		wP.Close()
 	}()
 
-	child.Run()
-	if err := child.Wait(); err != nil {
-		log.Fatalf("didn't wait for the child: %v", err)
-	}
+	go io.Copy(f, console)
+	io.Copy(os.Stdout, f)
+}
+
+func runChild(childFd int) {
+	logPipe := os.NewFile(uintptr(childFd), "logPipe")
+	done := make(chan bool)
+
+	go func() {
+		bs := bufio.NewScanner(logPipe)
+		for bs.Scan() {
+			fmt.Println(bs.Text())
+		}
+		close(done)
+	}()
+
+	var input string
+	fmt.Scan(&input)
+
+	fmt.Println("you said:", input)
+
+	<-done
 }
 
 func app() {

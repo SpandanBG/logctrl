@@ -44,11 +44,11 @@ func main() {
 		log.Fatalf("unable to to open /dev/tty - %v", err)
 	}
 
-	oldConsole, err := term.MakeRaw(int(console.Fd()))
+	oldState, err := term.MakeRaw(int(console.Fd()))
 	if err != nil {
 		log.Fatalf("unable to turn console raw - %v", err)
 	}
-	defer term.Restore(int(console.Fd()), oldConsole)
+	defer term.Restore(int(console.Fd()), oldState)
 
 	self := os.Args[0]
 	cmd := exec.Command(self)
@@ -71,11 +71,11 @@ func main() {
 
 	go io.Copy(f, console)
 	io.Copy(os.Stdout, f)
+	rP.Close()
 }
 
 func runChild(childFd int) {
 	logPipe := os.NewFile(uintptr(childFd), "logPipe")
-	done := make(chan bool)
 
 	app := tview.NewApplication()
 	root := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -105,7 +105,6 @@ func runChild(childFd int) {
 				logBox.Write(bs.Bytes())
 			})
 		}
-		close(done)
 	}()
 
 	app.Run()

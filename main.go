@@ -12,6 +12,8 @@ import (
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/creack/pty"
+	"github.com/rivo/tview"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -36,6 +38,12 @@ func main() {
 		log.Fatalf("unable to to open /dev/tty - %v", err)
 	}
 
+	oldConsole, err := term.MakeRaw(int(console.Fd()))
+	if err != nil {
+		log.Fatalf("unable to turn console raw - %v", err)
+	}
+	defer term.Restore(int(console.Fd()), oldConsole)
+
 	self := os.Args[0]
 	cmd := exec.Command(self)
 	cmd.Env = append(cmd.Environ(), fmt.Sprintf("child=%d", rP.Fd()))
@@ -49,6 +57,10 @@ func main() {
 	go func() {
 		io.Copy(wP, os.Stdin)
 		wP.Close()
+
+		if _, err := term.MakeRaw(int(console.Fd())); err != nil {
+			log.Fatalf("unable to turn console raw - %v", err)
+		}
 	}()
 
 	go io.Copy(f, console)
@@ -59,20 +71,22 @@ func runChild(childFd int) {
 	logPipe := os.NewFile(uintptr(childFd), "logPipe")
 	done := make(chan bool)
 
+	app := tview.NewApplication()
+	logBox := tview.NewTextView().SetDynamicColors(true)
+
+	app.SetRoot(logBox, true).EnableMouse(true)
+
 	go func() {
 		bs := bufio.NewScanner(logPipe)
 		for bs.Scan() {
-			fmt.Println(bs.Text())
+			app.QueueUpdateDraw(func() {
+				logBox.Write(bs.Bytes())
+			})
 		}
 		close(done)
 	}()
 
-	var input string
-	fmt.Scan(&input)
-
-	fmt.Println("you said:", input)
-
-	<-done
+	app.Run()
 }
 
 func app() {

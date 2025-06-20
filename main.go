@@ -12,6 +12,7 @@ import (
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/creack/pty"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"golang.org/x/term"
 )
@@ -72,9 +73,25 @@ func runChild(childFd int) {
 	done := make(chan bool)
 
 	app := tview.NewApplication()
-	logBox := tview.NewTextView().SetDynamicColors(true)
+	root := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	app.SetRoot(logBox, true).EnableMouse(true)
+	logBox := tview.NewTextView().SetDynamicColors(true)
+	prompt := tview.NewInputField()
+
+	root.AddItem(logBox, 0, 1, false)
+	root.AddItem(prompt, 1, 0, true)
+
+	app.SetRoot(root, true).EnableMouse(true)
+
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEnter:
+			prompt.SetText("")
+			return nil
+		}
+
+		return event
+	})
 
 	go func() {
 		bs := bufio.NewScanner(logPipe)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -10,9 +9,8 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/SpandanBG/logctrl/ui"
 	"github.com/creack/pty"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
@@ -141,38 +139,10 @@ func runChild(childFd int) {
 	// fd passed by parent becomes os.File
 	logPipe := os.NewFile(uintptr(childFd), "logPipe")
 
-	// tview widgets
-	app := tview.NewApplication()
-	root := tview.NewFlex().SetDirection(tview.FlexRow)
-	logBox := tview.NewTextView().SetDynamicColors(true)
-	prompt := tview.NewInputField()
+	app, cleanup := ui.NewUI(logPipe)
+	defer cleanup()
 
-	root.AddItem(logBox, 0, 1, false) // growing log window
-	root.AddItem(prompt, 1, 0, true)  // single-line prompt
-
-	app.SetRoot(root, true).EnableMouse(true)
-
-	// Set input captures of app
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		// Clear prompt on Enter
-		case tcell.KeyEnter:
-			prompt.SetText("")
-			return nil
-		}
-
-		return event
-	})
-
-	// Background goroutine: read log lines from the pipe and append to logBox
-	go func() {
-		bs := bufio.NewScanner(logPipe)
-		for bs.Scan() {
-			app.QueueUpdateDraw(func() {
-				logBox.Write(bs.Bytes())
-			})
-		}
-	}()
-
-	app.Run() // blocking
+	if _, err := app.Run(); err != nil {
+		log.Fatalf("unable to run bubble tea app - %v", err)
+	}
 }

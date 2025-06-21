@@ -6,6 +6,13 @@ import (
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	logViewStyle = lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("63"))
 )
 
 type logTeaCmd string
@@ -60,7 +67,7 @@ func (u uiModel) View() string {
 	if !u.ready {
 		return "loading..."
 	}
-	return u.logView.View()
+	return logViewStyle.Render(u.logView.View())
 }
 
 // ------------------------- Private
@@ -74,21 +81,14 @@ func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
 }
 
 func (u uiModel) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
-	if u.ready {
-		u.logView.Width = size.Width
-		u.logView.Height = size.Height
-	} else {
-		u.logView = viewport.New(size.Width, size.Height)
-		u.ready = true
-	}
-
-	return u, nil
+	ux := u.updateLogView(size)
+	return ux, nil
 }
 
 func (u uiModel) refreshLogView(log string) (tea.Model, tea.Cmd) {
 	u.lines = append(u.lines, log)
 	u.logView.SetContent(
-		strings.Join(u.lines, ""),
+		strings.Join(u.lines, "\n"),
 	)
 	return u, u.fetchLog()
 }
@@ -100,4 +100,18 @@ func (u uiModel) fetchLog() tea.Cmd {
 		}
 		return nil
 	}
+}
+
+func (u uiModel) updateLogView(size tea.WindowSizeMsg) tea.Model {
+	fw, fh := logViewStyle.GetHorizontalFrameSize(), logViewStyle.GetVerticalFrameSize()
+
+	if u.ready {
+		u.logView.Width = size.Width - fw
+		u.logView.Height = size.Height - fh
+	} else {
+		u.logView = viewport.New(size.Width-fw, size.Height-fh)
+		u.ready = true
+	}
+
+	return u
 }

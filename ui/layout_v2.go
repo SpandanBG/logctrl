@@ -42,7 +42,7 @@ func NewUI(logFeed *os.File) (
 		logFile: logFile,
 		scanner: bufio.NewScanner(logReader),
 		lines:   make([]string, 0),
-	})
+	}, tea.WithAltScreen())
 
 	cleanup = func() {
 		defer logFile.Close()

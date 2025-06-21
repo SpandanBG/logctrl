@@ -11,6 +11,7 @@ import (
 
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
+	"github.com/SpandanBG/logctrl/utils"
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
@@ -145,6 +146,12 @@ func startPTY(logReader *os.File) (ptm *os.File) {
 	if err != nil {
 		log.Fatalf("unable to start pty - %v", err)
 	}
+	defer resizePty(ptm)
+
+	// Setup window resize signal
+	utils.OnTerminalResize(func() {
+		resizePty(ptm)
+	})
 
 	return ptm
 }
@@ -172,4 +179,11 @@ func startDataPump(ptm, logWritter, console *os.File) {
 
 	// Pump child screen → stdout
 	io.Copy(os.Stdout, ptm)
+}
+
+func resizePty(ptm *os.File) {
+	// Setup PTY window size to parent window size
+	if err := pty.InheritSize(os.Stdout, ptm); err != nil {
+		log.Fatalf("unable to resize pty to parent window size - %v", err)
+	}
 }

@@ -6,29 +6,14 @@ import (
 	"syscall"
 )
 
-// SetupCleanUpSignal - sets up signal for <Ctrl_c> pressed by user and calling
-// cleanup job.
-func SetupCleanUpSignal(cleanUp func(), proc *os.Process) {
-	ctrl_c := make(chan os.Signal, 2)
+func OnTerminalResize(callback func()) {
+	sigCh := make(chan os.Signal, 1)
 
-	// Listen to <Ctrl_c> into channel
-	signal.Notify(ctrl_c, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGWINCH)
 
 	go func() {
-		// wait for <Ctrl_c> user input
-		<-ctrl_c
-
-		// if any processes are running - terminate them
-		if proc != nil {
-			_ = proc.Kill()
+		for range sigCh {
+			callback()
 		}
-
-		// Call cleanUp for app clean up routine
-		if cleanUp != nil {
-			cleanUp()
-		}
-
-		// Graceful exit
-		os.Exit(0)
 	}()
 }

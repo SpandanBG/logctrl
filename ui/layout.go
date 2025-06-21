@@ -74,14 +74,6 @@ func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
 }
 
 func (u uiModel) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
-	if size.Width == 0 {
-		size.Width = 120
-	}
-
-	if size.Height == 0 {
-		size.Height = 30
-	}
-
 	if u.ready {
 		u.logView.Width = size.Width
 		u.logView.Height = size.Height

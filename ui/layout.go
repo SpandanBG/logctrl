@@ -103,13 +103,14 @@ func (u uiModel) fetchLog() tea.Cmd {
 }
 
 func (u uiModel) updateLogView(size tea.WindowSizeMsg) tea.Model {
-	fw, fh := logViewStyle.GetHorizontalFrameSize(), logViewStyle.GetVerticalFrameSize()
+	size.Width -= logViewStyle.GetHorizontalFrameSize()
+	size.Height -= logViewStyle.GetVerticalFrameSize()
 
 	if u.ready {
-		u.logView.Width = size.Width - fw
-		u.logView.Height = size.Height - fh
+		u.logView.Width = size.Width
+		u.logView.Height = size.Height
 	} else {
-		u.logView = viewport.New(size.Width-fw, size.Height-fh)
+		u.logView = viewport.New(size.Width, size.Height)
 		u.ready = true
 	}
 

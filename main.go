@@ -39,46 +39,37 @@ const (
 //
 // ────────────────────────────────────────────────────────────────────────────────
 func main() {
-	// ──────────────────────────────
-	// 1. Are we the re-exec’ed child?
-	// ──────────────────────────────
+	// Are we the re-exec’ed child?
 	if len(os.Getenv(ChildEnvVar)) > 0 {
 		startChildProcess()
 		os.Exit(0)
 	}
 
-	// ──────────────────────────────
-	// 2. Parent cleanup guarantee
-	//    Ensure the upstream producer (A) is killed
-	//    when *we* disappear.
-	// ──────────────────────────────
+	// Parent cleanup guarantee.
+	// Ensure the upstream producer (A) is killed
+	// when *we* disappear.
 	pgid := unix.Getpgrp()
 	defer unix.Kill(pgid, syscall.SIGTERM)
 
-	// ──────────────────────────────
-	// 3. Anonymous pipe for   A → B.
-	// 	  Grab the real keyboard and
-	//    put it in RAW so ^C etc.
-	//    arrive as bytes.
-	// ──────────────────────────────
+	// Anonymous pipe for   A → B.
+	// Grab the real keyboard and
+	// put it in RAW so ^C etc.
+	// arrive as bytes.
 	logReader, logWritter, console, cleanup := setupStreaming()
 	defer cleanup()
 
-	// ──────────────────────────────
-	// 4. Re-exec ourselves as the
-	//    child wrapped in a PTY.
-	//    • CHILD   env advertises fd
-	//    • ExtraFiles[0] becomes fd 3
-	// ──────────────────────────────
+	// Re-exec ourselves as the
+	// child wrapped in a PTY.
+	// • CHILD   env advertises fd
+	// • ExtraFiles[0] becomes fd 3
 	ptm := startPTY(logReader)
 
-	// ──────────────────────────────
-	// 6. Pump A’s output (parent’s
-	//    stdin) into the pipe → child
-	// ──────────────────────────────
+	// Pump A’s output (parent’s
+	// stdin) into the pipe → child
 	startDataPump(ptm, logWritter, console)
 }
 
+// startChildProcess - prepares the stream and launches the app UI.
 func startChildProcess() {
 	// Parse the fd number and drop into the child mode
 	childFdStr := os.Getenv(ChildEnvVar)
@@ -87,11 +78,17 @@ func startChildProcess() {
 		log.Fatalf("unable to parse child env var - %v", err)
 	}
 
-	logPipe := os.NewFile(uintptr(childFd), "logPipe")
+	// Get the log feed pipe
+	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
-	io.Copy(os.Stdout, logPipe)
+	io.Copy(os.Stdout, logFeed)
 }
 
+// setupStreaming - creates a log feed pipe and prepares the `/dev/tty` as the
+// console for I/O by PTY. Ensures to make `tty` as raw to pass all handing of
+// keyboard signals by child instead of parent.
+//
+// ensure to call `defer cleanup()` upon receiving returned items.
 func setupStreaming() (
 	logReader,
 	logWritter,
@@ -100,21 +97,26 @@ func setupStreaming() (
 ) {
 	var err error
 
+	// Creates the reader writer pipe for stream coming in from os.Stdin
 	logReader, logWritter, err = os.Pipe()
 	if err != nil {
 		log.Fatalf("unable to create pipe to child - %v", err)
 	}
 
+	// Opens up `/dev/tty` for passing all keyboard inputs to PTY
 	console, err = os.Open("/dev/tty")
 	if err != nil {
 		log.Fatalf("unable to to open /dev/tty - %v", err)
 	}
 
+	// Marks the current TTY as raw to ignore all keyboard signals (e.g. CTRL+c)
+	// and pass those to the PTY to be handled by the child.
 	oldState, err := term.MakeRaw(int(console.Fd()))
 	if err != nil {
 		log.Fatalf("unable to turn console raw - %v", err)
 	}
 
+	// cleanup - on call ensures to restore the terminal to original state on exit.
 	cleanup = func() {
 		defer term.Restore(int(console.Fd()), oldState)
 	}
@@ -122,6 +124,8 @@ func setupStreaming() (
 	return
 }
 
+// startPTY - starts self in a PTY and passes the required log feed reader file
+// and set required env variables.
 func startPTY(logReader *os.File) (ptm *os.File) {
 	self := os.Args[0]
 	cmd := exec.Command(self)
@@ -137,6 +141,10 @@ func startPTY(logReader *os.File) (ptm *os.File) {
 	return ptm
 }
 
+// startDataPump
+//   - perform writing to `logWritter` from `os.Stdin`.
+//   - pumps keyboard input from `console` to `ptm`.
+//   - pumps pty output's  to `os.Stdout`.
 func startDataPump(ptm, logWritter, console *os.File) {
 	// Pump A’s output (parent’s stdin) into the pipe → child
 	go func() {

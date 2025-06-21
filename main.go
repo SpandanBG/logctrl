@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/SpandanBG/logctrl/reader"
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
@@ -81,7 +82,13 @@ func startChildProcess() {
 	// Get the log feed pipe
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
-	io.Copy(os.Stdout, logFeed)
+	stream := reader.NewStream(logFeed)
+	for next := stream.Next(); next != ""; next = stream.Next() {
+		fmt.Println(next)
+	}
+
+	fmt.Println("ONE MORE TIME!")
+	fmt.Println(stream.All())
 }
 
 // setupStreaming - creates a log feed pipe and prepares the `/dev/tty` as the

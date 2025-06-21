@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/SpandanBG/logctrl/reader"
+	"github.com/SpandanBG/logctrl/ui"
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
@@ -83,12 +84,12 @@ func startChildProcess() {
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
 	stream := reader.NewStream(logFeed)
-	for next := stream.Next(); next != ""; next = stream.Next() {
-		fmt.Println(next)
-	}
+	app, exit := ui.NewUI(stream)
+	defer exit()
 
-	fmt.Println("ONE MORE TIME!")
-	fmt.Println(stream.All())
+	if _, err := app.Run(); err != nil {
+		log.Fatalf("unable to run app - %v", err)
+	}
 }
 
 // setupStreaming - creates a log feed pipe and prepares the `/dev/tty` as the

@@ -15,11 +15,14 @@ const (
 type Stream interface {
 	All() string
 	Next() string
+	Close()
 }
 
 type stream struct {
-	feed    bufio.Scanner
-	logFile *os.File
+	feed      bufio.Scanner
+	logFile   *os.File
+	logFeed   *os.File
+	logReader *os.File
 }
 
 func NewStream(logFeed *os.File) Stream {
@@ -39,8 +42,10 @@ func NewStream(logFeed *os.File) Stream {
 	}()
 
 	return &stream{
-		feed:    *bufio.NewScanner(logReader),
-		logFile: logFile,
+		feed:      *bufio.NewScanner(logReader),
+		logFile:   logFile,
+		logFeed:   logFeed,
+		logReader: logReader,
 	}
 }
 
@@ -58,6 +63,12 @@ func (s *stream) Next() string {
 		return s.feed.Text()
 	}
 	return ""
+}
+
+func (s *stream) Close() {
+	s.logFile.Close()
+	s.logFeed.Close()
+	s.logReader.Close()
 }
 
 // startStream - copies feed from `fromFeed` into both `toFeed` and `logFile`

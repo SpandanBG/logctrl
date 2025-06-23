@@ -39,7 +39,8 @@ func NewUI(stream reader.Stream) (
 		uiModel{
 			currentFG: ROOT_FG,
 			rootFG: []tea.Model{
-				components.NewLogView(1, 1, stream),
+				components.NewToolbar(1, 0.045),
+				components.NewLogView(1, 0.98, stream),
 			},
 		},
 		tea.WithAltScreen(),
@@ -123,6 +124,7 @@ func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
 
 func (u uiModel) batchUpdate(msg tea.Msg, fg []tea.Model) ([]tea.Model, []tea.Cmd) {
 	var cmds []tea.Cmd
+
 	for i, each := range fg {
 		vx, cmd := each.Update(msg)
 		fg[i] = vx

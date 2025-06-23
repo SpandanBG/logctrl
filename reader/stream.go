@@ -25,6 +25,10 @@ type stream struct {
 	logReader *os.File
 }
 
+// NewStream - Creates a new stream interface of log data
+// from producer to consumer. All logs are saved temporarily
+// to a temporary log file. The original feed is multiplexed
+// into the log file and into a stream for the ui consumer.
 func NewStream(logFeed *os.File) Stream {
 	logFile, err := os.CreateTemp(logFileLocation, logFileName)
 	if err != nil {
@@ -49,6 +53,7 @@ func NewStream(logFeed *os.File) Stream {
 	}
 }
 
+// All - reads the entire temp `logFile.txt` and returns the value.
 func (s *stream) All() string {
 	data, err := os.ReadFile(s.logFile.Name())
 	if err != nil {
@@ -58,6 +63,7 @@ func (s *stream) All() string {
 	return string(data)
 }
 
+// Next - fetches the next line that has been multiplexed into the stream.
 func (s *stream) Next() string {
 	if s.feed.Scan() {
 		return s.feed.Text()
@@ -65,6 +71,7 @@ func (s *stream) Next() string {
 	return ""
 }
 
+// Close - closes all pipes, readers, writers and files.
 func (s *stream) Close() {
 	s.logFile.Close()
 	s.logFeed.Close()

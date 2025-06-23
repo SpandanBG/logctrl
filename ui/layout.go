@@ -5,6 +5,7 @@ import (
 
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui/components"
+	ui "github.com/SpandanBG/logctrl/ui/utils"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -15,6 +16,10 @@ type focusGroup uint
 const (
 	ROOT_FG focusGroup = iota
 	POPUP_FG
+)
+
+const (
+	toolbarSize = 1
 )
 
 var (
@@ -39,8 +44,8 @@ func NewUI(stream reader.Stream) (
 		uiModel{
 			currentFG: ROOT_FG,
 			rootFG: []tea.Model{
-				components.NewToolbar(1, 0.045),
-				components.NewLogView(1, 0.98, stream),
+				components.NewToolbar(ui.SizeRatio(1), ui.SizeFixed(toolbarSize)),
+				components.NewLogView(ui.SizeRatio(1), ui.SizeModifier(-toolbarSize), stream),
 			},
 		},
 		tea.WithAltScreen(),

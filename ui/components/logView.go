@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/SpandanBG/logctrl/reader"
+	ui "github.com/SpandanBG/logctrl/ui/utils"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -18,18 +19,18 @@ var (
 )
 
 type logView struct {
-	wRatio float32        // how much % of the total width to span (value b/w: 0-1)
-	hRatio float32        // how much % of the total height to span (value b/w: 0-1)
+	width  ui.SizeI       // width modifier
+	height ui.SizeI       // height modifier
 	view   viewport.Model // holds the viewport
 	lines  []string       // holds a window of the logs lines
 	stream reader.Stream  // log feed stream to be displayed
 	ready  bool           // if `true` the viewport is ready to render
 }
 
-func NewLogView(wRatio, hRatio float32, stream reader.Stream) tea.Model {
+func NewLogView(width, height ui.SizeI, stream reader.Stream) tea.Model {
 	return logView{
-		wRatio: wRatio,
-		hRatio: hRatio,
+		width:  width,
+		height: height,
 		stream: stream,
 	}
 }
@@ -66,8 +67,9 @@ func (l logView) executeKey(key string) (tea.Model, tea.Cmd) {
 }
 
 func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
-	w := int(l.wRatio*float32(size.Width)) - logViewStyle.GetHorizontalFrameSize()
-	h := int(l.hRatio*float32(size.Height)) - logViewStyle.GetVerticalFrameSize()
+	size = ui.ModifySize(size, l.width, l.height)
+	w := size.Width - logViewStyle.GetHorizontalFrameSize()
+	h := size.Height - logViewStyle.GetVerticalFrameSize()
 
 	if l.ready {
 		l.view.Width = w

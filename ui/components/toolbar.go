@@ -1,15 +1,16 @@
 package components
 
 import (
+	ui "github.com/SpandanBG/logctrl/ui/utils"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	helpText = Grey_Color + "Quick Help:\t\t" +
-		Magenta_Color + "q" + Black_Color + ":Quit" +
-		Reset_Color
+	helpText = ui.Grey_Color + "Quick Help:\t\t" +
+		ui.Magenta_Color + "q" + ui.Black_Color + ":Quit" +
+		ui.Reset_Color
 )
 
 var (
@@ -19,16 +20,16 @@ var (
 )
 
 type toolbar struct {
-	wRatio float32
-	hRatio float32
+	width  ui.SizeI
+	height ui.SizeI
 	view   viewport.Model
 	ready  bool
 }
 
-func NewToolbar(wRatio, hRatio float32) tea.Model {
+func NewToolbar(width, height ui.SizeI) tea.Model {
 	return toolbar{
-		wRatio: wRatio,
-		hRatio: hRatio,
+		width:  width,
+		height: height,
 	}
 }
 
@@ -53,8 +54,10 @@ func (t toolbar) View() string {
 
 // ------------------------- Private
 func (t toolbar) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
-	w := int(t.wRatio*float32(size.Width)) - toolbarStyle.GetHorizontalFrameSize()
-	h := int(t.hRatio*float32(size.Height)) - toolbarStyle.GetVerticalFrameSize()
+	size = ui.ModifySize(size, t.width, t.height)
+
+	w := size.Width - toolbarStyle.GetHorizontalFrameSize()
+	h := size.Height - toolbarStyle.GetVerticalFrameSize()
 
 	if t.ready {
 		t.view.Width = w

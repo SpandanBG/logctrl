@@ -1,4 +1,4 @@
-package components
+package utils
 
 const (
 	Black_Color   = "\x1b[30m"

@@ -2,7 +2,6 @@ package components
 
 import (
 	ui "github.com/SpandanBG/logctrl/ui/utils"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -20,10 +19,9 @@ var (
 )
 
 type toolbar struct {
-	width  ui.SizeI
-	height ui.SizeI
-	view   viewport.Model
-	ready  bool
+	width    ui.SizeI
+	height   ui.SizeI
+	rendered string
 }
 
 func NewToolbar(width, height ui.SizeI) tea.Model {
@@ -42,32 +40,24 @@ func (t toolbar) Init() tea.Cmd {
 func (t toolbar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		return t.updateViewSize(msg)
+		return t.updateView(msg)
 	}
 
 	return t, nil
 }
 
 func (t toolbar) View() string {
-	return toolbarStyle.Render(t.view.View())
+	return t.rendered
 }
 
 // ------------------------- Private
-func (t toolbar) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
+func (t toolbar) updateView(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	size = ui.ModifySize(size, t.width, t.height)
 
-	w := size.Width - toolbarStyle.GetHorizontalFrameSize()
-	h := size.Height - toolbarStyle.GetVerticalFrameSize()
-
-	if t.ready {
-		t.view.Width = w
-		t.view.Height = h
-	} else {
-		t.view = viewport.New(w, h)
-		t.ready = true
-
-		t.view.SetContent(helpText)
-	}
+	t.rendered = toolbarStyle.
+		Width(size.Width).
+		Height(size.Height).
+		Render(helpText)
 
 	return t, nil
 }

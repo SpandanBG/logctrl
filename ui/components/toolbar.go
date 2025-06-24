@@ -6,11 +6,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const (
-	helpText = ui.Grey_Color + "Quick Help:\t\t" +
-		ui.Magenta_Color + "q" + ui.Black_Color + ":Quit" +
-		ui.Reset_Color
-)
+const helpText = ui.Grey_Color + "Quick Help:\t\t" +
+	ui.Magenta_Color + "q" + ui.Black_Color + ":Quit" +
+	ui.Reset_Color
 
 var (
 	toolbarStyle = lipgloss.NewStyle().

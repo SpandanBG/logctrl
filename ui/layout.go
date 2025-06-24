@@ -35,6 +35,7 @@ var (
 type logTeaCmd string
 
 type uiModel struct {
+	toolbar   tea.Model
 	currentFG focusGroup
 	logFG     []tea.Model
 	helpFG    []tea.Model
@@ -46,9 +47,9 @@ func NewUI(stream reader.Stream) (
 ) {
 	app = tea.NewProgram(
 		uiModel{
+			toolbar:   components.NewToolbar(ui.SizeRatio(1), ui.SizeFixed(toolbarSize)),
 			currentFG: LOG_FG,
 			logFG: []tea.Model{
-				components.NewToolbar(ui.SizeRatio(1), ui.SizeFixed(toolbarSize)),
 				components.NewLogView(ui.SizeRatio(1), ui.SizeModifier(-toolbarSize), stream),
 			},
 		},
@@ -89,7 +90,9 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return u.executeKeystroke(msg.String())
 	}
 
-	var cmds []tea.Cmd
+	cmds := []tea.Cmd{nil}
+	u.toolbar, cmds[0] = u.toolbar.Update(msg)
+
 	switch u.currentFG {
 	case LOG_FG:
 		u.logFG, cmds = u.batchUpdate(msg, u.logFG)
@@ -113,9 +116,10 @@ func (u uiModel) View() string {
 		return ""
 	}
 
-	var views []string
-	for _, each := range fg {
-		views = append(views, each.View())
+	views := make([]string, len(fg)+1)
+	views[0] = u.toolbar.View()
+	for i, each := range fg {
+		views[i+1] = each.View()
 	}
 
 	return strings.Join(views, "\n")
@@ -134,14 +138,10 @@ func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
 }
 
 func (u uiModel) batchUpdate(msg tea.Msg, fg []tea.Model) ([]tea.Model, []tea.Cmd) {
-	var cmds []tea.Cmd
-
+	cmds := make([]tea.Cmd, len(fg))
 	for i, each := range fg {
-		vx, cmd := each.Update(msg)
-		fg[i] = vx
-		cmds = append(cmds, cmd)
+		fg[i], cmds[i] = each.Update(msg)
 	}
-
 	return fg, cmds
 }
 

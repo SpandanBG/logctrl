@@ -10,6 +10,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// ----- Public tea.Msg
+type TeaLogSizeUpdate struct {
+	Width  ui.SizeI
+	Height ui.SizeI
+}
+
+// ----- Private tea.Msg
 type teaLogCmd string
 
 var (
@@ -50,6 +57,8 @@ func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return l.updateViewSize(msg)
 	case teaLogCmd:
 		return l.refreshView(string(msg))
+	case TeaLogSizeUpdate:
+		return l.updateSize(msg)
 	}
 	return l, nil
 }
@@ -97,4 +106,10 @@ func (l logView) fetchLog() tea.Cmd {
 		}
 		return nil
 	}
+}
+
+func (l logView) updateSize(update TeaLogSizeUpdate) (tea.Model, tea.Cmd) {
+	l.width = update.Width
+	l.height = update.Height
+	return l, tea.WindowSize()
 }

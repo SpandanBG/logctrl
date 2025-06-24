@@ -24,9 +24,10 @@ var (
 type logTeaCmd string
 
 type uiModel struct {
-	toolbar tea.Model
-	logView tea.Model
-	prompt  tea.Model
+	toolbar      tea.Model
+	logView      tea.Model
+	prompt       tea.Model
+	promptActive bool
 }
 
 func NewUI(stream reader.Stream) (
@@ -41,7 +42,7 @@ func NewUI(stream reader.Stream) (
 			),
 			logView: components.NewLogView(
 				ui.SizeRatio(1),
-				ui.SizeModifier(-(toolbarSize + promptSize)),
+				ui.SizeModifier(-toolbarSize),
 				stream,
 			),
 			prompt: components.NewPrompt(
@@ -61,7 +62,6 @@ func NewUI(stream reader.Stream) (
 }
 
 func (u uiModel) Init() tea.Cmd {
-
 	return tea.Batch(
 		u.toolbar.Init(),
 		u.logView.Init(),
@@ -75,22 +75,11 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return u.executeKeystroke(msg.String())
 	}
 
-	cmds := make([]tea.Cmd, 3)
-	u.toolbar, cmds[0] = u.toolbar.Update(msg)
-	u.logView, cmds[1] = u.logView.Update(msg)
-	u.prompt, cmds[2] = u.prompt.Update(msg)
-
-	return u, tea.Batch(cmds...)
+	return u.batchUpdate(msg)
 }
 
 func (u uiModel) View() string {
-	views := make([]string, 3)
-
-	views[0] = u.toolbar.View()
-	views[1] = u.logView.View()
-	views[2] = u.prompt.View()
-
-	return strings.Join(views, "\n")
+	return u.batchView()
 }
 
 // ------------------------- Private
@@ -98,7 +87,63 @@ func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
 	switch key {
 	case "ctrl+c", "ctrl+d", "q":
 		return u, tea.Quit
+	case "tab":
+		return u.togglePrompt()
 	default:
 		return u, nil
 	}
+}
+
+func (u uiModel) batchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	updateCount := u.getUpdateCount()
+	cmds := make([]tea.Cmd, updateCount)
+
+	u.toolbar, cmds[0] = u.toolbar.Update(msg)
+	u.logView, cmds[1] = u.logView.Update(msg)
+
+	if u.promptActive {
+		u.prompt, cmds[2] = u.prompt.Update(msg)
+	}
+
+	return u, tea.Batch(cmds...)
+}
+
+func (u uiModel) batchView() string {
+	updateCount := u.getUpdateCount()
+	views := make([]string, updateCount)
+
+	views[0] = u.toolbar.View()
+	views[1] = u.logView.View()
+
+	if u.promptActive {
+		views[2] = u.prompt.View()
+	}
+
+	return strings.Join(views, "\n")
+}
+
+func (u uiModel) getUpdateCount() int {
+	updateCount := 2
+	if u.promptActive {
+		updateCount += 1
+	}
+
+	return updateCount
+}
+
+func (u uiModel) togglePrompt() (tea.Model, tea.Cmd) {
+	u.promptActive = !u.promptActive
+
+	modifier := toolbarSize
+	if u.promptActive {
+		modifier += promptSize
+	}
+
+	var cmd tea.Cmd
+	u.logView, cmd = u.logView.Update(components.TeaLogSizeUpdate{
+		Width:  ui.SizeRatio(1),
+		Height: ui.SizeModifier(-modifier),
+	})
+
+	return u, cmd
 }

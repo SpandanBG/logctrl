@@ -72,6 +72,9 @@ func (u uiModel) Init() tea.Cmd {
 func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if u.promptActive {
+			return u.receivePrompt(msg)
+		}
 		return u.executeKeystroke(msg.String())
 	}
 
@@ -91,6 +94,17 @@ func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
 		return u.togglePrompt()
 	default:
 		return u, nil
+	}
+}
+
+func (u uiModel) receivePrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		return u.togglePrompt()
+	default:
+		var cmd tea.Cmd
+		u.prompt, cmd = u.prompt.Update(msg)
+		return u, cmd
 	}
 }
 
@@ -139,11 +153,19 @@ func (u uiModel) togglePrompt() (tea.Model, tea.Cmd) {
 		modifier += promptSize
 	}
 
-	var cmd tea.Cmd
-	u.logView, cmd = u.logView.Update(components.TeaLogSizeUpdate{
+	var logViewCmd, promptCmd tea.Cmd
+
+	u.logView, logViewCmd = u.logView.Update(components.TeaLogSizeUpdate{
 		Width:  ui.SizeRatio(1),
 		Height: ui.SizeModifier(-modifier),
 	})
 
-	return u, cmd
+	u.prompt, promptCmd = u.prompt.Update(components.TeaPromptToggle{
+		BringFocus: u.promptActive,
+	})
+
+	return u, tea.Batch(
+		logViewCmd,
+		promptCmd,
+	)
 }

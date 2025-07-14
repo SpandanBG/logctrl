@@ -84,7 +84,7 @@ func startChildProcess() {
 	// Get the log feed pipe
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
-	stream := reader.NewStream(logFeed)
+	stream := reader.NewStreamV2(logFeed)
 	app, exit := ui.NewUI(stream)
 	defer exit()
 

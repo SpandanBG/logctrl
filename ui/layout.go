@@ -30,7 +30,7 @@ type uiModel struct {
 	promptActive bool
 }
 
-func NewUI(stream reader.Stream) (
+func NewUI(stream reader.StreamV2) (
 	app *tea.Program,
 	exit func(),
 ) {

@@ -1,8 +1,6 @@
 package components
 
 import (
-	"strings"
-
 	"github.com/SpandanBG/logctrl/reader"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -26,19 +24,25 @@ var (
 )
 
 type logView struct {
-	width  ui.SizeI       // width modifier
-	height ui.SizeI       // height modifier
-	view   viewport.Model // holds the viewport
-	lines  []string       // holds a window of the logs lines
-	stream reader.Stream  // log feed stream to be displayed
-	ready  bool           // if `true` the viewport is ready to render
+	width   ui.SizeI        // width modifier
+	height  ui.SizeI        // height modifier
+	view    viewport.Model  // holds the viewport
+	stream  reader.StreamV2 // log feed stream to be displayed
+	ready   bool            // if `true` the viewport is ready to render
+	nextLog chan bool       // notification channel from stream
 }
 
-func NewLogView(width, height ui.SizeI, stream reader.Stream) tea.Model {
+func NewLogView(width, height ui.SizeI, stream reader.StreamV2) tea.Model {
+	nextLog := make(chan bool)
+
+	stream.SetBufferSize(1)
+	stream.Start(nextLog)
+
 	return logView{
-		width:  width,
-		height: height,
-		stream: stream,
+		width:   width,
+		height:  height,
+		stream:  stream,
+		nextLog: nextLog,
 	}
 }
 
@@ -91,20 +95,15 @@ func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	return l, nil
 }
 
-func (l logView) refreshView(log string) (tea.Model, tea.Cmd) {
-	l.lines = append(l.lines, log)
-	l.view.SetContent(
-		strings.Join(l.lines, "\n"),
-	)
+func (l logView) refreshView(logs string) (tea.Model, tea.Cmd) {
+	l.view.SetContent(logs)
 	return l, l.fetchLog()
 }
 
 func (l logView) fetchLog() tea.Cmd {
 	return func() tea.Msg {
-		if log := l.stream.Next(); log != "" {
-			return teaLogCmd(log)
-		}
-		return nil
+		<-l.nextLog
+		return teaLogCmd(l.stream.GetLive())
 	}
 }
 

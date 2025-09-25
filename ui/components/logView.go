@@ -80,10 +80,12 @@ func (l logView) executeKey(key string) (tea.Model, tea.Cmd) {
 }
 
 func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
+	// get relative size of view
 	size = ui.ModifySize(size, l.width, l.height)
 	w := size.Width - logViewStyle.GetHorizontalFrameSize()
 	h := size.Height - logViewStyle.GetVerticalFrameSize()
 
+	// update view width and height
 	if l.ready {
 		l.view.Width = w
 		l.view.Height = h
@@ -91,6 +93,9 @@ func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 		l.view = viewport.New(w, h)
 		l.ready = true
 	}
+
+	// set buffer size to the hight of the screen
+	l.stream.SetBufferSize(h)
 
 	return l, nil
 }

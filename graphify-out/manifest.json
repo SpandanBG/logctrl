@@ -1,0 +1,20 @@
+{
+  "main.go": 1752510402.8646762,
+  "reader/stream.go": 1752507939.4430504,
+  "reader/buffer_test.go": 1753722843.1201618,
+  "reader/buffer.go": 1753722775.2458823,
+  "reader/stream_v2.go": 1758818152.6622276,
+  "ui/layout.go": 1777195709.5200357,
+  "ui/utils/size.go": 1750691416.388718,
+  "ui/utils/constants.go": 1750692941.01582,
+  "ui/utils/utils.go": 1750692000.163841,
+  "ui/components/logView.go": 1777195709.5197532,
+  "ui/components/toolbar.go": 1750762899.5957797,
+  "ui/components/prompt.go": 1751903791.7580464,
+  "cmd/executor.go": 1749035331.0909054,
+  "input/prompt.go": 1749035350.194337,
+  "tests/tools/mockLogger.js": 1758816522.3136053,
+  "utils/signals.go": 1750520099.137942,
+  "README.md": 1749035645.1970675,
+  "CLAUDE.md": 1777195316.4812431
+}

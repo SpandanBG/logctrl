@@ -53,7 +53,7 @@
       "source_file": "main.go",
       "source_location": "L1",
       "id": "main_go",
-      "community": 6,
+      "community": 0,
       "norm_label": "main.go"
     },
     {
@@ -62,7 +62,7 @@
       "source_file": "main.go",
       "source_location": "L44",
       "id": "main_main",
-      "community": 6,
+      "community": 0,
       "norm_label": "main()"
     },
     {
@@ -71,7 +71,7 @@
       "source_file": "main.go",
       "source_location": "L76",
       "id": "main_startchildprocess",
-      "community": 6,
+      "community": 0,
       "norm_label": "startchildprocess()"
     },
     {
@@ -80,7 +80,7 @@
       "source_file": "main.go",
       "source_location": "L101",
       "id": "main_setupstreaming",
-      "community": 6,
+      "community": 0,
       "norm_label": "setupstreaming()"
     },
     {
@@ -89,7 +89,7 @@
       "source_file": "main.go",
       "source_location": "L138",
       "id": "main_startpty",
-      "community": 6,
+      "community": 0,
       "norm_label": "startpty()"
     },
     {
@@ -98,7 +98,7 @@
       "source_file": "main.go",
       "source_location": "L163",
       "id": "main_startdatapump",
-      "community": 6,
+      "community": 0,
       "norm_label": "startdatapump()"
     },
     {
@@ -107,7 +107,7 @@
       "source_file": "main.go",
       "source_location": "L184",
       "id": "main_resizepty",
-      "community": 6,
+      "community": 0,
       "norm_label": "resizepty()"
     },
     {
@@ -116,7 +116,7 @@
       "source_file": "reader/stream.go",
       "source_location": "L1",
       "id": "reader_stream_go",
-      "community": 8,
+      "community": 0,
       "norm_label": "stream.go"
     },
     {
@@ -125,53 +125,53 @@
       "source_file": "reader/stream.go",
       "source_location": "L15",
       "id": "reader_stream",
-      "community": 8,
+      "community": 0,
       "norm_label": "stream"
     },
     {
       "label": "NewStream()",
       "file_type": "code",
       "source_file": "reader/stream.go",
-      "source_location": "L32",
+      "source_location": "L36",
       "id": "stream_newstream",
-      "community": 8,
+      "community": 0,
       "norm_label": "newstream()"
     },
     {
-      "label": ".All()",
+      "label": ".Start()",
       "file_type": "code",
       "source_file": "reader/stream.go",
-      "source_location": "L57",
-      "id": "reader_stream_all",
-      "community": 8,
-      "norm_label": ".all()"
+      "source_location": "L50",
+      "id": "reader_stream_start",
+      "community": 0,
+      "norm_label": ".start()"
     },
     {
-      "label": ".Next()",
+      "label": ".SetBufferSize()",
       "file_type": "code",
       "source_file": "reader/stream.go",
-      "source_location": "L67",
-      "id": "reader_stream_next",
-      "community": 8,
-      "norm_label": ".next()"
+      "source_location": "L66",
+      "id": "reader_stream_setbuffersize",
+      "community": 0,
+      "norm_label": ".setbuffersize()"
+    },
+    {
+      "label": ".GetLive()",
+      "file_type": "code",
+      "source_file": "reader/stream.go",
+      "source_location": "L72",
+      "id": "reader_stream_getlive",
+      "community": 0,
+      "norm_label": ".getlive()"
     },
     {
       "label": ".Close()",
       "file_type": "code",
       "source_file": "reader/stream.go",
-      "source_location": "L75",
+      "source_location": "L77",
       "id": "reader_stream_close",
-      "community": 8,
+      "community": 0,
       "norm_label": ".close()"
-    },
-    {
-      "label": "startStream()",
-      "file_type": "code",
-      "source_file": "reader/stream.go",
-      "source_location": "L82",
-      "id": "stream_startstream",
-      "community": 8,
-      "norm_label": "startstream()"
     },
     {
       "label": "buffer_test.go",
@@ -309,69 +309,6 @@
       "norm_label": "copy()"
     },
     {
-      "label": "stream_v2.go",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L1",
-      "id": "reader_stream_v2_go",
-      "community": 0,
-      "norm_label": "stream_v2.go"
-    },
-    {
-      "label": "StreamV2",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L10",
-      "id": "reader_streamv2",
-      "community": 0,
-      "norm_label": "streamv2"
-    },
-    {
-      "label": "NewStreamV2()",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L31",
-      "id": "stream_v2_newstreamv2",
-      "community": 0,
-      "norm_label": "newstreamv2()"
-    },
-    {
-      "label": ".Start()",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L45",
-      "id": "reader_streamv2_start",
-      "community": 0,
-      "norm_label": ".start()"
-    },
-    {
-      "label": ".SetBufferSize()",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L61",
-      "id": "reader_streamv2_setbuffersize",
-      "community": 0,
-      "norm_label": ".setbuffersize()"
-    },
-    {
-      "label": ".GetLive()",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L67",
-      "id": "reader_streamv2_getlive",
-      "community": 0,
-      "norm_label": ".getlive()"
-    },
-    {
-      "label": ".Close()",
-      "file_type": "code",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L72",
-      "id": "reader_streamv2_close",
-      "community": 8,
-      "norm_label": ".close()"
-    },
-    {
       "label": "layout.go",
       "file_type": "code",
       "source_file": "ui/layout.go",
@@ -413,7 +350,7 @@
       "source_file": "ui/layout.go",
       "source_location": "L64",
       "id": "ui_uimodel_init",
-      "community": 4,
+      "community": 5,
       "norm_label": ".init()"
     },
     {
@@ -575,7 +512,7 @@
       "source_file": "ui/utils/constants.go",
       "source_location": "L1",
       "id": "ui_utils_constants_go",
-      "community": 11,
+      "community": 10,
       "norm_label": "constants.go"
     },
     {
@@ -584,7 +521,7 @@
       "source_file": "ui/utils/utils.go",
       "source_location": "L1",
       "id": "ui_utils_utils_go",
-      "community": 5,
+      "community": 6,
       "norm_label": "utils.go"
     },
     {
@@ -593,7 +530,7 @@
       "source_file": "ui/utils/utils.go",
       "source_location": "L5",
       "id": "utils_modifysize",
-      "community": 5,
+      "community": 6,
       "norm_label": "modifysize()"
     },
     {
@@ -602,7 +539,7 @@
       "source_file": "ui/utils/utils.go",
       "source_location": "L11",
       "id": "utils_updatesize",
-      "community": 5,
+      "community": 6,
       "norm_label": "updatesize()"
     },
     {
@@ -611,7 +548,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L1",
       "id": "ui_components_logview_go",
-      "community": 0,
+      "community": 4,
       "norm_label": "logview.go"
     },
     {
@@ -620,7 +557,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L12",
       "id": "components_tealogsizeupdate",
-      "community": 0,
+      "community": 4,
       "norm_label": "tealogsizeupdate"
     },
     {
@@ -629,7 +566,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L18",
       "id": "components_tealogcmd",
-      "community": 0,
+      "community": 4,
       "norm_label": "tealogcmd"
     },
     {
@@ -638,7 +575,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L26",
       "id": "components_logview",
-      "community": 0,
+      "community": 4,
       "norm_label": "logview"
     },
     {
@@ -656,7 +593,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L49",
       "id": "components_logview_init",
-      "community": 0,
+      "community": 4,
       "norm_label": ".init()"
     },
     {
@@ -665,7 +602,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L56",
       "id": "components_logview_update",
-      "community": 0,
+      "community": 4,
       "norm_label": ".update()"
     },
     {
@@ -674,7 +611,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L70",
       "id": "components_logview_view",
-      "community": 4,
+      "community": 5,
       "norm_label": ".view()"
     },
     {
@@ -683,7 +620,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L75",
       "id": "components_logview_executekey",
-      "community": 0,
+      "community": 4,
       "norm_label": ".executekey()"
     },
     {
@@ -692,7 +629,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L82",
       "id": "components_logview_updateviewsize",
-      "community": 0,
+      "community": 4,
       "norm_label": ".updateviewsize()"
     },
     {
@@ -701,7 +638,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L103",
       "id": "components_logview_refreshview",
-      "community": 0,
+      "community": 4,
       "norm_label": ".refreshview()"
     },
     {
@@ -710,7 +647,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L108",
       "id": "components_logview_fetchlog",
-      "community": 0,
+      "community": 4,
       "norm_label": ".fetchlog()"
     },
     {
@@ -719,7 +656,7 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L115",
       "id": "components_logview_updatesize",
-      "community": 0,
+      "community": 4,
       "norm_label": ".updatesize()"
     },
     {
@@ -728,7 +665,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L1",
       "id": "ui_components_toolbar_go",
-      "community": 5,
+      "community": 6,
       "norm_label": "toolbar.go"
     },
     {
@@ -737,7 +674,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L19",
       "id": "components_toolbar",
-      "community": 5,
+      "community": 6,
       "norm_label": "toolbar"
     },
     {
@@ -746,7 +683,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L25",
       "id": "toolbar_newtoolbar",
-      "community": 5,
+      "community": 6,
       "norm_label": "newtoolbar()"
     },
     {
@@ -755,7 +692,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L32",
       "id": "components_toolbar_init",
-      "community": 5,
+      "community": 6,
       "norm_label": ".init()"
     },
     {
@@ -764,7 +701,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L38",
       "id": "components_toolbar_update",
-      "community": 5,
+      "community": 6,
       "norm_label": ".update()"
     },
     {
@@ -773,7 +710,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L47",
       "id": "components_toolbar_view",
-      "community": 5,
+      "community": 6,
       "norm_label": ".view()"
     },
     {
@@ -782,7 +719,7 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L52",
       "id": "components_toolbar_updateview",
-      "community": 5,
+      "community": 6,
       "norm_label": ".updateview()"
     },
     {
@@ -791,7 +728,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L1",
       "id": "ui_components_prompt_go",
-      "community": 4,
+      "community": 5,
       "norm_label": "prompt.go"
     },
     {
@@ -800,7 +737,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L10",
       "id": "components_teaprompttoggle",
-      "community": 4,
+      "community": 5,
       "norm_label": "teaprompttoggle"
     },
     {
@@ -809,7 +746,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L14",
       "id": "components_prompt",
-      "community": 4,
+      "community": 5,
       "norm_label": "prompt"
     },
     {
@@ -818,7 +755,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L23",
       "id": "prompt_newprompt",
-      "community": 4,
+      "community": 5,
       "norm_label": "newprompt()"
     },
     {
@@ -827,7 +764,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L32",
       "id": "components_prompt_init",
-      "community": 4,
+      "community": 5,
       "norm_label": ".init()"
     },
     {
@@ -836,7 +773,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L38",
       "id": "components_prompt_update",
-      "community": 4,
+      "community": 5,
       "norm_label": ".update()"
     },
     {
@@ -845,7 +782,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L51",
       "id": "components_prompt_view",
-      "community": 4,
+      "community": 5,
       "norm_label": ".view()"
     },
     {
@@ -854,7 +791,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L56",
       "id": "components_prompt_updateview",
-      "community": 4,
+      "community": 5,
       "norm_label": ".updateview()"
     },
     {
@@ -863,7 +800,7 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L63",
       "id": "components_prompt_setfocus",
-      "community": 4,
+      "community": 5,
       "norm_label": ".setfocus()"
     },
     {
@@ -872,7 +809,7 @@
       "source_file": "cmd/executor.go",
       "source_location": "L1",
       "id": "cmd_executor_go",
-      "community": 12,
+      "community": 11,
       "norm_label": "executor.go"
     },
     {
@@ -881,7 +818,7 @@
       "source_file": "input/prompt.go",
       "source_location": "L1",
       "id": "input_prompt_go",
-      "community": 13,
+      "community": 12,
       "norm_label": "prompt.go"
     },
     {
@@ -890,7 +827,7 @@
       "source_file": "tests/tools/mockLogger.js",
       "source_location": "L1",
       "id": "tests_tools_mocklogger_js",
-      "community": 10,
+      "community": 9,
       "norm_label": "mocklogger.js"
     },
     {
@@ -899,7 +836,7 @@
       "source_file": "tests/tools/mockLogger.js",
       "source_location": "L1",
       "id": "mocklogger_waitfor",
-      "community": 10,
+      "community": 9,
       "norm_label": "waitfor()"
     },
     {
@@ -908,7 +845,7 @@
       "source_file": "tests/tools/mockLogger.js",
       "source_location": "L5",
       "id": "mocklogger_makelogs",
-      "community": 10,
+      "community": 9,
       "norm_label": "makelogs()"
     },
     {
@@ -917,7 +854,7 @@
       "source_file": "utils/signals.go",
       "source_location": "L1",
       "id": "utils_signals_go",
-      "community": 6,
+      "community": 0,
       "norm_label": "signals.go"
     },
     {
@@ -926,7 +863,7 @@
       "source_file": "utils/signals.go",
       "source_location": "L9",
       "id": "signals_onterminalresize",
-      "community": 6,
+      "community": 0,
       "norm_label": "onterminalresize()"
     },
     {
@@ -938,9 +875,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_logctrl",
       "community": 1,
-      "norm_label": "logctrl"
+      "norm_label": "logctrl",
+      "id": "claudemd_logctrl"
     },
     {
       "label": "Parent Process (main.go)",
@@ -951,9 +888,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_parent_process",
       "community": 1,
-      "norm_label": "parent process (main.go)"
+      "norm_label": "parent process (main.go)",
+      "id": "claudemd_parent_process"
     },
     {
       "label": "Child Process (startChildProcess)",
@@ -964,9 +901,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_child_process",
       "community": 1,
-      "norm_label": "child process (startchildprocess)"
+      "norm_label": "child process (startchildprocess)",
+      "id": "claudemd_child_process"
     },
     {
       "label": "reader.StreamV2",
@@ -977,9 +914,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_streamv2",
       "community": 1,
-      "norm_label": "reader.streamv2"
+      "norm_label": "reader.streamv2",
+      "id": "claudemd_streamv2"
     },
     {
       "label": "reader.Buffer",
@@ -990,9 +927,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_buffer",
       "community": 1,
-      "norm_label": "reader.buffer"
+      "norm_label": "reader.buffer",
+      "id": "claudemd_buffer"
     },
     {
       "label": "ui/components LogView",
@@ -1003,9 +940,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_logview",
       "community": 1,
-      "norm_label": "ui/components logview"
+      "norm_label": "ui/components logview",
+      "id": "claudemd_logview"
     },
     {
       "label": "ui/components Toolbar",
@@ -1016,9 +953,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_toolbar",
       "community": 1,
-      "norm_label": "ui/components toolbar"
+      "norm_label": "ui/components toolbar",
+      "id": "claudemd_toolbar"
     },
     {
       "label": "ui/components Prompt",
@@ -1029,9 +966,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_prompt",
       "community": 1,
-      "norm_label": "ui/components prompt"
+      "norm_label": "ui/components prompt",
+      "id": "claudemd_prompt"
     },
     {
       "label": "ui/ BubbleTea Layout Model",
@@ -1042,9 +979,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_ui_layout",
       "community": 1,
-      "norm_label": "ui/ bubbletea layout model"
+      "norm_label": "ui/ bubbletea layout model",
+      "id": "claudemd_ui_layout"
     },
     {
       "label": "ui/utils Responsive Sizing",
@@ -1055,9 +992,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_ui_utils",
-      "community": 9,
-      "norm_label": "ui/utils responsive sizing"
+      "community": 8,
+      "norm_label": "ui/utils responsive sizing",
+      "id": "claudemd_ui_utils"
     },
     {
       "label": "utils/ SIGWINCH Handler",
@@ -1068,9 +1005,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_utils_sigwinch",
       "community": 1,
-      "norm_label": "utils/ sigwinch handler"
+      "norm_label": "utils/ sigwinch handler",
+      "id": "claudemd_utils_sigwinch"
     },
     {
       "label": "tea.Model Interface",
@@ -1081,9 +1018,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_tea_model",
       "community": 1,
-      "norm_label": "tea.model interface"
+      "norm_label": "tea.model interface",
+      "id": "claudemd_tea_model"
     },
     {
       "label": "logctrl_child Environment Variable",
@@ -1094,9 +1031,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_logctrl_child_env",
       "community": 1,
-      "norm_label": "logctrl_child environment variable"
+      "norm_label": "logctrl_child environment variable",
+      "id": "claudemd_logctrl_child_env"
     },
     {
       "label": "Anonymous Pipe",
@@ -1107,9 +1044,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_anonymous_pipe",
       "community": 1,
-      "norm_label": "anonymous pipe"
+      "norm_label": "anonymous pipe",
+      "id": "claudemd_anonymous_pipe"
     },
     {
       "label": "PTY (master/slave)",
@@ -1120,9 +1057,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_pty",
       "community": 1,
-      "norm_label": "pty (master/slave)"
+      "norm_label": "pty (master/slave)",
+      "id": "claudemd_pty"
     },
     {
       "label": "Temp Log File (logCtrl_logFile.txt)",
@@ -1133,9 +1070,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_temp_file",
       "community": 1,
-      "norm_label": "temp log file (logctrl_logfile.txt)"
+      "norm_label": "temp log file (logctrl_logfile.txt)",
+      "id": "claudemd_temp_file"
     },
     {
       "label": "Parent-Child Process Model Design Rationale",
@@ -1146,9 +1083,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_parent_child_process_model",
       "community": 1,
-      "norm_label": "parent-child process model design rationale"
+      "norm_label": "parent-child process model design rationale",
+      "id": "claudemd_parent_child_process_model"
     },
     {
       "label": "ui/utils Ratio Type",
@@ -1159,9 +1096,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_ratio_type",
-      "community": 9,
-      "norm_label": "ui/utils ratio type"
+      "community": 8,
+      "norm_label": "ui/utils ratio type",
+      "id": "claudemd_ratio_type"
     },
     {
       "label": "ui/utils Fixed Type",
@@ -1172,9 +1109,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_fixed_type",
-      "community": 9,
-      "norm_label": "ui/utils fixed type"
+      "community": 8,
+      "norm_label": "ui/utils fixed type",
+      "id": "claudemd_fixed_type"
     },
     {
       "label": "ui/utils Modifier Type",
@@ -1185,9 +1122,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "claudemd_modifier_type",
-      "community": 9,
-      "norm_label": "ui/utils modifier type"
+      "community": 8,
+      "norm_label": "ui/utils modifier type",
+      "id": "claudemd_modifier_type"
     }
   ],
   "links": [
@@ -1319,9 +1256,9 @@
       "source_location": "L87",
       "weight": 1.0,
       "_src": "main_startchildprocess",
-      "_tgt": "stream_v2_newstreamv2",
+      "_tgt": "stream_newstream",
       "source": "main_startchildprocess",
-      "target": "stream_v2_newstreamv2"
+      "target": "stream_newstream"
     },
     {
       "relation": "calls",
@@ -1355,9 +1292,9 @@
       "source_location": "L145",
       "weight": 1.0,
       "_src": "main_startpty",
-      "_tgt": "reader_streamv2_start",
+      "_tgt": "reader_stream_start",
       "source": "main_startpty",
-      "target": "reader_streamv2_start"
+      "target": "reader_stream_start"
     },
     {
       "relation": "calls",
@@ -1391,15 +1328,15 @@
       "source_location": "L167",
       "weight": 1.0,
       "_src": "main_startdatapump",
-      "_tgt": "reader_streamv2_close",
+      "_tgt": "reader_stream_close",
       "source": "main_startdatapump",
-      "target": "reader_streamv2_close"
+      "target": "reader_stream_close"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "reader/stream.go",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "_src": "reader_stream_go",
       "_tgt": "reader_stream",
@@ -1411,7 +1348,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "reader/stream.go",
-      "source_location": "L32",
+      "source_location": "L36",
       "weight": 1.0,
       "_src": "reader_stream_go",
       "_tgt": "stream_newstream",
@@ -1420,100 +1357,148 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream.go",
-      "source_location": "L82",
-      "weight": 1.0,
-      "_src": "reader_stream_go",
-      "_tgt": "stream_startstream",
-      "source": "reader_stream_go",
-      "target": "stream_startstream",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "reader/stream.go",
-      "source_location": "L57",
+      "source_location": "L50",
       "weight": 1.0,
       "_src": "reader_stream",
-      "_tgt": "reader_stream_all",
+      "_tgt": "reader_stream_start",
       "source": "reader_stream",
-      "target": "reader_stream_all",
+      "target": "reader_stream_start",
       "confidence_score": 1.0
     },
     {
       "relation": "method",
       "confidence": "EXTRACTED",
+      "source_file": "reader/stream.go",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_src": "reader_stream",
+      "_tgt": "reader_stream_setbuffersize",
+      "source": "reader_stream",
+      "target": "reader_stream_setbuffersize",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "reader/stream.go",
+      "source_location": "L72",
+      "weight": 1.0,
+      "_src": "reader_stream",
+      "_tgt": "reader_stream_getlive",
+      "source": "reader_stream",
+      "target": "reader_stream_getlive",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "reader/stream.go",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_src": "reader_stream",
+      "_tgt": "reader_stream_close",
+      "source": "reader_stream",
+      "target": "reader_stream_close",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "reader/stream.go",
+      "source_location": "L58",
+      "weight": 1.0,
+      "_src": "reader_stream_start",
+      "_tgt": "reader_buffer_push",
+      "source": "reader_stream_start",
+      "target": "reader_buffer_push"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "ui/components/logView.go",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_src": "logview_newlogview",
+      "_tgt": "reader_stream_start",
+      "source": "reader_stream_start",
+      "target": "logview_newlogview"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "reader/stream.go",
       "source_location": "L67",
       "weight": 1.0,
-      "_src": "reader_stream",
-      "_tgt": "reader_stream_next",
-      "source": "reader_stream",
-      "target": "reader_stream_next",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream.go",
-      "source_location": "L75",
-      "weight": 1.0,
-      "_src": "reader_stream",
-      "_tgt": "reader_stream_close",
-      "source": "reader_stream",
-      "target": "reader_stream_close",
-      "confidence_score": 1.0
+      "_src": "reader_stream_setbuffersize",
+      "_tgt": "buffer_newbuffer",
+      "source": "reader_stream_setbuffersize",
+      "target": "buffer_newbuffer"
     },
     {
       "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream.go",
-      "source_location": "L44",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "ui/components/logView.go",
+      "source_location": "L38",
       "weight": 1.0,
-      "_src": "stream_newstream",
-      "_tgt": "stream_startstream",
-      "source": "stream_newstream",
-      "target": "stream_startstream",
-      "confidence_score": 1.0
+      "_src": "logview_newlogview",
+      "_tgt": "reader_stream_setbuffersize",
+      "source": "reader_stream_setbuffersize",
+      "target": "logview_newlogview"
     },
     {
       "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream.go",
-      "source_location": "L45",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "ui/components/logView.go",
+      "source_location": "L98",
       "weight": 1.0,
-      "_src": "stream_newstream",
-      "_tgt": "reader_stream_close",
-      "source": "stream_newstream",
-      "target": "reader_stream_close",
-      "confidence_score": 1.0
+      "_src": "components_logview_updateviewsize",
+      "_tgt": "reader_stream_setbuffersize",
+      "source": "reader_stream_setbuffersize",
+      "target": "components_logview_updateviewsize"
     },
     {
       "relation": "calls",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "reader/stream.go",
-      "source_location": "L76",
+      "source_location": "L73",
       "weight": 1.0,
-      "_src": "reader_stream_close",
-      "_tgt": "reader_streamv2_close",
+      "_src": "reader_stream_getlive",
+      "_tgt": "reader_buffer_stringify",
+      "source": "reader_stream_getlive",
+      "target": "reader_buffer_stringify"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "ui/components/logView.go",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_src": "components_logview_fetchlog",
+      "_tgt": "reader_stream_getlive",
+      "source": "reader_stream_getlive",
+      "target": "components_logview_fetchlog"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "ui/layout.go",
+      "source_location": "L58",
+      "weight": 1.0,
+      "_src": "layout_newui",
+      "_tgt": "reader_stream_close",
       "source": "reader_stream_close",
-      "target": "reader_streamv2_close"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "reader/stream.go",
-      "source_location": "L84",
-      "weight": 1.0,
-      "_src": "stream_startstream",
-      "_tgt": "buffer_copy",
-      "source": "stream_startstream",
-      "target": "buffer_copy"
+      "target": "layout_newui"
     },
     {
       "relation": "contains",
@@ -1853,18 +1838,6 @@
     },
     {
       "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L62",
-      "weight": 1.0,
-      "_src": "reader_streamv2_setbuffersize",
-      "_tgt": "buffer_newbuffer",
-      "source": "buffer_newbuffer",
-      "target": "reader_streamv2_setbuffersize"
-    },
-    {
-      "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "reader/buffer.go",
       "source_location": "L83",
@@ -1886,18 +1859,6 @@
       "source": "reader_buffer_push",
       "target": "reader_buffer_enlarge",
       "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L53",
-      "weight": 1.0,
-      "_src": "reader_streamv2_start",
-      "_tgt": "reader_buffer_push",
-      "source": "reader_buffer_push",
-      "target": "reader_streamv2_start"
     },
     {
       "relation": "calls",
@@ -1934,18 +1895,6 @@
       "source": "reader_buffer_stringify",
       "target": "reader_buffer_foreach",
       "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L68",
-      "weight": 1.0,
-      "_src": "reader_streamv2_getlive",
-      "_tgt": "reader_buffer_stringify",
-      "source": "reader_buffer_stringify",
-      "target": "reader_streamv2_getlive"
     },
     {
       "relation": "calls",
@@ -1994,138 +1943,6 @@
       "source": "reader_buffer_enlarge",
       "target": "buffer_copy",
       "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L17",
-      "weight": 1.0,
-      "_src": "reader_stream_v2_go",
-      "_tgt": "reader_streamv2",
-      "source": "reader_stream_v2_go",
-      "target": "reader_streamv2",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L31",
-      "weight": 1.0,
-      "_src": "reader_stream_v2_go",
-      "_tgt": "stream_v2_newstreamv2",
-      "source": "reader_stream_v2_go",
-      "target": "stream_v2_newstreamv2",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L45",
-      "weight": 1.0,
-      "_src": "reader_streamv2",
-      "_tgt": "reader_streamv2_start",
-      "source": "reader_streamv2",
-      "target": "reader_streamv2_start",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L61",
-      "weight": 1.0,
-      "_src": "reader_streamv2",
-      "_tgt": "reader_streamv2_setbuffersize",
-      "source": "reader_streamv2",
-      "target": "reader_streamv2_setbuffersize",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L67",
-      "weight": 1.0,
-      "_src": "reader_streamv2",
-      "_tgt": "reader_streamv2_getlive",
-      "source": "reader_streamv2",
-      "target": "reader_streamv2_getlive",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "reader/stream_v2.go",
-      "source_location": "L72",
-      "weight": 1.0,
-      "_src": "reader_streamv2",
-      "_tgt": "reader_streamv2_close",
-      "source": "reader_streamv2",
-      "target": "reader_streamv2_close",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "ui/components/logView.go",
-      "source_location": "L39",
-      "weight": 1.0,
-      "_src": "logview_newlogview",
-      "_tgt": "reader_streamv2_start",
-      "source": "reader_streamv2_start",
-      "target": "logview_newlogview"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "ui/components/logView.go",
-      "source_location": "L38",
-      "weight": 1.0,
-      "_src": "logview_newlogview",
-      "_tgt": "reader_streamv2_setbuffersize",
-      "source": "reader_streamv2_setbuffersize",
-      "target": "logview_newlogview"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "ui/components/logView.go",
-      "source_location": "L98",
-      "weight": 1.0,
-      "_src": "components_logview_updateviewsize",
-      "_tgt": "reader_streamv2_setbuffersize",
-      "source": "reader_streamv2_setbuffersize",
-      "target": "components_logview_updateviewsize"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "ui/components/logView.go",
-      "source_location": "L111",
-      "weight": 1.0,
-      "_src": "components_logview_fetchlog",
-      "_tgt": "reader_streamv2_getlive",
-      "source": "reader_streamv2_getlive",
-      "target": "components_logview_fetchlog"
-    },
-    {
-      "relation": "calls",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "ui/layout.go",
-      "source_location": "L58",
-      "weight": 1.0,
-      "_src": "layout_newui",
-      "_tgt": "reader_streamv2_close",
-      "source": "reader_streamv2_close",
-      "target": "layout_newui"
     },
     {
       "relation": "contains",
@@ -2590,8 +2407,8 @@
       "source_file": "ui/utils/utils.go",
       "source_location": "L12",
       "weight": 1.0,
-      "_src": "utils_updatesize",
-      "_tgt": "utils_sizemodifier_type",
+      "_src": "utils_sizemodifier_type",
+      "_tgt": "utils_updatesize",
       "source": "utils_sizemodifier_type",
       "target": "utils_updatesize"
     },
@@ -2638,8 +2455,8 @@
       "source_file": "ui/components/logView.go",
       "source_location": "L84",
       "weight": 1.0,
-      "_src": "components_logview_updateviewsize",
-      "_tgt": "utils_modifysize",
+      "_src": "utils_modifysize",
+      "_tgt": "components_logview_updateviewsize",
       "source": "utils_modifysize",
       "target": "components_logview_updateviewsize"
     },
@@ -2650,8 +2467,8 @@
       "source_file": "ui/components/toolbar.go",
       "source_location": "L53",
       "weight": 1.0,
-      "_src": "components_toolbar_updateview",
-      "_tgt": "utils_modifysize",
+      "_src": "utils_modifysize",
+      "_tgt": "components_toolbar_updateview",
       "source": "utils_modifysize",
       "target": "components_toolbar_updateview"
     },
@@ -2662,8 +2479,8 @@
       "source_file": "ui/components/prompt.go",
       "source_location": "L57",
       "weight": 1.0,
-      "_src": "components_prompt_updateview",
-      "_tgt": "utils_modifysize",
+      "_src": "utils_modifysize",
+      "_tgt": "components_prompt_updateview",
       "source": "utils_modifysize",
       "target": "components_prompt_updateview"
     },
@@ -3178,8 +2995,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 19",
       "weight": 1.0,
-      "_src": "claudemd_parent_child_process_model",
-      "_tgt": "claudemd_parent_process",
+      "_src": "claudemd_parent_process",
+      "_tgt": "claudemd_parent_child_process_model",
       "source": "claudemd_parent_process",
       "target": "claudemd_parent_child_process_model"
     },
@@ -3214,8 +3031,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 71",
       "weight": 1.0,
-      "_src": "claudemd_logctrl_child_env",
-      "_tgt": "claudemd_parent_process",
+      "_src": "claudemd_parent_process",
+      "_tgt": "claudemd_logctrl_child_env",
       "source": "claudemd_parent_process",
       "target": "claudemd_logctrl_child_env"
     },
@@ -3226,8 +3043,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 19",
       "weight": 1.0,
-      "_src": "claudemd_utils_sigwinch",
-      "_tgt": "claudemd_parent_process",
+      "_src": "claudemd_parent_process",
+      "_tgt": "claudemd_utils_sigwinch",
       "source": "claudemd_parent_process",
       "target": "claudemd_utils_sigwinch"
     },
@@ -3238,8 +3055,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 20",
       "weight": 1.0,
-      "_src": "claudemd_parent_child_process_model",
-      "_tgt": "claudemd_child_process",
+      "_src": "claudemd_child_process",
+      "_tgt": "claudemd_parent_child_process_model",
       "source": "claudemd_child_process",
       "target": "claudemd_parent_child_process_model"
     },
@@ -3286,8 +3103,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 28",
       "weight": 1.0,
-      "_src": "claudemd_pty",
-      "_tgt": "claudemd_child_process",
+      "_src": "claudemd_child_process",
+      "_tgt": "claudemd_pty",
       "source": "claudemd_child_process",
       "target": "claudemd_pty"
     },
@@ -3298,8 +3115,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 25",
       "weight": 1.0,
-      "_src": "claudemd_anonymous_pipe",
-      "_tgt": "claudemd_streamv2",
+      "_src": "claudemd_streamv2",
+      "_tgt": "claudemd_anonymous_pipe",
       "source": "claudemd_streamv2",
       "target": "claudemd_anonymous_pipe"
     },
@@ -3334,8 +3151,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 38",
       "weight": 1.0,
-      "_src": "claudemd_logview",
-      "_tgt": "claudemd_streamv2",
+      "_src": "claudemd_streamv2",
+      "_tgt": "claudemd_logview",
       "source": "claudemd_streamv2",
       "target": "claudemd_logview"
     },
@@ -3346,8 +3163,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 44",
       "weight": 1.0,
-      "_src": "claudemd_utils_sigwinch",
-      "_tgt": "claudemd_streamv2",
+      "_src": "claudemd_streamv2",
+      "_tgt": "claudemd_utils_sigwinch",
       "source": "claudemd_streamv2",
       "target": "claudemd_utils_sigwinch"
     },
@@ -3370,8 +3187,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 37",
       "weight": 1.0,
-      "_src": "claudemd_ui_layout",
-      "_tgt": "claudemd_logview",
+      "_src": "claudemd_logview",
+      "_tgt": "claudemd_ui_layout",
       "source": "claudemd_logview",
       "target": "claudemd_ui_layout"
     },
@@ -3394,8 +3211,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 37",
       "weight": 1.0,
-      "_src": "claudemd_ui_layout",
-      "_tgt": "claudemd_toolbar",
+      "_src": "claudemd_toolbar",
+      "_tgt": "claudemd_ui_layout",
       "source": "claudemd_toolbar",
       "target": "claudemd_ui_layout"
     },
@@ -3418,8 +3235,8 @@
       "source_file": "CLAUDE.md",
       "source_location": "line 37",
       "weight": 1.0,
-      "_src": "claudemd_ui_layout",
-      "_tgt": "claudemd_prompt",
+      "_src": "claudemd_prompt",
+      "_tgt": "claudemd_ui_layout",
       "source": "claudemd_prompt",
       "target": "claudemd_ui_layout"
     },

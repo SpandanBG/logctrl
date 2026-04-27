@@ -27,12 +27,12 @@ type logView struct {
 	width   ui.SizeI        // width modifier
 	height  ui.SizeI        // height modifier
 	view    viewport.Model  // holds the viewport
-	stream  reader.StreamV2 // log feed stream to be displayed
+	stream  reader.Stream // log feed stream to be displayed
 	ready   bool            // if `true` the viewport is ready to render
 	nextLog chan bool       // notification channel from stream
 }
 
-func NewLogView(width, height ui.SizeI, stream reader.StreamV2) tea.Model {
+func NewLogView(width, height ui.SizeI, stream reader.Stream) tea.Model {
 	nextLog := make(chan bool)
 
 	stream.SetBufferSize(1)

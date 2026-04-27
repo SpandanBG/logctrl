@@ -13,73 +13,69 @@ const (
 )
 
 type Stream interface {
-	All() string
-	Next() string
+	Start(chan bool)
+	SetBufferSize(int)
+	GetLive() string
 	Close()
 }
 
 type stream struct {
-	feed      bufio.Scanner
-	logFile   *os.File
-	logFeed   *os.File
-	logReader *os.File
+	// log files
+	logFile *os.File
+	logFeed *os.File
+
+	// access buffers
+	liveAccessBuffer   Buffer
+	randomAccessBuffer Buffer
+
+	// notification channel
+	next chan bool
 }
 
-// NewStream - Creates a new stream interface of log data
-// from producer to consumer. All logs are saved temporarily
-// to a temporary log file. The original feed is multiplexed
-// into the log file and into a stream for the ui consumer.
+// NewStream - Creates a new stream object from the `logFeed` provided.
 func NewStream(logFeed *os.File) Stream {
 	logFile, err := os.CreateTemp(logFileLocation, logFileName)
 	if err != nil {
 		log.Fatalf("unable to create temp log file - %v", err)
 	}
 
-	logReader, logWritter, err := os.Pipe()
-	if err != nil {
-		log.Fatalf("unable to create log pipe for stream - %v", err)
+	return &stream{
+		logFile: logFile,
+		logFeed: logFeed,
 	}
+}
+
+// Start - starts the stream. Takes `next` boolean channel which would be
+// notified when new logs has been fed into the stream from the producer.
+func (s *stream) Start(next chan bool) {
+	s.next = next
 
 	go func() {
-		startStream(logFeed, logWritter, logFile)
-		defer logReader.Close()
+		teeReader := io.TeeReader(s.logFeed, s.logFile)
+		liveBuffer := bufio.NewScanner(teeReader)
+		for liveBuffer.Scan() {
+			s.next <- true
+			s.liveAccessBuffer.Push(liveBuffer.Text())
+		}
 	}()
-
-	return &stream{
-		feed:      *bufio.NewScanner(logReader),
-		logFile:   logFile,
-		logFeed:   logFeed,
-		logReader: logReader,
-	}
 }
 
-// All - reads the entire temp `logFile.txt` and returns the value.
-func (s *stream) All() string {
-	data, err := os.ReadFile(s.logFile.Name())
-	if err != nil {
-		log.Fatalf("unable to read logFile.txt temp file - %v", err)
-	}
-
-	return string(data)
+// SetBufferSize - sets the size of `randomAccessBuffer` and `liveAccessBuffer`.
+// This function would create a new buffer entirely and so all previous data
+// will be wiped clean.
+func (s *stream) SetBufferSize(size int) {
+	s.randomAccessBuffer = NewBuffer(size)
+	s.liveAccessBuffer = NewBuffer(size)
 }
 
-// Next - fetches the next line that has been multiplexed into the stream.
-func (s *stream) Next() string {
-	if s.feed.Scan() {
-		return s.feed.Text()
-	}
-	return ""
+// GetLive - returns the live logs that are currently being pushed
+func (s *stream) GetLive() string {
+	return s.liveAccessBuffer.Stringify("\n")
 }
 
-// Close - closes all pipes, readers, writers and files.
+// Close - closes all pipes and files
 func (s *stream) Close() {
-	s.logFile.Close()
 	s.logFeed.Close()
-	s.logReader.Close()
-}
-
-// startStream - copies feed from `fromFeed` into both `toFeed` and `logFile`
-func startStream(fromFeed, toFeed, logFile *os.File) {
-	teeReader := io.TeeReader(fromFeed, logFile)
-	io.Copy(toFeed, teeReader)
+	s.logFile.Close()
+	close(s.next)
 }

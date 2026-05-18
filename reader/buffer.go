@@ -43,11 +43,10 @@ func (b *buffer) Push(msg string) {
 
 // Resize - updates and size of the buffer and makes sure the old data is present
 func (b *buffer) Resize(newSize int) {
-	if b.size > newSize {
-		b.shrink(newSize)
-	} else {
-		b.enlarge(newSize)
+	if b.size == newSize {
+		return
 	}
+	b.resize(newSize)
 }
 
 // Stringify - joins the data in the buffer into a single string with the
@@ -68,39 +67,40 @@ func (b *buffer) Stringify(separator string) string {
 
 // ----------------------- PRIVATE
 
-// shrink - reduces the size of the buffer and keeps old data
-// TODO - optimize iteration of old buffer to copy to new buffer instead of
-// copying from start to end, we can just try and copy from the items that would
-// be left in the final buffer.
-func (b *buffer) shrink(newSize int) {
-	if b.size < newSize {
-		return
+// resize rebuilds the buffer at newSize, preserving the most-recent
+// min(filled, newSize) items without routing evicted items through Push.
+func (b *buffer) resize(newSize int) {
+	nb := NewBuffer(newSize)
+	nbuf := nb.(*buffer)
+
+	keep := min(b.filled, newSize)
+
+	if keep > 0 {
+		var oldestPhys int
+		if b.filled == b.size {
+			oldestPhys = (b.i - 1 + b.size) % b.size
+		} else {
+			oldestPhys = b.i
+		}
+
+		startPhys := (oldestPhys + (b.filled - keep)) % b.size
+		for idx := range keep {
+			nbuf.buf[idx] = b.buf[(startPhys+idx)%b.size]
+		}
 	}
 
-	nb := NewBuffer(newSize)
-
-	b.forEach(func(s string, _ int) bool {
-		nb.Push(s)
-		return true
-	})
-
-	copy(nb.(*buffer), b)
-}
-
-// enlarge - increases the size of the buffer and keeps old data
-func (b *buffer) enlarge(newSize int) {
-	if b.size > newSize {
-		return
+	nbuf.filled = keep
+	if keep == newSize {
+		// full: oldest at slot 0, j=0 so next Push overwrites it;
+		// i=1%newSize so forEach's (i-1+size)%size resolves to slot 0.
+		nbuf.j = 0
+		nbuf.i = 1 % newSize
+	} else {
+		nbuf.i = 0
+		nbuf.j = keep
 	}
 
-	nb := NewBuffer(newSize)
-
-	b.forEach(func(s string, _ int) bool {
-		nb.Push(s)
-		return true
-	})
-
-	copy(nb.(*buffer), b)
+	copy(nbuf, b)
 }
 
 // forEach - Iterates through each item in the buffer and calls the passed

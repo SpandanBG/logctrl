@@ -2,10 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/SpandanBG/logctrl/config"
 	"github.com/SpandanBG/logctrl/internal/fakestream"
 	"github.com/SpandanBG/logctrl/internal/testutil"
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,10 +28,22 @@ func keys(text string) tea.KeyMsg {
 // starts it.
 func startUI(t *testing.T) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
 	t.Helper()
-	stream := fakestream.New()
-	runtime := testutil.NewRuntime(80, 30)
+	return startSizedUI(t, 80, 30)
+}
 
-	model := tea.Model(newModel(stream))
+// startSizedUI - the UI on a `width` x `height` terminal, started the way the
+// tea runtime starts it.
+func startSizedUI(t *testing.T, width, height int) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
+	t.Helper()
+	stream := fakestream.New()
+	runtime := testutil.NewRuntime(width, height)
+
+	keymap, err := config.LoadKeymap(filepath.Join(t.TempDir(), "keymap.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model := tea.Model(newModel(stream, keymap))
 	runtime.Run(model.Init())
 
 	return runtime.Settle(model), stream, runtime
@@ -144,4 +158,100 @@ func Test_UIScrollKeysAreTypedWhilePromptOpen(t *testing.T) {
 
 	testutil.Equal(t, 0, len(stream.Scrolls()))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "jk"))
+}
+
+func Test_UIHelpKeyOpensHelpInPlaceOfLogView(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	stream.Notify(t, "a log line")
+	model = runtime.Settle(model)
+
+	model, _ = press(model, runtime, keys("h"))
+
+	view := ansi.Strip(model.View())
+	testutil.Equal(t, 30, lipgloss.Height(model.View()))
+	testutil.Equal(t, true, strings.Contains(view, "Scroll the Log View down"))
+	testutil.Equal(t, false, strings.Contains(view, "a log line"))
+}
+
+func Test_UIEscClosesHelpAndRestoresLogView(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	stream.Notify(t, "a log line")
+	model = runtime.Settle(model)
+
+	model, _ = press(model, runtime, keys("h"))
+	model, _ = press(model, runtime, esc)
+
+	view := ansi.Strip(model.View())
+	testutil.Equal(t, 30, lipgloss.Height(model.View()))
+	testutil.Equal(t, false, strings.Contains(view, "Scroll the Log View down"))
+	testutil.Equal(t, true, strings.Contains(view, "a log line"))
+}
+
+func Test_UIScrollKeysScrollHelpNotLogViewWhileHelpOpen(t *testing.T) {
+	// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 Help rows
+	model, stream, runtime := startSizedUI(t, 80, 5)
+
+	model, _ = press(model, runtime, keys("h"))
+	model, _ = press(model, runtime, keys("j"))
+	model, _ = press(model, runtime, keys("j"))
+	model, _ = press(model, runtime, keys("k"))
+
+	view := ansi.Strip(model.View())
+	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, false, strings.Contains(view, "Open the Help"))
+	testutil.Equal(t, true, strings.Contains(view, "Quit logctrl"))
+	testutil.Equal(t, true, strings.Contains(view, "Open the Prompt"))
+}
+
+func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
+	for _, key := range []tea.KeyMsg{
+		keys("q"),
+		tab,
+		{Type: tea.KeyCtrlD},
+		keys("x"),
+	} {
+		t.Run(key.String(), func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("h"))
+
+			model, quit := press(model, runtime, key)
+
+			testutil.Equal(t, false, quit)
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Scroll the Log View down"))
+			// the Prompt stayed closed: 30 rows - 1 toolbar row - 2 border rows
+			testutil.Equal(t, 27, stream.Height())
+		})
+	}
+}
+
+func Test_UICtrlCQuitsWhileHelpOpen(t *testing.T) {
+	model, _, runtime := startUI(t)
+	model, _ = press(model, runtime, keys("h"))
+
+	_, quit := press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlC})
+
+	testutil.Equal(t, true, quit)
+}
+
+func Test_UIHelpKeyIsTypedWhilePromptOpen(t *testing.T) {
+	model, _, runtime := startUI(t)
+
+	model, _ = press(model, runtime, tab)
+	model, _ = press(model, runtime, keys("h"))
+	model, _ = press(model, runtime, keys("i"))
+
+	view := ansi.Strip(model.View())
+	testutil.Equal(t, true, strings.Contains(view, "hi"))
+	testutil.Equal(t, false, strings.Contains(view, "Scroll the Log View down"))
+}
+
+func Test_UIReopenedHelpStartsAtTheTop(t *testing.T) {
+	model, _, runtime := startSizedUI(t, 80, 5)
+
+	model, _ = press(model, runtime, keys("h"))
+	model, _ = press(model, runtime, keys("j"))
+	model, _ = press(model, runtime, esc)
+	model, _ = press(model, runtime, keys("h"))
+
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Open the Help"))
 }

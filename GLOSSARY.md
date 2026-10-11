@@ -63,3 +63,17 @@ _Avoid_: help bar, status bar
 **Prompt**:
 The panel, opened and closed by the user, where they type a command to apply to the Log Feed.
 _Avoid_: input, textarea, command line
+
+**Help**:
+The panel, opened and closed by the user, listing every key in the Keymap and what it does.
+_Avoid_: help menu, help window, popup
+
+## Controls
+
+**Action**:
+Something the user can make logctrl do with a key, such as Quit, open the Help or Scroll down.
+_Avoid_: command, binding
+
+**Keymap**:
+The list pairing each Action with the key that triggers it and a description of it; the user's own Keymap file may change the key or description of any Action.
+_Avoid_: keybinds, shortcuts, key config

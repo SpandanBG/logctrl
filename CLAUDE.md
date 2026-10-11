@@ -45,8 +45,9 @@ PTY master ──→ stdout (rendered UI)
 | Package | Role |
 |---|---|
 | `reader/` | `Stream` tees the Log Feed into the Log File and a `LiveBuffer` (bounded ring addressed by Line Number); a `Window` (two Line Numbers + Following/Pinned) selects what is shown. `Buffer` is the older ring buffer, now unused |
-| `ui/` | BubbleTea layout model orchestrating three components: Toolbar, LogView, Prompt |
-| `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (keybind help), `Prompt` (togglable textarea) |
+| `ui/` | BubbleTea layout model orchestrating four components: Toolbar, LogView, Prompt, Help |
+| `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help and Scroll keys), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
+| `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file; `main` exits on it |
 | `ui/utils/` | Responsive sizing system (`Ratio`, `Fixed`, `Modifier` types) and ANSI color constants |
 | `utils/` | `SIGWINCH` handler with callback pattern |
 | `internal/` | Test-only helpers (`testutil`, `fakestream`) |
@@ -69,12 +70,16 @@ All UI components implement `tea.Model` (`Init`, `Update`, `View`).
 
 ### UI Key Bindings
 
+The keys are listed in `config/keymap.json`, which only feeds what the Help and Toolbar display. Handling is still hard-coded in `ui/layout.go`, so a user Keymap that remaps a key changes the Help but not the key, until bindings are dispatched by Action (ADR 0003). Keep the two in sync.
+
 | Key | Action |
 |---|---|
-| `Tab` | Open prompt panel |
-| `Esc` | Close prompt panel (while open) |
-| `q` / `^C` / `^D` | Quit (while prompt closed) |
-| `k` / `j` | Scroll the log view one line up (older) / down (newer) (while prompt closed) |
+| `h` | Open the Help (while prompt and help closed) |
+| `Tab` | Open prompt panel (while help closed) |
+| `Esc` | Close the prompt or the help (while open) |
+| `q` / `^D` | Quit (while prompt and help closed) |
+| `^C` | Quit (while prompt closed) |
+| `k` / `j` | Scroll the log view one line up (older) / down (newer); scroll the help while it is open |
 
 ### Environment Variables
 

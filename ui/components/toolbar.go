@@ -1,15 +1,25 @@
 package components
 
 import (
+	"github.com/SpandanBG/logctrl/config"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-const helpText = ui.Grey_Color + "Quick Help:\t\t" +
-	ui.Magenta_Color + "q" + ui.Black_Color + ":Quit  " +
-	ui.Magenta_Color + "j/k" + ui.Black_Color + ":Scroll" +
-	ui.Reset_Color
+// helpText - the keys that open the Help and Scroll down/up.
+func helpText(keymap []config.Entry) string {
+	keyOf := map[config.Action]string{}
+	for _, entry := range keymap {
+		keyOf[entry.Action] = entry.Key
+	}
+
+	return ui.Grey_Color + "Quick Help:\t\t" +
+		ui.Magenta_Color + keyOf[config.OpenHelp] + ui.Black_Color + ":Help  " +
+		ui.Magenta_Color + keyOf[config.ScrollDown] + "/" + keyOf[config.ScrollUp] +
+		ui.Black_Color + ":Scroll" +
+		ui.Reset_Color
+}
 
 var (
 	toolbarStyle = lipgloss.NewStyle().
@@ -20,13 +30,15 @@ var (
 type toolbar struct {
 	width    ui.SizeI
 	height   ui.SizeI
+	help     string
 	rendered string
 }
 
-func NewToolbar(width, height ui.SizeI) tea.Model {
+func NewToolbar(width, height ui.SizeI, keymap []config.Entry) tea.Model {
 	return toolbar{
 		width:  width,
 		height: height,
+		help:   helpText(keymap),
 	}
 }
 
@@ -56,7 +68,7 @@ func (t toolbar) updateView(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	t.rendered = toolbarStyle.
 		Width(size.Width).
 		Height(size.Height).
-		Render(helpText)
+		Render(t.help)
 
 	return t, nil
 }

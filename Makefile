@@ -1,5 +1,5 @@
 # Minimum total coverage (%) enforced in CI. Raise it as coverage grows.
-COVER_MIN := 92
+COVER_MIN := 94
 # Everything but `main` (needs a real terminal) and the test helpers.
 COVER_PKGS = $(shell go list ./... | grep -v -e '^github.com/SpandanBG/logctrl$$' -e /internal/)
 

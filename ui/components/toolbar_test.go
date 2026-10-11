@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/SpandanBG/logctrl/config"
 	"github.com/SpandanBG/logctrl/internal/testutil"
 	"github.com/SpandanBG/logctrl/ui/components"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
@@ -12,15 +13,18 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func Test_ToolbarShowsKeyHelpAtItsSize(t *testing.T) {
-	toolbar := components.NewToolbar(ui.SizeRatio(1), ui.SizeFixed(1))
+func Test_ToolbarShowsHelpAndScrollKeysFromKeymapAtItsSize(t *testing.T) {
+	toolbar := components.NewToolbar(ui.SizeRatio(1), ui.SizeFixed(1), []config.Entry{
+		{Key: "q", Action: config.Quit, Description: "Quit logctrl"},
+		{Key: "?", Action: config.OpenHelp, Description: "Open the Help"},
+		{Key: "p", Action: config.ScrollUp, Description: "Scroll the Log View up"},
+		{Key: "n", Action: config.ScrollDown, Description: "Scroll the Log View down"},
+	})
 
 	toolbar, _ = toolbar.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
 	view := toolbar.View()
 
 	testutil.Equal(t, 80, lipgloss.Width(view))
 	testutil.Equal(t, 1, lipgloss.Height(view))
-	help := ansi.Strip(view)
-	testutil.Equal(t, true, strings.Contains(help, "q:Quit"))
-	testutil.Equal(t, true, strings.Contains(help, "j/k:Scroll"))
+	testutil.Equal(t, "Quick Help: ?:Help n/p:Scroll", strings.Join(strings.Fields(ansi.Strip(view)), " "))
 }

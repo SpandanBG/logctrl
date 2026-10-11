@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"syscall"
 
+	"github.com/SpandanBG/logctrl/config"
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/SpandanBG/logctrl/utils"
@@ -42,9 +44,13 @@ const (
 //
 // ────────────────────────────────────────────────────────────────────────────────
 func main() {
+	// Load the Keymap before anything else, so a bad user Keymap file stops
+	// us while the terminal is still in its normal state.
+	keymap := loadKeymap()
+
 	// Are we the re-exec’ed child?
 	if len(os.Getenv(ChildEnvVar)) > 0 {
-		startChildProcess()
+		startChildProcess(keymap)
 		os.Exit(0)
 	}
 
@@ -72,8 +78,23 @@ func main() {
 	startDataPump(ptm, logWritter, console)
 }
 
+// loadKeymap - the built-in Keymap, merged with the user's Keymap file at
+// ~/.config/logCtrl/keymap.json if it exists. Exits if that file is bad.
+func loadKeymap() []config.Entry {
+	userPath := ""
+	if home, err := os.UserHomeDir(); err == nil {
+		userPath = filepath.Join(home, ".config", "logCtrl", "keymap.json")
+	}
+
+	keymap, err := config.LoadKeymap(userPath)
+	if err != nil {
+		log.Fatalf("unable to load keymap - %v", err)
+	}
+	return keymap
+}
+
 // startChildProcess - prepares the stream and launches the app UI.
-func startChildProcess() {
+func startChildProcess(keymap []config.Entry) {
 	// Parse the fd number and drop into the child mode
 	childFdStr := os.Getenv(ChildEnvVar)
 	childFd, err := strconv.Atoi(childFdStr)
@@ -85,7 +106,7 @@ func startChildProcess() {
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
 	stream := reader.NewStream(logFeed)
-	app, exit := ui.NewUI(stream)
+	app, exit := ui.NewUI(stream, keymap)
 	defer exit()
 
 	if _, err := app.Run(); err != nil {

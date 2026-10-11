@@ -108,7 +108,7 @@ func (l logView) refreshView(logs string) (tea.Model, tea.Cmd) {
 func (l logView) fetchLog() tea.Cmd {
 	return func() tea.Msg {
 		<-l.nextLog
-		return teaLogCmd(l.stream.GetLive())
+		return teaLogCmd(l.stream.GetWindow())
 	}
 }
 

@@ -5,17 +5,24 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
+	"sync"
 )
 
 const (
 	logFileLocation = ""
 	logFileName     = "logCtrl_logFile.txt"
+
+	// defaultCapacity - max lines held in the live buffer (see docs/adr/0001)
+	defaultCapacity = 10_000
 )
 
 type Stream interface {
 	Start(chan bool)
 	SetBufferSize(int)
-	GetLive() string
+	GetWindow() string
+	MoveToEnd()
+	MoveBy(int) int
 	Close()
 }
 
@@ -24,9 +31,10 @@ type stream struct {
 	logFile *os.File
 	logFeed *os.File
 
-	// access buffers
-	liveAccessBuffer   Buffer
-	randomAccessBuffer Buffer
+	// display state; `mu` guards both
+	mu         sync.Mutex
+	liveBuffer *LiveBuffer
+	window     *Window
 
 	// notification channel
 	next chan bool
@@ -39,9 +47,13 @@ func NewStream(logFeed *os.File) Stream {
 		log.Fatalf("unable to create temp log file - %v", err)
 	}
 
+	liveBuffer := NewLiveBuffer(defaultCapacity)
+
 	return &stream{
-		logFile: logFile,
-		logFeed: logFeed,
+		logFile:    logFile,
+		logFeed:    logFeed,
+		liveBuffer: liveBuffer,
+		window:     NewWindow(liveBuffer),
 	}
 }
 
@@ -54,23 +66,42 @@ func (s *stream) Start(next chan bool) {
 		teeReader := io.TeeReader(s.logFeed, s.logFile)
 		liveBuffer := bufio.NewScanner(teeReader)
 		for liveBuffer.Scan() {
+			s.mu.Lock()
+			s.liveBuffer.Push(liveBuffer.Text())
+			s.mu.Unlock()
+
 			s.next <- true
-			s.liveAccessBuffer.Push(liveBuffer.Text())
 		}
 	}()
 }
 
-// SetBufferSize - sets the size of `randomAccessBuffer` and `liveAccessBuffer`.
-// This function would create a new buffer entirely and so all previous data
-// will be wiped clean.
+// SetBufferSize - sets the height of the window. Held lines are kept.
 func (s *stream) SetBufferSize(size int) {
-	s.randomAccessBuffer = NewBuffer(size)
-	s.liveAccessBuffer = NewBuffer(size)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.window.SetHeight(size)
 }
 
-// GetLive - returns the live logs that are currently being pushed
-func (s *stream) GetLive() string {
-	return s.liveAccessBuffer.Stringify("\n")
+// GetWindow - returns the lines currently in the window joined by newlines.
+func (s *stream) GetWindow() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return strings.Join(s.window.Lines(), "\n")
+}
+
+// MoveToEnd - makes the window follow the newest lines.
+func (s *stream) MoveToEnd() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.window.MoveToEnd()
+}
+
+// MoveBy - scrolls the window by `n` lines (negative is up / older, positive
+// is down / newer) and returns the number of lines actually moved.
+func (s *stream) MoveBy(n int) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.window.MoveBy(n)
 }
 
 // Close - closes all pipes and files

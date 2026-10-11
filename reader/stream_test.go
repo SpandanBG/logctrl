@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/SpandanBG/logctrl/internal/testutil"
 )
 
 // startStream - starts a stream over a real pipe. Returns the write end and the
@@ -33,7 +35,7 @@ func Test_StreamWindowHasLineWhenNotified(t *testing.T) {
 	for i := range 200 {
 		fmt.Fprintln(w, i)
 		<-next
-		Equal(t, fmt.Sprint(i), s.GetWindow())
+		testutil.Equal(t, fmt.Sprint(i), s.GetWindow())
 	}
 }
 
@@ -44,7 +46,7 @@ func Test_StreamPinnedWhileIngesting(t *testing.T) {
 		<-next
 	}
 
-	Equal(t, -3, s.MoveBy(-3))
+	testutil.Equal(t, -3, s.MoveBy(-3))
 
 	done := make(chan struct{})
 	go func() {
@@ -55,7 +57,7 @@ func Test_StreamPinnedWhileIngesting(t *testing.T) {
 		}
 	}()
 	for {
-		Equal(t, "5\n6", s.GetWindow())
+		testutil.Equal(t, "5\n6", s.GetWindow())
 		select {
 		case <-done:
 		default:
@@ -65,5 +67,5 @@ func Test_StreamPinnedWhileIngesting(t *testing.T) {
 	}
 
 	s.MoveToEnd()
-	Equal(t, "13\n14", s.GetWindow())
+	testutil.Equal(t, "13\n14", s.GetWindow())
 }

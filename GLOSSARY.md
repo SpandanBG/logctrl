@@ -47,3 +47,15 @@ _Avoid_: frozen, paused, locked
 
 **Clamp**:
 Shifting a Pinned Window forward when its first line is no longer held in the Live Buffer.
+
+**Log View**:
+The on-screen panel that shows the Window.
+_Avoid_: viewport, log panel
+
+**Toolbar**:
+The bar at the top of the screen listing the available keys.
+_Avoid_: help bar, status bar
+
+**Prompt**:
+The panel, opened and closed by the user, where they type a command to apply to the Log Feed.
+_Avoid_: input, textarea, command line

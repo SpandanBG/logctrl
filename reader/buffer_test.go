@@ -1,16 +1,10 @@
 package reader
 
-import "testing"
+import (
+	"testing"
 
-func Equal[T comparable](t *testing.T, expected, actual T) {
-	if expected == actual {
-		return
-	}
-	t.Errorf(
-		"expected equal\n\texpected:\t%v\n\tactual:\t%v",
-		expected, actual,
-	)
-}
+	"github.com/SpandanBG/logctrl/internal/testutil"
+)
 
 func Test_BufferTableDriven(t *testing.T) {
 	for _, test := range []struct {
@@ -58,7 +52,7 @@ func Test_BufferTableDriven(t *testing.T) {
 
 			str := buf.Stringify("\n")
 
-			Equal(t, test.expected, str)
+			testutil.Equal(t, test.expected, str)
 		})
 	}
 }
@@ -137,7 +131,7 @@ func Test_BufferResizeTableDriven(t *testing.T) {
 			}
 
 			str := buf.Stringify("\n")
-			Equal(t, test.expected, str)
+			testutil.Equal(t, test.expected, str)
 
 			// -------- post-resize
 			buf.Resize(test.resize)
@@ -146,7 +140,7 @@ func Test_BufferResizeTableDriven(t *testing.T) {
 			}
 
 			str = buf.Stringify("\n")
-			Equal(t, test.reExpected, str)
+			testutil.Equal(t, test.reExpected, str)
 		})
 	}
 }

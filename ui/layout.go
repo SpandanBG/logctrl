@@ -35,21 +35,7 @@ func NewUI(stream reader.Stream) (
 	exit func(),
 ) {
 	app = tea.NewProgram(
-		uiModel{
-			toolbar: components.NewToolbar(
-				ui.SizeRatio(1),
-				ui.SizeFixed(toolbarSize),
-			),
-			logView: components.NewLogView(
-				ui.SizeRatio(1),
-				ui.SizeModifier(-toolbarSize),
-				stream,
-			),
-			prompt: components.NewPrompt(
-				ui.SizeRatio(1),
-				ui.SizeFixed(promptSize),
-			),
-		},
+		newModel(stream),
 		tea.WithAltScreen(),
 	)
 
@@ -59,6 +45,24 @@ func NewUI(stream reader.Stream) (
 	}
 
 	return
+}
+
+func newModel(stream reader.Stream) uiModel {
+	return uiModel{
+		toolbar: components.NewToolbar(
+			ui.SizeRatio(1),
+			ui.SizeFixed(toolbarSize),
+		),
+		logView: components.NewLogView(
+			ui.SizeRatio(1),
+			ui.SizeModifier(-toolbarSize),
+			stream,
+		),
+		prompt: components.NewPrompt(
+			ui.SizeRatio(1),
+			ui.SizeFixed(promptSize),
+		),
+	}
 }
 
 func (u uiModel) Init() tea.Cmd {

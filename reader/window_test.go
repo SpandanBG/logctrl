@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/SpandanBG/logctrl/internal/testutil"
 )
 
 // pushN - pushes lines "0".."n-1" so each line's text equals its line number.
@@ -32,8 +34,8 @@ func Test_WindowFollowing(t *testing.T) {
 			w.SetHeight(test.height)
 			pushN(lb, test.pushed)
 
-			Equal(t, true, w.Following())
-			Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, true, w.Following())
+			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
 		})
 	}
 }
@@ -70,9 +72,9 @@ func Test_WindowPinned(t *testing.T) {
 				lb.Push(fmt.Sprint(test.pushed + i))
 			}
 
-			Equal(t, test.moved, moved)
-			Equal(t, test.following, w.Following())
-			Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, test.moved, moved)
+			testutil.Equal(t, test.following, w.Following())
+			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
 		})
 	}
 }
@@ -102,9 +104,9 @@ func Test_WindowClamp(t *testing.T) {
 				moved = w.MoveBy(n)
 			}
 
-			Equal(t, test.moved, moved)
-			Equal(t, test.following, w.Following())
-			Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, test.moved, moved)
+			testutil.Equal(t, test.following, w.Following())
+			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
 		})
 	}
 }
@@ -119,6 +121,6 @@ func Test_WindowMoveToEnd(t *testing.T) {
 	w.MoveToEnd()
 	lb.Push("10")
 
-	Equal(t, true, w.Following())
-	Equal(t, "8\n9\n10", strings.Join(w.Lines(), "\n"))
+	testutil.Equal(t, true, w.Following())
+	testutil.Equal(t, "8\n9\n10", strings.Join(w.Lines(), "\n"))
 }

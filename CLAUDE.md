@@ -79,6 +79,7 @@ Keys are dispatched by Action from the merged Keymap (`config/keymap.json`, plus
 | `Esc` | Close the prompt or the help (while open); the only Keymap key honoured in the prompt |
 | `q` | Quit (while prompt and help closed) |
 | `k` / `j` | Scroll the log view one line up (older) / down (newer); scroll the help while it is open |
+| `G` | Follow the newest lines (while prompt and help closed; not shown in the Toolbar) |
 | `^C` / `^D` | Reserved, outside the Keymap: always Quit while the prompt is closed |
 
 ### Environment Variables

@@ -48,6 +48,7 @@ Press `h` at any time to open the Help, which lists every key.
 | `esc` | `close` | Close the Prompt or the Help |
 | `k` | `scroll_up` | Scroll the Log View or the Help up (older lines) |
 | `j` | `scroll_down` | Scroll the Log View or the Help down (newer lines) |
+| `G` | `follow` | Follow the newest lines |
 
 `ctrl+c` and `ctrl+d` always quit, except while the Prompt is open, and can't be remapped.
 

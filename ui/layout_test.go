@@ -46,7 +46,8 @@ const remapped = `[
 	{"action": "open_prompt", "key": "p"},
 	{"action": "close", "key": "ctrl+x"},
 	{"action": "scroll_up", "key": "u"},
-	{"action": "scroll_down", "key": "n"}
+	{"action": "scroll_down", "key": "n"},
+	{"action": "follow", "key": "end"}
 ]`
 
 // startRemappedUI - the UI on a `width` x `height` terminal with `userKeymap`
@@ -172,6 +173,15 @@ func Test_UIScrollKeysScrollLogViewWhilePromptClosed(t *testing.T) {
 	testutil.Equal(t, fmt.Sprint([]int{-1, -1, 1}), fmt.Sprint(stream.Scrolls()))
 }
 
+func Test_UIFollowKeyMakesLogViewFollowingWhilePromptClosed(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, keys("k"))
+	press(model, runtime, keys("G"))
+
+	testutil.Equal(t, 1, stream.Follows())
+}
+
 func Test_UIScrollKeysAreTypedWhilePromptOpen(t *testing.T) {
 	model, stream, runtime := startUI(t)
 
@@ -230,6 +240,7 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 		keys("q"),
 		tab,
 		keys("x"),
+		keys("G"),
 	} {
 		t.Run(key.String(), func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -238,6 +249,7 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 			model, quit := press(model, runtime, key)
 
 			testutil.Equal(t, false, quit)
+			testutil.Equal(t, 0, stream.Follows())
 			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Scroll the Log View or the Help down"))
 			// the Prompt stayed closed: 30 rows - 1 toolbar row - 2 border rows
 			testutil.Equal(t, 27, stream.Height())
@@ -347,6 +359,17 @@ func Test_UIScrollsLogViewOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 	press(model, runtime, keys("n"))
 
 	testutil.Equal(t, fmt.Sprint([]int{-1, -1, 1}), fmt.Sprint(stream.Scrolls()))
+}
+
+func Test_UIFollowsOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
+	model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+
+	model, _ = press(model, runtime, keys("G"))
+	followedOnBuiltIn := stream.Follows()
+	press(model, runtime, tea.KeyMsg{Type: tea.KeyEnd})
+
+	testutil.Equal(t, 0, followedOnBuiltIn)
+	testutil.Equal(t, 1, stream.Follows())
 }
 
 func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {

@@ -17,6 +17,7 @@ type Stream struct {
 	next    chan bool
 	closed  bool
 	scrolls []int
+	follows int
 }
 
 var _ reader.Stream = (*Stream)(nil)
@@ -43,7 +44,11 @@ func (s *Stream) GetWindow() string {
 	return s.window
 }
 
-func (s *Stream) MoveToEnd() {}
+func (s *Stream) MoveToEnd() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.follows++
+}
 
 func (s *Stream) MoveBy(n int) int {
 	s.mu.Lock()
@@ -70,6 +75,13 @@ func (s *Stream) Scrolls() []int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]int(nil), s.scrolls...)
+}
+
+// Follows - how many times the UI made the Window Following.
+func (s *Stream) Follows() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.follows
 }
 
 // SetWindow - changes the Window text without notifying the UI, as a Scroll

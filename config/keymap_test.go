@@ -18,6 +18,7 @@ var builtIn = []config.Entry{
 	{Key: "esc", Action: config.Close, Description: "Close the Prompt or the Help"},
 	{Key: "k", Action: config.ScrollUp, Description: "Scroll the Log View or the Help up"},
 	{Key: "j", Action: config.ScrollDown, Description: "Scroll the Log View or the Help down"},
+	{Key: "G", Action: config.Follow, Description: "Follow the newest lines"},
 }
 
 // userFile - writes `content` as the user's Keymap file and returns its path.
@@ -101,6 +102,15 @@ func Test_KeymapAcceptsCloseOnKeyThatIsNotTyped(t *testing.T) {
 
 	testutil.Equal(t, nil, err)
 	testutil.Equal(t, "ctrl+x", keymap[3].Key)
+}
+
+func Test_KeymapRemapsFollow(t *testing.T) {
+	path := userFile(t, `[{"action": "follow", "key": "end"}]`)
+
+	keymap, err := config.LoadKeymap(path)
+
+	testutil.Equal(t, nil, err)
+	testutil.Equal(t, "end", keymap[6].Key)
 }
 
 func Test_KeymapRejectsUnreadableUserFile(t *testing.T) {

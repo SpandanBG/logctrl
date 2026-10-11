@@ -18,6 +18,9 @@ type TeaLogSizeUpdate struct {
 // down (newer).
 type TeaScroll int
 
+// TeaFollow - make the Window Following.
+type TeaFollow struct{}
+
 // ----- Private tea.Msg
 type teaLogCmd string
 
@@ -67,6 +70,8 @@ func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return l.updateSize(msg)
 	case TeaScroll:
 		return l.scroll(int(msg))
+	case TeaFollow:
+		return l.follow()
 	}
 	return l, nil
 }
@@ -80,6 +85,14 @@ func (l logView) View() string {
 // waiting for new lines to arrive.
 func (l logView) scroll(n int) (tea.Model, tea.Cmd) {
 	l.stream.MoveBy(n)
+	l.view.SetContent(l.stream.GetWindow())
+	return l, nil
+}
+
+// follow - makes the window Following and shows it right away, without waiting
+// for new lines to arrive.
+func (l logView) follow() (tea.Model, tea.Cmd) {
+	l.stream.MoveToEnd()
 	l.view.SetContent(l.stream.GetWindow())
 	return l, nil
 }

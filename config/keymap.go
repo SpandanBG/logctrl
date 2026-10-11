@@ -27,6 +27,7 @@ const (
 	Close      Action = "close"
 	ScrollUp   Action = "scroll_up"
 	ScrollDown Action = "scroll_down"
+	Follow     Action = "follow"
 )
 
 // Reserved - the keys that always Quit, outside the Keymap, so no Keymap file

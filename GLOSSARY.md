@@ -38,7 +38,7 @@ The contiguous range of Line Numbers currently shown to the user, as tall as the
 _Avoid_: RAB, random access buffer, viewport, page
 
 **Following**:
-The Window mode in which it always shows the newest lines.
+The Window mode in which it always shows the newest lines; the user can return to it at any time with a single key.
 _Avoid_: live mode, tailing, auto-scroll
 
 **Pinned**:

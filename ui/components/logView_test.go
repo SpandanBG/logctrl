@@ -106,3 +106,19 @@ func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
 	testutil.Equal(t, true, strings.Contains(view, "older line"))
 	testutil.Equal(t, false, strings.Contains(view, "newest line"))
 }
+
+func Test_LogViewFollowShowsNewestLinesWithoutWaitingForNewLines(t *testing.T) {
+	logView, stream, runtime := startLogView(t)
+	stream.Notify(t, "older line")
+	logView = runtime.Settle(logView)
+
+	stream.SetWindow("newest line")
+	logView, cmd := logView.Update(components.TeaFollow{})
+	runtime.Run(cmd)
+	logView = runtime.Settle(logView)
+
+	view := ansi.Strip(logView.View())
+	testutil.Equal(t, 1, stream.Follows())
+	testutil.Equal(t, true, strings.Contains(view, "newest line"))
+	testutil.Equal(t, false, strings.Contains(view, "older line"))
+}

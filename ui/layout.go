@@ -126,8 +126,16 @@ func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return u.scrollLogView(-1)
 	case config.ScrollDown:
 		return u.scrollLogView(1)
+	case config.Follow:
+		return u.followLogView()
 	}
 	return u, nil
+}
+
+func (u uiModel) followLogView() (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	u.logView, cmd = u.logView.Update(components.TeaFollow{})
+	return u, cmd
 }
 
 func (u uiModel) scrollLogView(n int) (tea.Model, tea.Cmd) {

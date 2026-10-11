@@ -7,7 +7,8 @@ import (
 )
 
 const helpText = ui.Grey_Color + "Quick Help:\t\t" +
-	ui.Magenta_Color + "q" + ui.Black_Color + ":Quit" +
+	ui.Magenta_Color + "q" + ui.Black_Color + ":Quit  " +
+	ui.Magenta_Color + "j/k" + ui.Black_Color + ":Scroll" +
 	ui.Reset_Color
 
 var (

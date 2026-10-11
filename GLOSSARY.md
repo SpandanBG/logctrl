@@ -45,6 +45,10 @@ _Avoid_: live mode, tailing, auto-scroll
 The Window mode in which it keeps showing the same Line Numbers while new lines arrive.
 _Avoid_: frozen, paused, locked
 
+**Scroll**:
+Moving the Window a number of lines up (toward older lines) or down (toward newer lines); scrolling down to the newest line makes it Following again.
+_Avoid_: move, step, navigate
+
 **Clamp**:
 Shifting a Pinned Window forward when its first line is no longer held in the Live Buffer.
 

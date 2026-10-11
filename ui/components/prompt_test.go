@@ -13,8 +13,12 @@ import (
 )
 
 // typeText - sends `text` to the model as typed keys.
+func keys(text string) tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(text)}
+}
+
 func typeText(model tea.Model, text string) tea.Model {
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(text)})
+	model, _ = model.Update(keys(text))
 	return model
 }
 

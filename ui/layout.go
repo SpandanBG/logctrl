@@ -79,7 +79,7 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if u.promptActive {
 			return u.receivePrompt(msg)
 		}
-		return u.executeKeystroke(msg.String())
+		return u.executeKeystroke(msg)
 	}
 
 	return u.batchUpdate(msg)
@@ -90,14 +90,16 @@ func (u uiModel) View() string {
 }
 
 // ------------------------- Private
-func (u uiModel) executeKeystroke(key string) (tea.Model, tea.Cmd) {
-	switch key {
+func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
 	case "ctrl+c", "ctrl+d", "q":
 		return u, tea.Quit
 	case "tab":
 		return u.togglePrompt()
 	default:
-		return u, nil
+		var cmd tea.Cmd
+		u.logView, cmd = u.logView.Update(msg)
+		return u, cmd
 	}
 }
 

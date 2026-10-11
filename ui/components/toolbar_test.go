@@ -20,5 +20,7 @@ func Test_ToolbarShowsKeyHelpAtItsSize(t *testing.T) {
 
 	testutil.Equal(t, 80, lipgloss.Width(view))
 	testutil.Equal(t, 1, lipgloss.Height(view))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(view), "q:Quit"))
+	help := ansi.Strip(view)
+	testutil.Equal(t, true, strings.Contains(help, "q:Quit"))
+	testutil.Equal(t, true, strings.Contains(help, "j/k:Scroll"))
 }

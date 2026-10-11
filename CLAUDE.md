@@ -74,6 +74,7 @@ All UI components implement `tea.Model` (`Init`, `Update`, `View`).
 | `Tab` | Open prompt panel |
 | `Esc` | Close prompt panel (while open) |
 | `q` / `^C` / `^D` | Quit (while prompt closed) |
+| `k` / `j` | Scroll the log view one line up (older) / down (newer) (while prompt closed) |
 
 ### Environment Variables
 

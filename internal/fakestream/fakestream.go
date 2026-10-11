@@ -11,11 +11,12 @@ import (
 
 // Stream - a reader.Stream whose Window text is set by the test.
 type Stream struct {
-	mu     sync.Mutex
-	height int
-	window string
-	next   chan bool
-	closed bool
+	mu      sync.Mutex
+	height  int
+	window  string
+	next    chan bool
+	closed  bool
+	scrolls []int
 }
 
 var _ reader.Stream = (*Stream)(nil)
@@ -44,7 +45,12 @@ func (s *Stream) GetWindow() string {
 
 func (s *Stream) MoveToEnd() {}
 
-func (s *Stream) MoveBy(int) int { return 0 }
+func (s *Stream) MoveBy(n int) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.scrolls = append(s.scrolls, n)
+	return n
+}
 
 func (s *Stream) Close() {
 	s.mu.Lock()
@@ -57,6 +63,21 @@ func (s *Stream) Height() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.height
+}
+
+// Scrolls - every MoveBy the UI made, in order.
+func (s *Stream) Scrolls() []int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]int(nil), s.scrolls...)
+}
+
+// SetWindow - changes the Window text without notifying the UI, as a Scroll
+// does.
+func (s *Stream) SetWindow(window string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.window = window
 }
 
 // Closed - whether Close has been called.

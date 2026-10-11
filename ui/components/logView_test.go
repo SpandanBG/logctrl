@@ -1,6 +1,7 @@
 package components_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -68,4 +69,39 @@ func Test_LogViewResizesWindowWhenItsSizeChanges(t *testing.T) {
 
 	// 30 rows - 17 (toolbar + prompt) - 2 border rows
 	testutil.Equal(t, 11, stream.Height())
+}
+
+func Test_LogViewScrollKeysScrollWindowOneLine(t *testing.T) {
+	for _, test := range []struct {
+		key      string
+		expected int
+	}{
+		{key: "k", expected: -1},
+		{key: "j", expected: 1},
+	} {
+		t.Run(test.key, func(t *testing.T) {
+			logView, stream, runtime := startLogView(t)
+
+			logView, cmd := logView.Update(keys(test.key))
+			runtime.Run(cmd)
+			runtime.Settle(logView)
+
+			testutil.Equal(t, fmt.Sprint([]int{test.expected}), fmt.Sprint(stream.Scrolls()))
+		})
+	}
+}
+
+func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
+	logView, stream, runtime := startLogView(t)
+	stream.Notify(t, "newest line")
+	logView = runtime.Settle(logView)
+
+	stream.SetWindow("older line")
+	logView, cmd := logView.Update(keys("k"))
+	runtime.Run(cmd)
+	logView = runtime.Settle(logView)
+
+	view := ansi.Strip(logView.View())
+	testutil.Equal(t, true, strings.Contains(view, "older line"))
+	testutil.Equal(t, false, strings.Contains(view, "newest line"))
 }

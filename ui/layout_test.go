@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -123,4 +124,24 @@ func Test_UIEscClosesPromptAndRestoresLogView(t *testing.T) {
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "typed"))
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
 	testutil.Equal(t, 27, stream.Height())
+}
+
+func Test_UIScrollKeysScrollLogViewWhilePromptClosed(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, keys("k"))
+	model, _ = press(model, runtime, keys("k"))
+	press(model, runtime, keys("j"))
+
+	testutil.Equal(t, fmt.Sprint([]int{-1, -1, 1}), fmt.Sprint(stream.Scrolls()))
+}
+
+func Test_UIScrollKeysAreTypedWhilePromptOpen(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, tab)
+	model, _ = press(model, runtime, keys("jk"))
+
+	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "jk"))
 }

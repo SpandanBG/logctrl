@@ -1,4 +1,4 @@
-const sleep_time = 200
+const sleep_time = 2000
 
 async function waitFor(ms) {
   return new Promise(res => setTimeout(res, ms))

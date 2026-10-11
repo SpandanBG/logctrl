@@ -74,9 +74,21 @@ func (l logView) View() string {
 // ------------------------- Private
 func (l logView) executeKey(key string) (tea.Model, tea.Cmd) {
 	switch key {
+	case "k":
+		return l.scroll(-1)
+	case "j":
+		return l.scroll(1)
 	default:
 		return l, nil
 	}
+}
+
+// scroll - scrolls the window by `n` lines and shows it right away, without
+// waiting for new lines to arrive.
+func (l logView) scroll(n int) (tea.Model, tea.Cmd) {
+	l.stream.MoveBy(n)
+	l.view.SetContent(l.stream.GetWindow())
+	return l, nil
 }
 
 func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {

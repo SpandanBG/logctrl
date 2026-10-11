@@ -3,6 +3,6 @@
   { "key": "q", "action": "quit", "description": "Quit logctrl" },
   { "key": "tab", "action": "open_prompt", "description": "Open the Prompt" },
   { "key": "esc", "action": "close", "description": "Close the Prompt or the Help" },
-  { "key": "k", "action": "scroll_up", "description": "Scroll the Log View up" },
-  { "key": "j", "action": "scroll_down", "description": "Scroll the Log View down" }
+  { "key": "k", "action": "scroll_up", "description": "Scroll the Log View or the Help up" },
+  { "key": "j", "action": "scroll_down", "description": "Scroll the Log View or the Help down" }
 ]

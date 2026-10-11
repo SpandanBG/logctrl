@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/SpandanBG/logctrl/config"
@@ -29,6 +30,7 @@ type uiModel struct {
 	logView      tea.Model
 	prompt       tea.Model
 	help         tea.Model
+	actionOf     map[string]config.Action // the Action each key in the Keymap triggers
 	promptActive bool
 	helpActive   bool
 }
@@ -51,7 +53,13 @@ func NewUI(stream reader.Stream, keymap []config.Entry) (
 }
 
 func newModel(stream reader.Stream, keymap []config.Entry) uiModel {
+	actionOf := map[string]config.Action{}
+	for _, entry := range keymap {
+		actionOf[entry.Key] = entry.Action
+	}
+
 	return uiModel{
+		actionOf: actionOf,
 		toolbar: components.NewToolbar(
 			ui.SizeRatio(1),
 			ui.SizeFixed(toolbarSize),
@@ -89,6 +97,9 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if u.promptActive {
 			return u.receivePrompt(msg)
 		}
+		if slices.Contains(config.Reserved, msg.String()) {
+			return u, tea.Quit
+		}
 		if u.helpActive {
 			return u.receiveHelp(msg)
 		}
@@ -104,45 +115,54 @@ func (u uiModel) View() string {
 
 // ------------------------- Private
 func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "ctrl+d", "q":
+	switch u.actionOf[msg.String()] {
+	case config.Quit:
 		return u, tea.Quit
-	case "tab":
-		return u.togglePrompt()
-	case "h":
+	case config.OpenHelp:
 		return u.openHelp()
-	default:
-		var cmd tea.Cmd
-		u.logView, cmd = u.logView.Update(msg)
-		return u, cmd
+	case config.OpenPrompt:
+		return u.togglePrompt()
+	case config.ScrollUp:
+		return u.scrollLogView(-1)
+	case config.ScrollDown:
+		return u.scrollLogView(1)
 	}
+	return u, nil
+}
+
+func (u uiModel) scrollLogView(n int) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	u.logView, cmd = u.logView.Update(components.TeaScroll(n))
+	return u, cmd
 }
 
 func (u uiModel) receivePrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	if u.actionOf[msg.String()] == config.Close {
 		return u.togglePrompt()
-	default:
-		var cmd tea.Cmd
-		u.prompt, cmd = u.prompt.Update(msg)
-		return u, cmd
 	}
+
+	var cmd tea.Cmd
+	u.prompt, cmd = u.prompt.Update(msg)
+	return u, cmd
 }
 
 func (u uiModel) receiveHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	switch u.actionOf[msg.String()] {
+	case config.Close:
 		u.helpActive = false
 		return u, nil
-	case "j", "k":
-		var cmd tea.Cmd
-		u.help, cmd = u.help.Update(msg)
-		return u, cmd
-	case "ctrl+c":
-		return u, tea.Quit
-	default:
-		return u, nil
+	case config.ScrollUp:
+		return u.scrollHelp(-1)
+	case config.ScrollDown:
+		return u.scrollHelp(1)
 	}
+	return u, nil
+}
+
+func (u uiModel) scrollHelp(n int) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	u.help, cmd = u.help.Update(components.TeaScroll(n))
+	return u, cmd
 }
 
 func (u uiModel) batchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {

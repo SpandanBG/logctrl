@@ -14,6 +14,10 @@ type TeaLogSizeUpdate struct {
 	Height ui.SizeI
 }
 
+// TeaScroll - Scroll by this many lines: negative is up (older), positive is
+// down (newer).
+type TeaScroll int
+
 // ----- Private tea.Msg
 type teaLogCmd string
 
@@ -55,14 +59,14 @@ func (l logView) Init() tea.Cmd {
 
 func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		return l.executeKey(msg.String())
 	case tea.WindowSizeMsg:
 		return l.updateViewSize(msg)
 	case teaLogCmd:
 		return l.refreshView(string(msg))
 	case TeaLogSizeUpdate:
 		return l.updateSize(msg)
+	case TeaScroll:
+		return l.scroll(int(msg))
 	}
 	return l, nil
 }
@@ -72,17 +76,6 @@ func (l logView) View() string {
 }
 
 // ------------------------- Private
-func (l logView) executeKey(key string) (tea.Model, tea.Cmd) {
-	switch key {
-	case "k":
-		return l.scroll(-1)
-	case "j":
-		return l.scroll(1)
-	default:
-		return l, nil
-	}
-}
-
 // scroll - scrolls the window by `n` lines and shows it right away, without
 // waiting for new lines to arrive.
 func (l logView) scroll(n int) (tea.Model, tea.Cmd) {

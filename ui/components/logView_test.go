@@ -71,18 +71,19 @@ func Test_LogViewResizesWindowWhenItsSizeChanges(t *testing.T) {
 	testutil.Equal(t, 11, stream.Height())
 }
 
-func Test_LogViewScrollKeysScrollWindowOneLine(t *testing.T) {
+func Test_LogViewScrollMovesWindowByItsLines(t *testing.T) {
 	for _, test := range []struct {
-		key      string
+		name     string
+		scroll   components.TeaScroll
 		expected int
 	}{
-		{key: "k", expected: -1},
-		{key: "j", expected: 1},
+		{name: "up", scroll: -1, expected: -1},
+		{name: "down", scroll: 1, expected: 1},
 	} {
-		t.Run(test.key, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			logView, stream, runtime := startLogView(t)
 
-			logView, cmd := logView.Update(keys(test.key))
+			logView, cmd := logView.Update(test.scroll)
 			runtime.Run(cmd)
 			runtime.Settle(logView)
 
@@ -97,7 +98,7 @@ func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
 	logView = runtime.Settle(logView)
 
 	stream.SetWindow("older line")
-	logView, cmd := logView.Update(keys("k"))
+	logView, cmd := logView.Update(components.TeaScroll(-1))
 	runtime.Run(cmd)
 	logView = runtime.Settle(logView)
 

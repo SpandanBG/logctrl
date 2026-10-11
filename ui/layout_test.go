@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -35,10 +36,31 @@ func startUI(t *testing.T) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
 // tea runtime starts it.
 func startSizedUI(t *testing.T, width, height int) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
 	t.Helper()
+	return startRemappedUI(t, width, height, "[]")
+}
+
+// remapped - a user Keymap file moving every Action off its built-in key.
+const remapped = `[
+	{"action": "open_help", "key": "?"},
+	{"action": "quit", "key": "x"},
+	{"action": "open_prompt", "key": "p"},
+	{"action": "close", "key": "ctrl+x"},
+	{"action": "scroll_up", "key": "u"},
+	{"action": "scroll_down", "key": "n"}
+]`
+
+// startRemappedUI - the UI on a `width` x `height` terminal with `userKeymap`
+// as the user's Keymap file, started the way the tea runtime starts it.
+func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
+	t.Helper()
 	stream := fakestream.New()
 	runtime := testutil.NewRuntime(width, height)
 
-	keymap, err := config.LoadKeymap(filepath.Join(t.TempDir(), "keymap.json"))
+	path := filepath.Join(t.TempDir(), "keymap.json")
+	if err := os.WriteFile(path, []byte(userKeymap), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	keymap, err := config.LoadKeymap(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +191,7 @@ func Test_UIHelpKeyOpensHelpInPlaceOfLogView(t *testing.T) {
 
 	view := ansi.Strip(model.View())
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
-	testutil.Equal(t, true, strings.Contains(view, "Scroll the Log View down"))
+	testutil.Equal(t, true, strings.Contains(view, "Scroll the Log View or the Help down"))
 	testutil.Equal(t, false, strings.Contains(view, "a log line"))
 }
 
@@ -183,7 +205,7 @@ func Test_UIEscClosesHelpAndRestoresLogView(t *testing.T) {
 
 	view := ansi.Strip(model.View())
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
-	testutil.Equal(t, false, strings.Contains(view, "Scroll the Log View down"))
+	testutil.Equal(t, false, strings.Contains(view, "Scroll the Log View or the Help down"))
 	testutil.Equal(t, true, strings.Contains(view, "a log line"))
 }
 
@@ -207,7 +229,6 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 	for _, key := range []tea.KeyMsg{
 		keys("q"),
 		tab,
-		{Type: tea.KeyCtrlD},
 		keys("x"),
 	} {
 		t.Run(key.String(), func(t *testing.T) {
@@ -217,20 +238,27 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 			model, quit := press(model, runtime, key)
 
 			testutil.Equal(t, false, quit)
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Scroll the Log View down"))
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Scroll the Log View or the Help down"))
 			// the Prompt stayed closed: 30 rows - 1 toolbar row - 2 border rows
 			testutil.Equal(t, 27, stream.Height())
 		})
 	}
 }
 
-func Test_UICtrlCQuitsWhileHelpOpen(t *testing.T) {
-	model, _, runtime := startUI(t)
-	model, _ = press(model, runtime, keys("h"))
+func Test_UIReservedKeysQuitWhileHelpOpen(t *testing.T) {
+	for _, key := range []tea.KeyMsg{
+		{Type: tea.KeyCtrlC},
+		{Type: tea.KeyCtrlD},
+	} {
+		t.Run(key.String(), func(t *testing.T) {
+			model, _, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("h"))
 
-	_, quit := press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlC})
+			_, quit := press(model, runtime, key)
 
-	testutil.Equal(t, true, quit)
+			testutil.Equal(t, true, quit)
+		})
+	}
 }
 
 func Test_UIHelpKeyIsTypedWhilePromptOpen(t *testing.T) {
@@ -242,7 +270,7 @@ func Test_UIHelpKeyIsTypedWhilePromptOpen(t *testing.T) {
 
 	view := ansi.Strip(model.View())
 	testutil.Equal(t, true, strings.Contains(view, "hi"))
-	testutil.Equal(t, false, strings.Contains(view, "Scroll the Log View down"))
+	testutil.Equal(t, false, strings.Contains(view, "Scroll the Log View or the Help down"))
 }
 
 func Test_UIReopenedHelpStartsAtTheTop(t *testing.T) {
@@ -254,4 +282,104 @@ func Test_UIReopenedHelpStartsAtTheTop(t *testing.T) {
 	model, _ = press(model, runtime, keys("h"))
 
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Open the Help"))
+}
+
+func Test_UIQuitsOnRemappedQuitKeyNotTheBuiltInOne(t *testing.T) {
+	model, _, runtime := startRemappedUI(t, 80, 30, remapped)
+
+	model, quitOnBuiltIn := press(model, runtime, keys("q"))
+	_, quitOnRemapped := press(model, runtime, keys("x"))
+
+	testutil.Equal(t, false, quitOnBuiltIn)
+	testutil.Equal(t, true, quitOnRemapped)
+}
+
+func Test_UIOpensHelpOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
+	model, _, runtime := startRemappedUI(t, 80, 30, remapped)
+
+	model, _ = press(model, runtime, keys("h"))
+	openedOnBuiltIn := strings.Contains(ansi.Strip(model.View()), "Open the Help")
+	model, _ = press(model, runtime, keys("?"))
+	openedOnRemapped := strings.Contains(ansi.Strip(model.View()), "Open the Help")
+
+	testutil.Equal(t, false, openedOnBuiltIn)
+	testutil.Equal(t, true, openedOnRemapped)
+}
+
+func Test_UIOpensAndClosesPromptOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
+	model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+
+	model, _ = press(model, runtime, tab)
+	openedOnBuiltIn := stream.Height() != 27
+	model, _ = press(model, runtime, keys("p"))
+	openedOnRemapped := stream.Height() != 27
+	model, _ = press(model, runtime, esc)
+	closedOnBuiltIn := stream.Height() == 27
+	press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlX})
+	closedOnRemapped := stream.Height() == 27
+
+	testutil.Equal(t, false, openedOnBuiltIn)
+	testutil.Equal(t, true, openedOnRemapped)
+	testutil.Equal(t, false, closedOnBuiltIn)
+	testutil.Equal(t, true, closedOnRemapped)
+}
+
+func Test_UIClosesHelpOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
+	model, _, runtime := startRemappedUI(t, 80, 30, remapped)
+	model, _ = press(model, runtime, keys("?"))
+
+	model, _ = press(model, runtime, esc)
+	closedOnBuiltIn := !strings.Contains(ansi.Strip(model.View()), "Open the Help")
+	model, _ = press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlX})
+	closedOnRemapped := !strings.Contains(ansi.Strip(model.View()), "Open the Help")
+
+	testutil.Equal(t, false, closedOnBuiltIn)
+	testutil.Equal(t, true, closedOnRemapped)
+}
+
+func Test_UIScrollsLogViewOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
+	model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+
+	model, _ = press(model, runtime, keys("k"))
+	model, _ = press(model, runtime, keys("j"))
+	model, _ = press(model, runtime, keys("u"))
+	model, _ = press(model, runtime, keys("u"))
+	press(model, runtime, keys("n"))
+
+	testutil.Equal(t, fmt.Sprint([]int{-1, -1, 1}), fmt.Sprint(stream.Scrolls()))
+}
+
+func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
+	// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 Help rows
+	model, stream, runtime := startRemappedUI(t, 80, 5, remapped)
+	model, _ = press(model, runtime, keys("?"))
+
+	model, _ = press(model, runtime, keys("j"))
+	scrolledOnBuiltIn := !strings.Contains(ansi.Strip(model.View()), "Open the Help")
+	model, _ = press(model, runtime, keys("n"))
+	model, _ = press(model, runtime, keys("n"))
+	model, _ = press(model, runtime, keys("u"))
+
+	view := ansi.Strip(model.View())
+	testutil.Equal(t, false, scrolledOnBuiltIn)
+	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, false, strings.Contains(view, "Open the Help"))
+	testutil.Equal(t, true, strings.Contains(view, "Quit logctrl"))
+	testutil.Equal(t, true, strings.Contains(view, "Open the Prompt"))
+}
+
+func Test_UIReservedKeysDoNotQuitWhilePromptOpen(t *testing.T) {
+	for _, key := range []tea.KeyMsg{
+		{Type: tea.KeyCtrlC},
+		{Type: tea.KeyCtrlD},
+	} {
+		t.Run(key.String(), func(t *testing.T) {
+			model, _, runtime := startUI(t)
+			model, _ = press(model, runtime, tab)
+
+			_, quit := press(model, runtime, key)
+
+			testutil.Equal(t, false, quit)
+		})
+	}
 }

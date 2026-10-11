@@ -10,6 +10,11 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Action - something the user can make logctrl do with a key.
@@ -23,6 +28,10 @@ const (
 	ScrollUp   Action = "scroll_up"
 	ScrollDown Action = "scroll_down"
 )
+
+// Reserved - the keys that always Quit, outside the Keymap, so no Keymap file
+// can leave the user without an exit.
+var Reserved = []string{"ctrl+c", "ctrl+d"}
 
 // Entry - one Action with the key that triggers it and its description.
 type Entry struct {
@@ -67,7 +76,8 @@ func LoadKeymap(userPath string) ([]Entry, error) {
 
 // merge - replaces the key and description of each Action in `keymap` with the
 // ones `user` gives for it; ones `user` leaves empty are kept. Every Action in
-// `user` must already be in `keymap`, and no two Actions may end up on one key.
+// `user` must already be in `keymap`, and no two Actions may end up on one key
+// or on a Reserved key.
 func merge(keymap, user []Entry) ([]Entry, error) {
 	for _, override := range user {
 		i := slices.IndexFunc(keymap, func(e Entry) bool {
@@ -89,10 +99,41 @@ func merge(keymap, user []Entry) ([]Entry, error) {
 
 	actionOf := map[string]Action{}
 	for _, entry := range keymap {
+		if !isKeyName(entry.Key) {
+			return nil, fmt.Errorf("%s is on %q, which is not a key", entry.Action, entry.Key)
+		}
+		if entry.Action == Close && isPrintable(entry.Key) {
+			return nil, fmt.Errorf("%s is on %q, which would be typed in the Prompt", entry.Action, entry.Key)
+		}
+		if slices.Contains(Reserved, entry.Key) {
+			return nil, fmt.Errorf("%s is on reserved key %q", entry.Action, entry.Key)
+		}
 		if other, taken := actionOf[entry.Key]; taken {
 			return nil, fmt.Errorf("%s and %s are both on key %q", other, entry.Action, entry.Key)
 		}
 		actionOf[entry.Key] = entry.Action
 	}
 	return keymap, nil
+}
+
+// isKeyName - whether `key` is a single character or a key name BubbleTea
+// reports, either optionally prefixed with "alt+".
+func isKeyName(key string) bool {
+	key = strings.TrimPrefix(key, "alt+")
+	if utf8.RuneCountInString(key) == 1 {
+		return true
+	}
+	// key types are small negative (special keys) or control codes
+	for keyType := tea.KeyType(-256); keyType < 128; keyType++ {
+		if keyType != tea.KeyRunes && keyType.String() == key {
+			return true
+		}
+	}
+	return false
+}
+
+// isPrintable - whether `key` is a single printable character, space included.
+func isPrintable(key string) bool {
+	r, size := utf8.DecodeRuneInString(key)
+	return size == len(key) && unicode.IsPrint(r)
 }

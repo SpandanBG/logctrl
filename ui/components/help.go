@@ -1,6 +1,7 @@
 package components
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/SpandanBG/logctrl/config"
@@ -35,7 +36,7 @@ func NewHelp(width, height ui.SizeI, keymap []config.Entry) tea.Model {
 	return help{
 		width:  width,
 		height: height,
-		rows:   renderRows(keymap),
+		rows:   renderRows(withReservedQuit(keymap)),
 	}
 }
 
@@ -45,13 +46,13 @@ func (h help) Init() tea.Cmd {
 
 func (h help) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		return h.executeKey(msg.String())
 	case tea.WindowSizeMsg:
 		return h.updateSize(msg)
 	case TeaHelpOpen:
 		h.view.GotoTop()
 		return h, nil
+	case TeaScroll:
+		return h.scroll(int(msg))
 	}
 	return h, nil
 }
@@ -66,15 +67,25 @@ func (h help) View() string {
 
 // ------------------------- Private
 
-// executeKey - k/j scroll the rows one up/down, stopping at the first/last row.
-func (h help) executeKey(key string) (tea.Model, tea.Cmd) {
-	switch key {
-	case "k":
-		h.view.ScrollUp(1)
-	case "j":
-		h.view.ScrollDown(1)
+// scroll - moves the rows `n` up (negative) or down, stopping at the
+// first/last row.
+func (h help) scroll(n int) (tea.Model, tea.Cmd) {
+	if n < 0 {
+		h.view.ScrollUp(-n)
+	} else {
+		h.view.ScrollDown(n)
 	}
 	return h, nil
+}
+
+// withReservedQuit - `keymap` with a last entry for the Reserved keys, which
+// always Quit.
+func withReservedQuit(keymap []config.Entry) []config.Entry {
+	return append(slices.Clone(keymap), config.Entry{
+		Key:         strings.Join(config.Reserved, "/"),
+		Action:      config.Quit,
+		Description: "Quit logctrl",
+	})
 }
 
 // renderRows - one row per entry: the key, padded to the widest key, then its

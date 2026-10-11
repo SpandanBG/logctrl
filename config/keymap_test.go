@@ -16,8 +16,8 @@ var builtIn = []config.Entry{
 	{Key: "q", Action: config.Quit, Description: "Quit logctrl"},
 	{Key: "tab", Action: config.OpenPrompt, Description: "Open the Prompt"},
 	{Key: "esc", Action: config.Close, Description: "Close the Prompt or the Help"},
-	{Key: "k", Action: config.ScrollUp, Description: "Scroll the Log View up"},
-	{Key: "j", Action: config.ScrollDown, Description: "Scroll the Log View down"},
+	{Key: "k", Action: config.ScrollUp, Description: "Scroll the Log View or the Help up"},
+	{Key: "j", Action: config.ScrollDown, Description: "Scroll the Log View or the Help down"},
 }
 
 // userFile - writes `content` as the user's Keymap file and returns its path.
@@ -63,6 +63,13 @@ func Test_KeymapRejectsBadUserFileTableDriven(t *testing.T) {
 		{name: "missing action", content: `[{"key": "x"}]`},
 		{name: "unknown action", content: `[{"action": "scrol_up", "key": "x"}]`},
 		{name: "two actions on one key", content: `[{"action": "scroll_up", "key": "q"}]`},
+		{name: "action on reserved ctrl+c", content: `[{"action": "quit", "key": "ctrl+c"}]`},
+		{name: "action on reserved ctrl+d", content: `[{"action": "open_help", "key": "ctrl+d"}]`},
+		{name: "capitalised key name", content: `[{"action": "open_prompt", "key": "Tab"}]`},
+		{name: "misspelt key name", content: `[{"action": "quit", "key": "ctrl-x"}]`},
+		{name: "several characters", content: `[{"action": "quit", "key": "qq"}]`},
+		{name: "close on a printable character", content: `[{"action": "close", "key": "x"}]`},
+		{name: "close on space", content: `[{"action": "close", "key": " "}]`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			path := userFile(t, test.content)
@@ -72,6 +79,28 @@ func Test_KeymapRejectsBadUserFileTableDriven(t *testing.T) {
 			testutil.Equal(t, true, err != nil && strings.Contains(err.Error(), path))
 		})
 	}
+}
+
+func Test_KeymapAcceptsKeysBubbleTeaReportsTableDriven(t *testing.T) {
+	for _, key := range []string{"x", "?", "enter", "up", "pgdown", "ctrl+x", "alt+x", "f5"} {
+		t.Run(key, func(t *testing.T) {
+			path := userFile(t, `[{"action": "quit", "key": "`+key+`"}]`)
+
+			keymap, err := config.LoadKeymap(path)
+
+			testutil.Equal(t, nil, err)
+			testutil.Equal(t, key, keymap[1].Key)
+		})
+	}
+}
+
+func Test_KeymapAcceptsCloseOnKeyThatIsNotTyped(t *testing.T) {
+	path := userFile(t, `[{"action": "close", "key": "ctrl+x"}]`)
+
+	keymap, err := config.LoadKeymap(path)
+
+	testutil.Equal(t, nil, err)
+	testutil.Equal(t, "ctrl+x", keymap[3].Key)
 }
 
 func Test_KeymapRejectsUnreadableUserFile(t *testing.T) {

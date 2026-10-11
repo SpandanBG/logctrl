@@ -38,7 +38,7 @@ func rows(help tea.Model) []string {
 	return rows
 }
 
-func Test_HelpShowsEveryKeyWithItsDescription(t *testing.T) {
+func Test_HelpShowsEveryKeyWithItsDescriptionThenTheReservedQuitKeys(t *testing.T) {
 	help := newSizedHelp(keymap, 80, 30)
 
 	testutil.Equal(t, 80, lipgloss.Width(help.View()))
@@ -47,27 +47,28 @@ func Test_HelpShowsEveryKeyWithItsDescription(t *testing.T) {
 		"h Open the Help",
 		"q Quit logctrl",
 		"k Scroll the Log View up",
+		"ctrl+c/ctrl+d Quit logctrl",
 	}, "\n"), strings.Join(rows(help), "\n"))
 }
 
-func Test_HelpScrollKeysScrollRowsWithinBoundsTableDriven(t *testing.T) {
+func Test_HelpScrollMovesRowsWithinBoundsTableDriven(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		keys     string
+		scrolls  []components.TeaScroll
 		expected []string
 	}{
-		{name: "starts at the top", keys: "", expected: []string{"h Open the Help", "q Quit logctrl"}},
-		{name: "j scrolls down", keys: "j", expected: []string{"q Quit logctrl", "k Scroll the Log View up"}},
-		{name: "j stops at the bottom", keys: "jj", expected: []string{"q Quit logctrl", "k Scroll the Log View up"}},
-		{name: "k scrolls up", keys: "jk", expected: []string{"h Open the Help", "q Quit logctrl"}},
-		{name: "k stops at the top", keys: "k", expected: []string{"h Open the Help", "q Quit logctrl"}},
+		{name: "starts at the top", scrolls: nil, expected: []string{"h Open the Help", "q Quit logctrl"}},
+		{name: "down", scrolls: []components.TeaScroll{1}, expected: []string{"q Quit logctrl", "k Scroll the Log View up"}},
+		{name: "down stops at the bottom", scrolls: []components.TeaScroll{1, 1, 1}, expected: []string{"k Scroll the Log View up", "ctrl+c/ctrl+d Quit logctrl"}},
+		{name: "up", scrolls: []components.TeaScroll{1, -1}, expected: []string{"h Open the Help", "q Quit logctrl"}},
+		{name: "up stops at the top", scrolls: []components.TeaScroll{-1}, expected: []string{"h Open the Help", "q Quit logctrl"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 of 3 rows
+			// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 of 4 rows
 			help := newSizedHelp(keymap, 80, 5)
 
-			for _, key := range test.keys {
-				help, _ = help.Update(keys(string(key)))
+			for _, scroll := range test.scrolls {
+				help, _ = help.Update(scroll)
 			}
 
 			testutil.Equal(t, strings.Join(test.expected, "\n"), strings.Join(rows(help), "\n"))
@@ -77,7 +78,7 @@ func Test_HelpScrollKeysScrollRowsWithinBoundsTableDriven(t *testing.T) {
 
 func Test_HelpStartsAtTheTopWhenOpened(t *testing.T) {
 	help := newSizedHelp(keymap, 80, 5)
-	help, _ = help.Update(keys("j"))
+	help, _ = help.Update(components.TeaScroll(1))
 
 	help, _ = help.Update(components.TeaHelpOpen{})
 

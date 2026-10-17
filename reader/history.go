@@ -12,10 +12,10 @@ type History struct {
 	lb        *LiveBuffer
 	logFile   io.ReaderAt
 	chunkSize int
-	index     []int64          // index[c] - byte offset in the Log File of line c*chunkSize
-	size      int64            // bytes of the Log File taken up by pushed lines
-	chunks    map[int][]string // at most `maxChunks`, by chunk number
-	unread    bool             // the Log File failed to read; only the LiveBuffer is shown
+	index     []int64        // index[c] - byte offset in the Log File of line c*chunkSize
+	size      int64          // bytes of the Log File taken up by pushed lines
+	chunks    map[int][]Line // at most `maxChunks`, by chunk number
+	unread    bool           // the Log File failed to read; only the LiveBuffer is shown
 }
 
 // maxChunks - Chunks held in memory: the one being viewed and its neighbours.
@@ -28,7 +28,7 @@ func NewHistory(capacity, chunkSize int, logFile io.ReaderAt) *History {
 		lb:        NewLiveBuffer(capacity),
 		logFile:   logFile,
 		chunkSize: chunkSize,
-		chunks:    map[int][]string{},
+		chunks:    map[int][]Line{},
 	}
 }
 
@@ -38,7 +38,7 @@ func (h *History) Push(raw string) {
 		h.index = append(h.index, h.size)
 	}
 	h.size += int64(len(raw))
-	h.lb.Push(text(raw))
+	h.lb.Push(Line{Text: text(raw)})
 }
 
 // Total - number of lines received so far.
@@ -58,9 +58,9 @@ func (h *History) First() int {
 // Lines - returns the lines with line numbers in [from, to). Callers must keep
 // the range within [First(), Total()]. `false` if the Log File failed to read,
 // after which First() has moved up to the oldest held line.
-func (h *History) Lines(from, to int) ([]string, bool) {
+func (h *History) Lines(from, to int) ([]Line, bool) {
 	oldest := h.lb.OldestHeld()
-	lines := make([]string, 0, to-from)
+	lines := make([]Line, 0, to-from)
 	for n := from; n < min(to, oldest); n += 1 {
 		chunk, ok := h.chunk(n / h.chunkSize)
 		if !ok {
@@ -78,7 +78,7 @@ func (h *History) Lines(from, to int) ([]string, bool) {
 
 // chunk - the lines of Chunk `c`, loaded from the Log File if not held.
 // `false` if the Log File failed to read.
-func (h *History) chunk(c int) ([]string, bool) {
+func (h *History) chunk(c int) ([]Line, bool) {
 	if lines, ok := h.chunks[c]; ok {
 		return lines, true
 	}
@@ -93,9 +93,10 @@ func (h *History) chunk(c int) ([]string, bool) {
 		return nil, false
 	}
 
-	lines := strings.SplitAfter(string(buf), "\n")
-	for i, raw := range lines {
-		lines[i] = text(raw)
+	raws := strings.SplitAfter(string(buf), "\n")
+	lines := make([]Line, len(raws))
+	for i, raw := range raws {
+		lines[i] = Line{Text: text(raw)}
 	}
 	if len(h.chunks) == maxChunks {
 		h.dropFurthest(c)

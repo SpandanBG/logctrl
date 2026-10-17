@@ -1,7 +1,6 @@
 package reader
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/SpandanBG/logctrl/internal/testutil"
@@ -71,12 +70,12 @@ func Test_LiveBufferTableDriven(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			lb := NewLiveBuffer(test.capacity)
 			for _, each := range test.push {
-				lb.Push(each)
+				lb.Push(Line{Text: each})
 			}
 
 			testutil.Equal(t, test.total, lb.Total())
 			testutil.Equal(t, test.oldestHeld, lb.OldestHeld())
-			testutil.Equal(t, test.expected, strings.Join(lb.Lines(test.from, test.to), "\n"))
+			testutil.Equal(t, test.expected, texts(lb.Lines(test.from, test.to)))
 		})
 	}
 }

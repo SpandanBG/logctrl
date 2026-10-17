@@ -24,6 +24,15 @@ func (f *unreadableFile) ReadAt([]byte, int64) (int, error) {
 	return 0, errors.New("unreadable")
 }
 
+// texts - the text of each Line, joined by newlines.
+func texts(lines []Line) string {
+	each := make([]string, 0, len(lines))
+	for _, line := range lines {
+		each = append(each, line.Text)
+	}
+	return strings.Join(each, "\n")
+}
+
 // history - a History over an in-memory Log File, and that file.
 type history struct {
 	*History
@@ -67,7 +76,7 @@ func Test_WindowFollowing(t *testing.T) {
 			pushRaw(h, test.pushed)
 
 			testutil.Equal(t, true, w.Following())
-			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, test.expected, texts(w.Lines()))
 		})
 	}
 }
@@ -104,7 +113,7 @@ func Test_WindowPinned(t *testing.T) {
 
 			testutil.Equal(t, test.moved, moved)
 			testutil.Equal(t, test.following, w.Following())
-			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, test.expected, texts(w.Lines()))
 		})
 	}
 }
@@ -135,7 +144,7 @@ func Test_WindowPinnedAfterEviction(t *testing.T) {
 
 			testutil.Equal(t, test.moved, moved)
 			testutil.Equal(t, test.following, w.Following())
-			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, test.expected, texts(w.Lines()))
 		})
 	}
 }
@@ -148,7 +157,7 @@ func Test_WindowScrollsPastOldestHeld(t *testing.T) {
 
 	testutil.Equal(t, -17, w.MoveBy(-50))
 	testutil.Equal(t, false, w.Following())
-	testutil.Equal(t, "0\n1\n2", strings.Join(w.Lines(), "\n"))
+	testutil.Equal(t, "0\n1\n2", texts(w.Lines()))
 }
 
 func Test_WindowMoveToEnd(t *testing.T) {
@@ -162,7 +171,7 @@ func Test_WindowMoveToEnd(t *testing.T) {
 	pushRaw(h, 1)
 
 	testutil.Equal(t, true, w.Following())
-	testutil.Equal(t, "8\n9\n10", strings.Join(w.Lines(), "\n"))
+	testutil.Equal(t, "8\n9\n10", texts(w.Lines()))
 }
 
 func Test_WindowScrollsDownFromFirstLineAcrossChunks(t *testing.T) {
@@ -175,7 +184,7 @@ func Test_WindowScrollsDownFromFirstLineAcrossChunks(t *testing.T) {
 	for start := 1; start <= 17; start += 1 {
 		testutil.Equal(t, 1, w.MoveBy(1))
 		expected := fmt.Sprintf("%d\n%d\n%d", start, start+1, start+2)
-		testutil.Equal(t, expected, strings.Join(w.Lines(), "\n"))
+		testutil.Equal(t, expected, texts(w.Lines()))
 	}
 	testutil.Equal(t, true, w.Following())
 }
@@ -190,9 +199,9 @@ func Test_WindowStripsCRLF(t *testing.T) {
 		h.Push(raw)
 	}
 
-	testutil.Equal(t, "17\n18\n19", strings.Join(w.Lines(), "\n"))
+	testutil.Equal(t, "17\n18\n19", texts(w.Lines()))
 	w.MoveBy(-50)
-	testutil.Equal(t, "0\n1\n2", strings.Join(w.Lines(), "\n"))
+	testutil.Equal(t, "0\n1\n2", texts(w.Lines()))
 }
 
 func Test_WindowWhenLogFileUnreadable(t *testing.T) {
@@ -228,7 +237,7 @@ func Test_WindowWhenLogFileUnreadable(t *testing.T) {
 
 			testutil.Equal(t, test.moved, moved)
 			testutil.Equal(t, test.following, w.Following())
-			testutil.Equal(t, test.expected, strings.Join(w.Lines(), "\n"))
+			testutil.Equal(t, test.expected, texts(w.Lines()))
 		})
 	}
 }

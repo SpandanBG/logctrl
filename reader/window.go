@@ -30,7 +30,7 @@ func (w *Window) Following() bool {
 }
 
 // Lines - returns the lines currently in the window.
-func (w *Window) Lines() []string {
+func (w *Window) Lines() []Line {
 	w.clamp()
 	from, to := w.start, w.end
 	if w.following {

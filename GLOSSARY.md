@@ -12,6 +12,10 @@ _Avoid_: input, pipe, source
 The complete on-disk copy of everything received on the Log Feed during a session.
 _Avoid_: temp file, log dump
 
+**Line**:
+One entry of the Log Feed: its text, and what logctrl works out about it, such as its formatting or where a Search matches it.
+_Avoid_: log line, entry, record, row
+
 **Line Number**:
 A line's position in the Log Feed since the session started; it never changes, even after the line leaves the Live Buffer.
 _Avoid_: index, offset, position

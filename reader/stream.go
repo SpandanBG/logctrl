@@ -93,11 +93,18 @@ func (s *stream) SetBufferSize(size int) {
 	s.window.SetHeight(size)
 }
 
-// GetWindow - returns the lines currently in the window joined by newlines.
+// GetWindow - returns the text of the lines currently in the window joined by
+// newlines.
 func (s *stream) GetWindow() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return strings.Join(s.window.Lines(), "\n")
+
+	lines := s.window.Lines()
+	texts := make([]string, 0, len(lines))
+	for _, line := range lines {
+		texts = append(texts, line.Text)
+	}
+	return strings.Join(texts, "\n")
 }
 
 // MoveToEnd - makes the window follow the newest lines.

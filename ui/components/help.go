@@ -14,6 +14,11 @@ import (
 // ----- Public tea.Msg
 type TeaHelpOpen struct{}
 
+// TeaHelpSizeUpdate - gives the Help a new height modifier.
+type TeaHelpSizeUpdate struct {
+	Height ui.SizeI
+}
+
 var (
 	helpStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -53,6 +58,9 @@ func (h help) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return h, nil
 	case TeaScroll:
 		return h.scroll(int(msg))
+	case TeaHelpSizeUpdate:
+		h.height = msg.Height
+		return h, tea.WindowSize()
 	}
 	return h, nil
 }

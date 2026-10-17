@@ -57,6 +57,10 @@ _Avoid_: frozen, paused, locked
 Moving the Window a number of lines up (toward older lines, as far back as the first line of the session) or down (toward newer lines); scrolling down to the newest line makes it Following again.
 _Avoid_: move, step, navigate
 
+**Search**:
+Looking for lines that match a regex the user types, from the newest line toward older ones.
+_Avoid_: find, filter, grep, reverse search
+
 **Log View**:
 The on-screen panel that shows the Window.
 _Avoid_: viewport, log panel
@@ -72,6 +76,10 @@ _Avoid_: input, textarea, command line
 **Help**:
 The panel, opened and closed by the user, listing every key in the Keymap and what it does.
 _Avoid_: help menu, help window, popup
+
+**Search Bar**:
+The one-line panel under the Log View where the user types the regex for a Search. Once entered, the regex stays on show, read-only, until the user closes the Search Bar.
+_Avoid_: search box, input box, Prompt
 
 ## Controls
 

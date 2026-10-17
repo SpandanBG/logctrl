@@ -9,7 +9,7 @@ make dev       # Run in development mode: go run main.go
 make build     # Build binary to bin/out
 make mock      # Run mock logger (requires Node.js): node ./tests/tools/mockLogger.js
 make test      # go vet + go test -race ./...
-make cover     # Coverage check against COVER_MIN (excludes main and internal/), as run in CI
+make cover     # Coverage check against COVER_MIN (excludes main and internal/; counted across packages), as run in CI
 make hooks     # Enable the committed pre-commit hook (.githooks/), which runs `make test`
 go test -bench=. ./reader  # Run benchmarks
 ```
@@ -45,9 +45,9 @@ PTY master ──→ stdout (rendered UI)
 | Package | Role |
 |---|---|
 | `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. `Buffer` is the older ring buffer, now unused |
-| `ui/` | BubbleTea layout model orchestrating four components: Toolbar, LogView, Prompt, Help |
-| `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help and Scroll keys), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
-| `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close`); `main` exits on it |
+| `ui/` | BubbleTea layout model orchestrating five components: Toolbar, LogView, Search Bar, Prompt, Help |
+| `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help, Scroll and Search keys), `SearchBar` (one-line textinput under the Log View; owns `enter`, like any text input), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
+| `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close` or `close_search`); `main` exits on it |
 | `ui/utils/` | Responsive sizing system (`Ratio`, `Fixed`, `Modifier` types) and ANSI color constants |
 | `utils/` | `SIGWINCH` handler with callback pattern |
 | `internal/` | Test-only helpers (`testutil`, `fakestream`) |
@@ -76,11 +76,13 @@ Keys are dispatched by Action from the merged Keymap (`config/keymap.json`, plus
 |---|---|
 | `h` | Open the Help (while prompt and help closed) |
 | `Tab` | Open prompt panel (while help closed) |
-| `Esc` | Close the prompt or the help (while open); the only Keymap key honoured in the prompt |
+| `Esc` | Close the prompt or the help (while open); the only Keymap key honoured in the prompt. Cancels typing in the Search Bar: back to the entered regex, or closed if none |
 | `q` | Quit (while prompt and help closed) |
 | `k` / `j` | Scroll the log view one line up (older) / down (newer); scroll the help while it is open |
 | `G` | Follow the newest lines (while prompt and help closed; not shown in the Toolbar) |
-| `^C` / `^D` | Reserved, outside the Keymap: always Quit while the prompt is closed |
+| `/` | Open the Search Bar, or edit its regex (while prompt and help closed); `enter` makes it read-only (ignored when empty) |
+| `ctrl+l` | Close the Search Bar (while typing in it or while it is read-only) |
+| `^C` / `^D` | Reserved, outside the Keymap: always Quit while the prompt is closed (including while typing in the Search Bar) |
 
 ### Environment Variables
 

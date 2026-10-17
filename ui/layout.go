@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	toolbarSize = 1
-	promptSize  = 16
+	toolbarSize   = 1
+	searchBarSize = 1
+	promptSize    = 16
 )
 
 var (
@@ -26,13 +27,17 @@ var (
 type logTeaCmd string
 
 type uiModel struct {
-	toolbar      tea.Model
-	logView      tea.Model
-	prompt       tea.Model
-	help         tea.Model
-	actionOf     map[string]config.Action // the Action each key in the Keymap triggers
-	promptActive bool
-	helpActive   bool
+	toolbar       tea.Model
+	logView       tea.Model
+	prompt        tea.Model
+	help          tea.Model
+	searchBar     tea.Model
+	actionOf      map[string]config.Action // the Action each key in the Keymap triggers
+	promptActive  bool
+	helpActive    bool
+	searchActive  bool // the Search Bar is shown
+	searchTyping  bool // the Search Bar is shown and editable
+	searchEntered bool // a regex has been entered in the Search Bar
 }
 
 func NewUI(stream reader.Stream, keymap []config.Entry) (
@@ -79,6 +84,7 @@ func newModel(stream reader.Stream, keymap []config.Entry) uiModel {
 			ui.SizeModifier(-toolbarSize),
 			keymap,
 		),
+		searchBar: components.NewSearchBar(ui.SizeRatio(1)),
 	}
 }
 
@@ -88,6 +94,7 @@ func (u uiModel) Init() tea.Cmd {
 		u.logView.Init(),
 		u.prompt.Init(),
 		u.help.Init(),
+		u.searchBar.Init(),
 	)
 }
 
@@ -100,10 +107,17 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if slices.Contains(config.Reserved, msg.String()) {
 			return u, tea.Quit
 		}
+		if u.searchTyping {
+			return u.receiveSearch(msg)
+		}
 		if u.helpActive {
 			return u.receiveHelp(msg)
 		}
 		return u.executeKeystroke(msg)
+	case components.TeaSearchEntered:
+		u.searchTyping = false
+		u.searchEntered = true
+		return u, nil
 	}
 
 	return u.batchUpdate(msg)
@@ -128,6 +142,10 @@ func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return u.scrollLogView(1)
 	case config.Follow:
 		return u.followLogView()
+	case config.OpenSearch:
+		return u.openSearch()
+	case config.CloseSearch:
+		return u.closeSearch()
 	}
 	return u, nil
 }
@@ -184,25 +202,26 @@ func (u uiModel) batchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		u.prompt, cmds[2] = u.prompt.Update(msg)
 	}
 
-	var helpCmd tea.Cmd
+	var helpCmd, searchBarCmd tea.Cmd
 	u.help, helpCmd = u.help.Update(msg)
-	cmds = append(cmds, helpCmd)
+	u.searchBar, searchBarCmd = u.searchBar.Update(msg)
+	cmds = append(cmds, helpCmd, searchBarCmd)
 
 	return u, tea.Batch(cmds...)
 }
 
 func (u uiModel) batchView() string {
-	updateCount := u.getUpdateCount()
-	views := make([]string, updateCount)
-
-	views[0] = u.toolbar.View()
-	views[1] = u.logView.View()
+	views := []string{u.toolbar.View(), u.logView.View()}
 	if u.helpActive {
 		views[1] = u.help.View()
 	}
 
+	if u.searchActive {
+		views = append(views, u.searchBar.View())
+	}
+
 	if u.promptActive {
-		views[2] = u.prompt.View()
+		views = append(views, u.prompt.View())
 	}
 
 	return strings.Join(views, "\n")
@@ -220,17 +239,8 @@ func (u uiModel) getUpdateCount() int {
 func (u uiModel) togglePrompt() (tea.Model, tea.Cmd) {
 	u.promptActive = !u.promptActive
 
-	modifier := toolbarSize
-	if u.promptActive {
-		modifier += promptSize
-	}
-
 	var logViewCmd, promptCmd tea.Cmd
-
-	u.logView, logViewCmd = u.logView.Update(components.TeaLogSizeUpdate{
-		Width:  ui.SizeRatio(1),
-		Height: ui.SizeModifier(-modifier),
-	})
+	u, logViewCmd = u.resizePanels()
 
 	u.prompt, promptCmd = u.prompt.Update(components.TeaPromptToggle{
 		BringFocus: u.promptActive,
@@ -249,4 +259,76 @@ func (u uiModel) openHelp() (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	u.help, cmd = u.help.Update(components.TeaHelpOpen{})
 	return u, cmd
+}
+
+// openSearch - shows the Search Bar, editable, under the Log View.
+func (u uiModel) openSearch() (tea.Model, tea.Cmd) {
+	u.searchActive = true
+	u.searchTyping = true
+
+	var logViewCmd, searchBarCmd tea.Cmd
+	u, logViewCmd = u.resizePanels()
+	u.searchBar, searchBarCmd = u.searchBar.Update(components.TeaSearchEdit{})
+	return u, tea.Batch(logViewCmd, searchBarCmd)
+}
+
+func (u uiModel) receiveSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch u.actionOf[msg.String()] {
+	case config.CloseSearch:
+		return u.closeSearch()
+	case config.Close:
+		return u.cancelSearch()
+	}
+
+	var cmd tea.Cmd
+	u.searchBar, cmd = u.searchBar.Update(msg)
+	return u, cmd
+}
+
+// resizePanels - fits the Log View into the rows the Toolbar, the Search Bar
+// and the Prompt leave, and the Help into the rows the Toolbar and the Search
+// Bar leave.
+func (u uiModel) resizePanels() (uiModel, tea.Cmd) {
+	modifier := toolbarSize
+	if u.searchActive {
+		modifier += searchBarSize
+	}
+
+	var logViewCmd, helpCmd tea.Cmd
+	u.help, helpCmd = u.help.Update(components.TeaHelpSizeUpdate{
+		Height: ui.SizeModifier(-modifier),
+	})
+
+	if u.promptActive {
+		modifier += promptSize
+	}
+	u.logView, logViewCmd = u.logView.Update(components.TeaLogSizeUpdate{
+		Width:  ui.SizeRatio(1),
+		Height: ui.SizeModifier(-modifier),
+	})
+	return u, tea.Batch(logViewCmd, helpCmd)
+}
+
+// closeSearch - removes the Search Bar, giving its row back to the Log View.
+func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
+	u.searchActive = false
+	u.searchTyping = false
+	u.searchEntered = false
+
+	var cmd tea.Cmd
+	u, cmd = u.resizePanels()
+	u.searchBar, _ = u.searchBar.Update(components.TeaSearchClose{})
+	return u, cmd
+}
+
+// cancelSearch - drops what was typed in the Search Bar: back to the regex
+// last entered, or no Search Bar if none was.
+func (u uiModel) cancelSearch() (tea.Model, tea.Cmd) {
+	if !u.searchEntered {
+		return u.closeSearch()
+	}
+
+	u.searchTyping = false
+	u.searchBar, _ = u.searchBar.Update(components.TeaSearchCancel{})
+	return u, nil
 }

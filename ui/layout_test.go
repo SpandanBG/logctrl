@@ -17,8 +17,10 @@ import (
 )
 
 var (
-	tab = tea.KeyMsg{Type: tea.KeyTab}
-	esc = tea.KeyMsg{Type: tea.KeyEsc}
+	tab   = tea.KeyMsg{Type: tea.KeyTab}
+	esc   = tea.KeyMsg{Type: tea.KeyEsc}
+	enter = tea.KeyMsg{Type: tea.KeyEnter}
+	ctrlL = tea.KeyMsg{Type: tea.KeyCtrlL}
 )
 
 func keys(text string) tea.KeyMsg {
@@ -47,7 +49,9 @@ const remapped = `[
 	{"action": "close", "key": "ctrl+x"},
 	{"action": "scroll_up", "key": "u"},
 	{"action": "scroll_down", "key": "n"},
-	{"action": "follow", "key": "end"}
+	{"action": "follow", "key": "end"},
+	{"action": "open_search", "key": "f"},
+	{"action": "close_search", "key": "ctrl+o"}
 ]`
 
 // startRemappedUI - the UI on a `width` x `height` terminal with `userKeymap`
@@ -241,6 +245,7 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 		tab,
 		keys("x"),
 		keys("G"),
+		keys("/"),
 	} {
 		t.Run(key.String(), func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -389,6 +394,220 @@ func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 	testutil.Equal(t, false, strings.Contains(view, "Open the Help"))
 	testutil.Equal(t, true, strings.Contains(view, "Quit logctrl"))
 	testutil.Equal(t, true, strings.Contains(view, "Open the Prompt"))
+}
+
+func Test_UISearchKeyOpensSearchBarAndShrinksLogView(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, keys("/"))
+	model, quit := press(model, runtime, keys("q.*jk"))
+
+	testutil.Equal(t, false, quit)
+	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, 30, lipgloss.Height(model.View()))
+	// 30 rows - 1 toolbar row - 1 Search Bar row - 2 border rows
+	testutil.Equal(t, 26, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/q.*jk"))
+}
+
+func Test_UIEnterMakesSearchBarReadOnly(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys("err"))
+	model, _ = press(model, runtime, enter)
+	model, _ = press(model, runtime, keys("k"))
+	model, _ = press(model, runtime, keys("x"))
+	model, _ = press(model, runtime, keys("G"))
+
+	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+	testutil.Equal(t, 1, stream.Follows())
+	testutil.Equal(t, 26, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "errk"))
+}
+
+func Test_UICloseSearchKeyClosesSearchBarAndRestoresLogView(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		typed []tea.KeyMsg // after opening the Search Bar, before closing it
+	}{
+		{name: "while typing", typed: []tea.KeyMsg{keys("err")}},
+		{name: "while read-only", typed: []tea.KeyMsg{keys("err"), enter}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("/"))
+			for _, key := range test.typed {
+				model, _ = press(model, runtime, key)
+			}
+
+			model, _ = press(model, runtime, ctrlL)
+			closedView := ansi.Strip(model.View())
+			model, _ = press(model, runtime, keys("k"))
+
+			testutil.Equal(t, false, strings.Contains(closedView, "/err"))
+			testutil.Equal(t, 30, lipgloss.Height(model.View()))
+			testutil.Equal(t, 27, stream.Height())
+			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+
+			model, _ = press(model, runtime, keys("/"))
+			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "/err"))
+		})
+	}
+}
+
+func Test_UISearchKeyMakesReadOnlySearchBarEditableKeepingRegex(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys("err"))
+	model, _ = press(model, runtime, enter)
+
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys("ork"))
+
+	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, 26, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/errork"))
+}
+
+func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		typed    []tea.KeyMsg // after opening the Search Bar, before Esc
+		height   int
+		expected string // in the view after Esc, if anything
+	}{
+		{name: "first edit closes the Search Bar", typed: []tea.KeyMsg{keys("err")}, height: 27},
+		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("/"), keys("or")}, height: 26, expected: "/err"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("/"))
+			for _, key := range test.typed {
+				model, _ = press(model, runtime, key)
+			}
+
+			model, _ = press(model, runtime, esc)
+			view := ansi.Strip(model.View())
+			model, _ = press(model, runtime, keys("k"))
+
+			testutil.Equal(t, false, strings.Contains(view, "/erro"))
+			testutil.Equal(t, test.expected != "", strings.Contains(view, "/err"))
+			testutil.Equal(t, test.height, stream.Height())
+			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+		})
+	}
+}
+
+func Test_UIEnterIsIgnoredOnEmptySearchBar(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model, _ = press(model, runtime, keys("/"))
+
+	model, _ = press(model, runtime, enter)
+	model, _ = press(model, runtime, keys("k"))
+
+	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/k"))
+}
+
+// enterSearch - opens the Search Bar and enters `regex` in it.
+func enterSearch(model tea.Model, runtime *testutil.Runtime, regex string) tea.Model {
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys(regex))
+	model, _ = press(model, runtime, enter)
+	return model
+}
+
+func Test_UIHelpOpensAboveReadOnlySearchBar(t *testing.T) {
+	model, _, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err")
+
+	model, _ = press(model, runtime, keys("h"))
+	helpView := ansi.Strip(model.View())
+	model, _ = press(model, runtime, esc)
+
+	testutil.Equal(t, true, strings.Contains(helpView, "Scroll the Log View or the Help down"))
+	testutil.Equal(t, true, strings.HasSuffix(strings.TrimSpace(helpView), "/err"))
+	testutil.Equal(t, 30, lipgloss.Height(helpView))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+}
+
+func Test_UIPromptOpensBelowReadOnlySearchBar(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err")
+
+	model, _ = press(model, runtime, tab)
+	model, _ = press(model, runtime, keys("cmd"))
+	promptView := ansi.Strip(model.View())
+	promptHeight := stream.Height()
+	model, _ = press(model, runtime, esc)
+
+	testutil.Equal(t, 30, lipgloss.Height(promptView))
+	// 30 rows - 1 toolbar row - 1 Search Bar row - 16 prompt rows - 2 border rows
+	testutil.Equal(t, 10, promptHeight)
+	testutil.Equal(t, true, strings.Index(promptView, "/err") < strings.Index(promptView, "cmd"))
+	testutil.Equal(t, 26, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+}
+
+func Test_UIReservedKeysQuitWhileTypingInSearchBar(t *testing.T) {
+	for _, key := range []tea.KeyMsg{
+		{Type: tea.KeyCtrlC},
+		{Type: tea.KeyCtrlD},
+	} {
+		t.Run(key.String(), func(t *testing.T) {
+			model, _, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("/"))
+
+			_, quit := press(model, runtime, key)
+
+			testutil.Equal(t, true, quit)
+		})
+	}
+}
+
+func Test_UISearchKeyIsTypedWhilePromptOpen(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, tab)
+	for _, key := range []string{"a", "/", "b"} {
+		model, _ = press(model, runtime, keys(key))
+	}
+
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "a/b"))
+	// the Search Bar stayed closed: 30 rows - 1 toolbar row - 16 prompt rows - 2 border rows
+	testutil.Equal(t, 11, stream.Height())
+}
+
+func Test_UIOpensAndClosesSearchBarOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		builtIn  tea.KeyMsg
+		remapped tea.KeyMsg
+	}{
+		{name: "close_search", builtIn: ctrlL, remapped: tea.KeyMsg{Type: tea.KeyCtrlO}},
+		{name: "close", builtIn: esc, remapped: tea.KeyMsg{Type: tea.KeyCtrlX}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+
+			model, _ = press(model, runtime, keys("/"))
+			openedOnBuiltIn := stream.Height() != 27
+			model, _ = press(model, runtime, keys("f"))
+			openedOnRemapped := stream.Height() != 27
+			model, _ = press(model, runtime, keys("err"))
+			model, _ = press(model, runtime, test.builtIn)
+			closedOnBuiltIn := stream.Height() == 27
+			press(model, runtime, test.remapped)
+			closedOnRemapped := stream.Height() == 27
+
+			testutil.Equal(t, false, openedOnBuiltIn)
+			testutil.Equal(t, true, openedOnRemapped)
+			testutil.Equal(t, false, closedOnBuiltIn)
+			testutil.Equal(t, true, closedOnRemapped)
+		})
+	}
 }
 
 func Test_UIReservedKeysDoNotQuitWhilePromptOpen(t *testing.T) {

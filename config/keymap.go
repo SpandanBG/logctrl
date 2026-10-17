@@ -21,18 +21,24 @@ import (
 type Action string
 
 const (
-	OpenHelp   Action = "open_help"
-	Quit       Action = "quit"
-	OpenPrompt Action = "open_prompt"
-	Close      Action = "close"
-	ScrollUp   Action = "scroll_up"
-	ScrollDown Action = "scroll_down"
-	Follow     Action = "follow"
+	OpenHelp    Action = "open_help"
+	Quit        Action = "quit"
+	OpenPrompt  Action = "open_prompt"
+	Close       Action = "close"
+	ScrollUp    Action = "scroll_up"
+	ScrollDown  Action = "scroll_down"
+	Follow      Action = "follow"
+	OpenSearch  Action = "open_search"
+	CloseSearch Action = "close_search"
 )
 
 // Reserved - the keys that always Quit, outside the Keymap, so no Keymap file
 // can leave the user without an exit.
 var Reserved = []string{"ctrl+c", "ctrl+d"}
+
+// whileTyping - the Actions honoured while the user types in the Prompt or the
+// Search Bar, so they can't be on a key that would be typed.
+var whileTyping = []Action{Close, CloseSearch}
 
 // Entry - one Action with the key that triggers it and its description.
 type Entry struct {
@@ -78,7 +84,7 @@ func LoadKeymap(userPath string) ([]Entry, error) {
 // merge - replaces the key and description of each Action in `keymap` with the
 // ones `user` gives for it; ones `user` leaves empty are kept. Every Action in
 // `user` must already be in `keymap`, and no two Actions may end up on one key
-// or on a Reserved key.
+// or on a Reserved key, nor an Action honoured while typing on a printable key.
 func merge(keymap, user []Entry) ([]Entry, error) {
 	for _, override := range user {
 		i := slices.IndexFunc(keymap, func(e Entry) bool {
@@ -103,8 +109,8 @@ func merge(keymap, user []Entry) ([]Entry, error) {
 		if !isKeyName(entry.Key) {
 			return nil, fmt.Errorf("%s is on %q, which is not a key", entry.Action, entry.Key)
 		}
-		if entry.Action == Close && isPrintable(entry.Key) {
-			return nil, fmt.Errorf("%s is on %q, which would be typed in the Prompt", entry.Action, entry.Key)
+		if slices.Contains(whileTyping, entry.Action) && isPrintable(entry.Key) {
+			return nil, fmt.Errorf("%s is on %q, which would be typed in the Prompt or the Search Bar", entry.Action, entry.Key)
 		}
 		if slices.Contains(Reserved, entry.Key) {
 			return nil, fmt.Errorf("%s is on reserved key %q", entry.Action, entry.Key)

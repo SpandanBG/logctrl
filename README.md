@@ -45,10 +45,14 @@ Press `h` at any time to open the Help, which lists every key.
 | `h` | `open_help` | Open the Help |
 | `q` | `quit` | Quit logctrl |
 | `tab` | `open_prompt` | Open the Prompt |
-| `esc` | `close` | Close the Prompt or the Help |
+| `esc` | `close` | Close the Prompt or the Help, or cancel typing a Search |
 | `k` | `scroll_up` | Scroll the Log View or the Help up (older lines) |
 | `j` | `scroll_down` | Scroll the Log View or the Help down (newer lines) |
 | `G` | `follow` | Follow the newest lines |
+| `/` | `open_search` | Open the Search Bar, or edit the regex in it |
+| `ctrl+l` | `close_search` | Close the Search Bar |
+
+In the Search Bar, type a regex and press `enter`: the regex stays on show, read-only, and every other key works as usual. Press `/` to edit it again, `esc` to cancel an edit, and `ctrl+l` to close the Search Bar. Searching itself isn't implemented yet.
 
 `ctrl+c` and `ctrl+d` always quit, except while the Prompt is open, and can't be remapped.
 
@@ -73,7 +77,7 @@ If the file has a mistake, `logctrl` won't start, and it prints an error naming 
 - a key isn't a single character or a known key name (e.g. `Tab`, `ctrl-x`)
 - two Actions end up on the same key
 - an Action is put on `ctrl+c` or `ctrl+d`
-- `close` is put on a single printable character (it would be typed into the Prompt instead)
+- `close` or `close_search` is put on a single printable character (it would be typed into the Prompt or the Search Bar instead)
 
 ## Roadmap
 

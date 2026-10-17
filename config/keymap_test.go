@@ -15,10 +15,12 @@ var builtIn = []config.Entry{
 	{Key: "h", Action: config.OpenHelp, Description: "Open the Help"},
 	{Key: "q", Action: config.Quit, Description: "Quit logctrl"},
 	{Key: "tab", Action: config.OpenPrompt, Description: "Open the Prompt"},
-	{Key: "esc", Action: config.Close, Description: "Close the Prompt or the Help"},
+	{Key: "esc", Action: config.Close, Description: "Close the Prompt or the Help, or cancel typing a Search"},
 	{Key: "k", Action: config.ScrollUp, Description: "Scroll the Log View or the Help up"},
 	{Key: "j", Action: config.ScrollDown, Description: "Scroll the Log View or the Help down"},
 	{Key: "G", Action: config.Follow, Description: "Follow the newest lines"},
+	{Key: "/", Action: config.OpenSearch, Description: "Open the Search Bar"},
+	{Key: "ctrl+l", Action: config.CloseSearch, Description: "Close the Search Bar"},
 }
 
 // userFile - writes `content` as the user's Keymap file and returns its path.
@@ -71,6 +73,8 @@ func Test_KeymapRejectsBadUserFileTableDriven(t *testing.T) {
 		{name: "several characters", content: `[{"action": "quit", "key": "qq"}]`},
 		{name: "close on a printable character", content: `[{"action": "close", "key": "x"}]`},
 		{name: "close on space", content: `[{"action": "close", "key": " "}]`},
+		{name: "close_search on a printable character", content: `[{"action": "close_search", "key": "x"}]`},
+		{name: "close_search on space", content: `[{"action": "close_search", "key": " "}]`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			path := userFile(t, test.content)

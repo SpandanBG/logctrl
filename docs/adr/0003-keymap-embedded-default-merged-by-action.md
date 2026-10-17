@@ -10,7 +10,7 @@ In the user file only `action` is required; `key` and `description` fall back to
 
 - a key that is neither a single character nor a key name BubbleTea reports (`tab`, `esc`, `enter`, `up`, `ctrl+a`, ...), since a typo like `Tab` would never match a keypress;
 - a key on `ctrl+c` or `ctrl+d`, which are reserved;
-- `close` on a single printable character (space included), since `close` is the only Action honoured while the Prompt is open and every other key is typed into it.
+- `close` on a single printable character (space included), since `close` is the only Action honoured while the Prompt is open and every other key is typed into it. The same goes for `close_search`, which is honoured, along with `close`, while the user types in the Search Bar.
 
 Each Action has one key. Keys are dispatched by Action from the merged Keymap: the layout turns a keypress into an Action once, and components receive Action-level messages, never raw keys. `ctrl+c` and `ctrl+d` are outside the Keymap and always Quit, from the Log View or the Help (not the Prompt), so no user file can leave the user without an exit; the Help lists them in a fixed last row.
 

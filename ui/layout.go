@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
-	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui/components"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,6 +27,7 @@ var (
 type logTeaCmd string
 
 type uiModel struct {
+	stream        cmd.Stream
 	toolbar       tea.Model
 	logView       tea.Model
 	prompt        tea.Model
@@ -40,7 +41,7 @@ type uiModel struct {
 	searchEntered bool // a regex has been entered in the Search Bar
 }
 
-func NewUI(stream reader.Stream, keymap []config.Entry) (
+func NewUI(stream cmd.Stream, keymap []config.Entry) (
 	app *tea.Program,
 	exit func(),
 ) {
@@ -57,13 +58,14 @@ func NewUI(stream reader.Stream, keymap []config.Entry) (
 	return
 }
 
-func newModel(stream reader.Stream, keymap []config.Entry) uiModel {
+func newModel(stream cmd.Stream, keymap []config.Entry) uiModel {
 	actionOf := map[string]config.Action{}
 	for _, entry := range keymap {
 		actionOf[entry.Key] = entry.Action
 	}
 
 	return uiModel{
+		stream:   stream,
 		actionOf: actionOf,
 		toolbar: components.NewToolbar(
 			ui.SizeRatio(1),
@@ -117,6 +119,7 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case components.TeaSearchEntered:
 		u.searchTyping = false
 		u.searchEntered = true
+		u.stream.Search(msg.Regex) // a bad regex ends the Search; shown in a later phase
 		return u, nil
 	}
 
@@ -314,6 +317,7 @@ func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
 	u.searchActive = false
 	u.searchTyping = false
 	u.searchEntered = false
+	u.stream.Search("")
 
 	var cmd tea.Cmd
 	u, cmd = u.resizePanels()

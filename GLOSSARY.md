@@ -65,6 +65,14 @@ _Avoid_: move, step, navigate
 Looking for lines that match a regex the user types, from the newest line toward older ones.
 _Avoid_: find, filter, grep, reverse search
 
+**Match**:
+A section of a Line's text that the Search regex matches; a Line may have several, or none.
+_Avoid_: matched span, hit, result
+
+**Pass**:
+Processing run over each Line in the Window before it is shown, such as a Search; every Pass runs again whenever the Window changes.
+_Avoid_: command, stage, step, filter
+
 **Log View**:
 The on-screen panel that shows the Window.
 _Avoid_: viewport, log panel

@@ -24,8 +24,10 @@ type TeaSearchClose struct{}
 // making the Search Bar read-only again.
 type TeaSearchCancel struct{}
 
-// TeaSearchEntered - the user entered the regex; the Search Bar is read-only.
-type TeaSearchEntered struct{}
+// TeaSearchEntered - the user entered `Regex`; the Search Bar is read-only.
+type TeaSearchEntered struct {
+	Regex string
+}
 
 type searchBar struct {
 	width   ui.SizeI
@@ -88,7 +90,7 @@ func (s searchBar) enter() (tea.Model, tea.Cmd) {
 
 	s = s.readOnly()
 	s.entered = s.view.Value()
-	return s, func() tea.Msg { return TeaSearchEntered{} }
+	return s, func() tea.Msg { return TeaSearchEntered{Regex: s.entered} }
 }
 
 // readOnly - stops the Search Bar taking keys, and dims it.

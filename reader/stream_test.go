@@ -42,7 +42,7 @@ func Test_StreamWindowHasLineWhenNotified(t *testing.T) {
 	for i := range 200 {
 		fmt.Fprintln(w, i)
 		<-next
-		testutil.Equal(t, fmt.Sprint(i), s.GetWindow())
+		testutil.Equal(t, fmt.Sprint(i), texts(s.Lines()))
 	}
 }
 
@@ -64,7 +64,7 @@ func Test_StreamPinnedWhileIngesting(t *testing.T) {
 		}
 	}()
 	for {
-		testutil.Equal(t, "5\n6", s.GetWindow())
+		testutil.Equal(t, "5\n6", texts(s.Lines()))
 		select {
 		case <-done:
 		default:
@@ -74,7 +74,7 @@ func Test_StreamPinnedWhileIngesting(t *testing.T) {
 	}
 
 	s.MoveToEnd()
-	testutil.Equal(t, "13\n14", s.GetWindow())
+	testutil.Equal(t, "13\n14", texts(s.Lines()))
 }
 
 func Test_StreamScrollsToFirstLineFromLogFile(t *testing.T) {
@@ -85,7 +85,7 @@ func Test_StreamScrollsToFirstLineFromLogFile(t *testing.T) {
 	}
 
 	testutil.Equal(t, -18, s.MoveBy(-100))
-	testutil.Equal(t, "line 0\nline 1", s.GetWindow())
+	testutil.Equal(t, "line 0\nline 1", texts(s.Lines()))
 	testutil.Equal(t, 9, s.MoveBy(9))
-	testutil.Equal(t, "line 9\nline 10", s.GetWindow())
+	testutil.Equal(t, "line 9\nline 10", texts(s.Lines()))
 }

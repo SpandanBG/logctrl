@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
@@ -105,7 +106,7 @@ func startChildProcess(keymap []config.Entry) {
 	// Get the log feed pipe
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
-	stream := reader.NewStream(logFeed)
+	stream := cmd.NewExecutor(reader.NewStream(logFeed))
 	app, exit := ui.NewUI(stream, keymap)
 	defer exit()
 

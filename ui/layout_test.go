@@ -511,6 +511,42 @@ func Test_UIEnterIsIgnoredOnEmptySearchBar(t *testing.T) {
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/k"))
 }
 
+func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys("err"))
+
+	testutil.Equal(t, "[]", fmt.Sprint(stream.Searches()))
+
+	model, _ = press(model, runtime, enter)
+	testutil.Equal(t, "[err]", fmt.Sprint(stream.Searches()))
+
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys("or"))
+	_, _ = press(model, runtime, enter)
+	testutil.Equal(t, "[err error]", fmt.Sprint(stream.Searches()))
+}
+
+func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err")
+
+	_, _ = press(model, runtime, ctrlL)
+
+	testutil.Equal(t, fmt.Sprint([]string{"err", ""}), fmt.Sprint(stream.Searches()))
+}
+
+func Test_UIEscKeepsEnteredSearch(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err")
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys("or"))
+
+	_, _ = press(model, runtime, esc)
+
+	testutil.Equal(t, "[err]", fmt.Sprint(stream.Searches()))
+}
+
 // enterSearch - opens the Search Bar and enters `regex` in it.
 func enterSearch(model tea.Model, runtime *testutil.Runtime, regex string) tea.Model {
 	model, _ = press(model, runtime, keys("/"))

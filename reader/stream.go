@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"sync"
 )
 
@@ -24,7 +23,7 @@ const (
 type Stream interface {
 	Start(chan bool)
 	SetBufferSize(int)
-	GetWindow() string
+	Lines() []Line
 	MoveToEnd()
 	MoveBy(int) int
 	Close()
@@ -93,18 +92,11 @@ func (s *stream) SetBufferSize(size int) {
 	s.window.SetHeight(size)
 }
 
-// GetWindow - returns the text of the lines currently in the window joined by
-// newlines.
-func (s *stream) GetWindow() string {
+// Lines - returns the lines currently in the window.
+func (s *stream) Lines() []Line {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	lines := s.window.Lines()
-	texts := make([]string, 0, len(lines))
-	for _, line := range lines {
-		texts = append(texts, line.Text)
-	}
-	return strings.Join(texts, "\n")
+	return s.window.Lines()
 }
 
 // MoveToEnd - makes the window follow the newest lines.

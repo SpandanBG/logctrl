@@ -1,26 +1,29 @@
-// Package fakestream provides an in-memory reader.Stream for UI tests.
+// Package fakestream provides an in-memory cmd.Stream for UI tests.
 package fakestream
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/reader"
 )
 
-// Stream - a reader.Stream whose Window text is set by the test.
+// Stream - a cmd.Stream whose Window text is set by the test.
 type Stream struct {
-	mu      sync.Mutex
-	height  int
-	window  string
-	next    chan bool
-	closed  bool
-	scrolls []int
-	follows int
+	mu       sync.Mutex
+	height   int
+	window   string
+	next     chan bool
+	closed   bool
+	scrolls  []int
+	follows  int
+	searches []string
 }
 
-var _ reader.Stream = (*Stream)(nil)
+var _ cmd.Stream = (*Stream)(nil)
 
 func New() *Stream {
 	return &Stream{}
@@ -44,6 +47,21 @@ func (s *Stream) GetWindow() string {
 	return s.window
 }
 
+// Lines - the Window text, one Line per row.
+func (s *Stream) Lines() []reader.Line {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.window == "" {
+		return nil
+	}
+
+	var lines []reader.Line
+	for _, text := range strings.Split(s.window, "\n") {
+		lines = append(lines, reader.Line{Text: text})
+	}
+	return lines
+}
+
 func (s *Stream) MoveToEnd() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -55,6 +73,13 @@ func (s *Stream) MoveBy(n int) int {
 	defer s.mu.Unlock()
 	s.scrolls = append(s.scrolls, n)
 	return n
+}
+
+func (s *Stream) Search(regex string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.searches = append(s.searches, regex)
+	return nil
 }
 
 func (s *Stream) Close() {
@@ -82,6 +107,13 @@ func (s *Stream) Follows() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.follows
+}
+
+// Searches - every regex the UI started a Search for, in order; "" ends one.
+func (s *Stream) Searches() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.searches...)
 }
 
 // SetWindow - changes the Window text without notifying the UI, as a Scroll

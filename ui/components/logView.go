@@ -1,7 +1,7 @@
 package components
 
 import (
-	"github.com/SpandanBG/logctrl/reader"
+	"github.com/SpandanBG/logctrl/cmd"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -31,15 +31,15 @@ var (
 )
 
 type logView struct {
-	width   ui.SizeI        // width modifier
-	height  ui.SizeI        // height modifier
-	view    viewport.Model  // holds the viewport
-	stream  reader.Stream // log feed stream to be displayed
-	ready   bool            // if `true` the viewport is ready to render
-	nextLog chan bool       // notification channel from stream
+	width   ui.SizeI       // width modifier
+	height  ui.SizeI       // height modifier
+	view    viewport.Model // holds the viewport
+	stream  cmd.Stream     // log feed stream to be displayed
+	ready   bool           // if `true` the viewport is ready to render
+	nextLog chan bool      // notification channel from stream
 }
 
-func NewLogView(width, height ui.SizeI, stream reader.Stream) tea.Model {
+func NewLogView(width, height ui.SizeI, stream cmd.Stream) tea.Model {
 	nextLog := make(chan bool)
 
 	stream.SetBufferSize(1)

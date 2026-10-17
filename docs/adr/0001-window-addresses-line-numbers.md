@@ -8,6 +8,6 @@ The Live Buffer is a ring with a fixed Capacity (independent of screen height), 
 
 ## Consequences
 
-- History older than Capacity is only in the Log File and cannot be scrolled to.
+- ~~History older than Capacity is only in the Log File and cannot be scrolled to.~~ Superseded by ADR 0004: history is loaded from the Log File in Chunks, and Clamp is retired except as a read-error fallback.
 - Capacity is a constant in `reader/stream.go` for now; a `-capacity N` flag (fatal on invalid) is deferred — note the child is re-exec'd without args, so a flag must be forwarded explicitly.
 - Window behaviour on terminal resize while Pinned is deliberately undefined (out of scope).

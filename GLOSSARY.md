@@ -20,11 +20,19 @@ _Avoid_: index, offset, position
 The number of lines received on the Log Feed so far.
 _Avoid_: count, length
 
+**Line Index**:
+The record of where in the Log File certain Line Numbers begin, kept up to date as lines arrive, so any line can be found without reading the Log File from the start.
+_Avoid_: offset table, line map
+
 ## Display
 
 **Live Buffer**:
-The most recent lines held in memory, up to its Capacity; the only lines the user can see.
+The most recent lines held in memory, up to its Capacity.
 _Avoid_: LAB, live access buffer, scrollback, history
+
+**Chunk**:
+A contiguous run of Line Numbers older than Oldest Held, read from the Log File into memory so the Window can show them.
+_Avoid_: page, history buffer, archive
 
 **Capacity**:
 The maximum number of lines the Live Buffer holds before the oldest are evicted.
@@ -42,15 +50,12 @@ The Window mode in which it always shows the newest lines; the user can return t
 _Avoid_: live mode, tailing, auto-scroll
 
 **Pinned**:
-The Window mode in which it keeps showing the same Line Numbers while new lines arrive.
+The Window mode in which it keeps showing the same Line Numbers while new lines arrive, even after they leave the Live Buffer.
 _Avoid_: frozen, paused, locked
 
 **Scroll**:
-Moving the Window a number of lines up (toward older lines) or down (toward newer lines); scrolling down to the newest line makes it Following again.
+Moving the Window a number of lines up (toward older lines, as far back as the first line of the session) or down (toward newer lines); scrolling down to the newest line makes it Following again.
 _Avoid_: move, step, navigate
-
-**Clamp**:
-Shifting a Pinned Window forward when its first line is no longer held in the Live Buffer.
 
 **Log View**:
 The on-screen panel that shows the Window.

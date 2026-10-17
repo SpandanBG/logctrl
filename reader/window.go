@@ -4,17 +4,17 @@ package reader
 // While following, the range is derived on read from the newest lines and
 // start/end are not used (see docs/adr/0002).
 type Window struct {
-	lb        *LiveBuffer
+	h         *History
 	height    int
 	start     int
 	end       int
 	following bool
 }
 
-// NewWindow - Creates a following window over `lb`.
-func NewWindow(lb *LiveBuffer) *Window {
+// NewWindow - Creates a following window over `h`.
+func NewWindow(h *History) *Window {
 	return &Window{
-		lb:        lb,
+		h:         h,
 		following: true,
 	}
 }
@@ -32,26 +32,30 @@ func (w *Window) Following() bool {
 // Lines - returns the lines currently in the window.
 func (w *Window) Lines() []string {
 	w.clamp()
+	from, to := w.start, w.end
 	if w.following {
-		return w.lb.Lines(w.lastStart(), w.lb.Total())
+		from, to = w.lastStart(), w.h.Total()
 	}
-	return w.lb.Lines(w.start, w.end)
+
+	lines, ok := w.h.Lines(from, to)
+	if !ok {
+		return w.Lines() // the History now starts at its oldest held line
+	}
+	return lines
 }
 
 // MoveBy - scrolls the window by `n` lines (negative is up / older, positive is
 // down / newer), stopping at either edge. Reaching the newest line switches the
 // window to following. Returns the number of lines actually moved.
 func (w *Window) MoveBy(n int) int {
-	w.clamp()
+	w.Lines() // clamps the window if its lines can no longer be read
 	start := w.lastStart()
 	if !w.following {
 		start = w.start
 	}
 
-	last := w.lastStart()
-	newStart := min(max(start+n, w.lb.OldestHeld()), last)
-
-	if newStart == last {
+	newStart := w.reachable(start + n)
+	if newStart == w.lastStart() {
 		w.following = true
 	} else {
 		w.following = false
@@ -69,22 +73,32 @@ func (w *Window) MoveToEnd() {
 
 // ----------------------- PRIVATE
 
-// clamp - shifts a pinned window forward to the oldest held line once its lines
-// have been evicted. If that brings it to the newest line it follows again.
+// reachable - the window start nearest `start` whose lines can be read.
+func (w *Window) reachable(start int) int {
+	start = min(max(start, w.h.First()), w.lastStart())
+	if _, ok := w.h.Lines(start, min(start+w.height, w.h.Total())); !ok {
+		return w.reachable(start) // the History now starts at its oldest held line
+	}
+	return start
+}
+
+// clamp - shifts a pinned window forward to the first line the History can
+// show (see History.First). If that brings it to the newest line it follows
+// again.
 func (w *Window) clamp() {
-	oldest := w.lb.OldestHeld()
-	if w.following || w.start >= oldest {
+	first := w.h.First()
+	if w.following || w.start >= first {
 		return
 	}
 
-	w.end += oldest - w.start
-	w.start = oldest
-	if w.end >= w.lb.Total() {
+	w.end += first - w.start
+	w.start = first
+	if w.end >= w.h.Total() {
 		w.following = true
 	}
 }
 
 // lastStart - start of the window when it shows the newest lines.
 func (w *Window) lastStart() int {
-	return max(w.lb.OldestHeld(), w.lb.Total()-w.height)
+	return max(w.h.First(), w.h.Total()-w.height)
 }

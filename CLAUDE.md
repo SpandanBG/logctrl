@@ -33,8 +33,8 @@ go test -bench=. ./reader  # Run benchmarks
 ### Data Flow
 
 ```
-stdin (log producer) ──→ anonymous pipe ──→ Stream ──→ LiveBuffer ──→ Window ──→ LogView (viewport)
-                                       └──→ temp file (logCtrl_logFile.txt in os.TempDir())
+stdin (log producer) ──→ anonymous pipe ──→ Stream ──→ History (LiveBuffer + Chunks) ──→ Window ──→ LogView (viewport)
+                                       └──→ temp file (logCtrl_logFile.txt in os.TempDir()) ──→ Chunks
 
 /dev/tty ──→ PTY slave (child) ──→ BubbleTea event loop
 PTY master ──→ stdout (rendered UI)
@@ -44,7 +44,7 @@ PTY master ──→ stdout (rendered UI)
 
 | Package | Role |
 |---|---|
-| `reader/` | `Stream` tees the Log Feed into the Log File and a `LiveBuffer` (bounded ring addressed by Line Number); a `Window` (two Line Numbers + Following/Pinned) selects what is shown. `Buffer` is the older ring buffer, now unused |
+| `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. `Buffer` is the older ring buffer, now unused |
 | `ui/` | BubbleTea layout model orchestrating four components: Toolbar, LogView, Prompt, Help |
 | `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help and Scroll keys), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
 | `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close`); `main` exits on it |

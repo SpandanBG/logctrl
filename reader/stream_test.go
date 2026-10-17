@@ -12,13 +12,20 @@ import (
 // notification channel; both are cleaned up when the test ends.
 func startStream(t *testing.T, height int) (Stream, *os.File, chan bool) {
 	t.Helper()
+	return startSmallStream(t, height, defaultCapacity, defaultChunkSize)
+}
+
+// startSmallStream - startStream holding `capacity` lines in memory and
+// loading older ones in Chunks of `chunkSize` lines.
+func startSmallStream(t *testing.T, height, capacity, chunkSize int) (Stream, *os.File, chan bool) {
+	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	next := make(chan bool)
-	s := NewStream(r)
+	s := newStream(r, capacity, chunkSize)
 	s.SetBufferSize(height)
 	s.Start(next)
 
@@ -68,4 +75,17 @@ func Test_StreamPinnedWhileIngesting(t *testing.T) {
 
 	s.MoveToEnd()
 	testutil.Equal(t, "13\n14", s.GetWindow())
+}
+
+func Test_StreamScrollsToFirstLineFromLogFile(t *testing.T) {
+	s, w, next := startSmallStream(t, 2, 5, 2)
+	for i := range 20 {
+		fmt.Fprintf(w, "line %d\r\n", i)
+		<-next
+	}
+
+	testutil.Equal(t, -18, s.MoveBy(-100))
+	testutil.Equal(t, "line 0\nline 1", s.GetWindow())
+	testutil.Equal(t, 9, s.MoveBy(9))
+	testutil.Equal(t, "line 9\nline 10", s.GetWindow())
 }

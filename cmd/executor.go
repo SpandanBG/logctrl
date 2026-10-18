@@ -11,40 +11,33 @@ import (
 // Stream - the Window as the UI sees it: after every Pass.
 type Stream interface {
 	reader.Stream
-	GetWindow() string         // text of the lines in the Window, Matches highlighted, joined by newlines
+	GetWindow() string         // shown text of the lines in the Window, after every Pass, joined by newlines
 	Search(regex string) error // "" ends the Search
 }
 
 var _ Stream = (*Executor)(nil)
 
-// Pass - processing run over each Line in the Window before it is shown.
+// Pass - processing run over each Line in the Window before it is shown,
+// formatting its shown text.
 type Pass interface {
 	Run(lines []reader.Line) []reader.Line
 }
 
-// Executor - a reader.Stream whose Window has every Pass run over it on each
-// read (see docs/adr/0005).
+// Executor - a reader.Stream whose Window has every Pass the user has
+// triggered run over it on each read, the Search last (see docs/adr/0005).
 type Executor struct {
 	reader.Stream
 
-	mu        sync.Mutex // guards the Passes: Search runs in Update, reads in a tea.Cmd
-	search    *Search
-	passes    []Pass
-	highlight lipgloss.Style // how each Match is shown
+	renderer *lipgloss.Renderer // styles each Pass
+	mu       sync.Mutex         // guards the Passes: Search runs in Update, reads in a tea.Cmd
+	passes   []Pass             // the Passes triggered, but the Search
+	search   *Search            // nil while no Search is running
 }
 
-// NewExecutor - an Executor over `stream`, running a Search, whose Matches
-// are styled by `renderer`.
+// NewExecutor - an Executor over `stream`, with no Pass triggered, whose
+// Passes are styled by `renderer`.
 func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer) *Executor {
-	search := NewSearch()
-	return &Executor{
-		Stream: stream,
-		search: search,
-		passes: []Pass{search},
-		highlight: renderer.NewStyle().
-			Foreground(lipgloss.Color("0")).
-			Background(lipgloss.Color("3")),
-	}
+	return &Executor{Stream: stream, renderer: renderer}
 }
 
 // Search - starts a Search for `regex`, or ends it if `regex` is empty. A regex
@@ -52,41 +45,45 @@ func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer) *Executor {
 func (e *Executor) Search(regex string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.search.Set(regex)
+
+	e.search = nil
+	if regex == "" {
+		return nil
+	}
+
+	search, err := NewSearch(e.renderer, regex)
+	if err != nil {
+		return err
+	}
+	e.search = search
+	return nil
 }
 
 // Lines - the lines in the Window, after every Pass.
 func (e *Executor) Lines() []reader.Line {
 	lines := e.Stream.Lines()
+	for i := range lines {
+		lines[i].Shown = lines[i].Text
+	}
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, pass := range e.passes {
 		lines = pass.Run(lines)
 	}
+	if e.search != nil {
+		lines = e.search.Run(lines)
+	}
 	return lines
 }
 
-// GetWindow - the text of the lines in the Window, after every Pass, with each
-// Match highlighted, joined by newlines.
+// GetWindow - the shown text of the lines in the Window, after every Pass,
+// joined by newlines.
 func (e *Executor) GetWindow() string {
 	lines := e.Lines()
-	texts := make([]string, 0, len(lines))
+	shown := make([]string, 0, len(lines))
 	for _, line := range lines {
-		texts = append(texts, e.render(line))
+		shown = append(shown, line.Shown)
 	}
-	return strings.Join(texts, "\n")
-}
-
-// render - the text of `line` with each of its Matches highlighted.
-func (e *Executor) render(line reader.Line) string {
-	var text strings.Builder
-	from := 0
-	for _, match := range line.Matches {
-		text.WriteString(line.Text[from:match.Start])
-		text.WriteString(e.highlight.Render(line.Text[match.Start:match.End]))
-		from = match.End
-	}
-	text.WriteString(line.Text[from:])
-	return text.String()
+	return strings.Join(shown, "\n")
 }

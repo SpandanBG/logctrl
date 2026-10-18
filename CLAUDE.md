@@ -44,8 +44,8 @@ PTY master ──→ stdout (rendered UI)
 
 | Package | Role |
 |---|---|
-| `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. Each held line is a `Line` (its text, and its Matches once a Pass has run), built once on push or Chunk load; `Window.Lines` and `Stream.Lines` return `[]Line` |
-| `cmd/` | The `Executor` wraps a `reader.Stream` and is the `cmd.Stream` the UI uses: on each read it runs every Pass (`search.go`: marks each Line's Matches for the Search regex) over copies of the Window's Lines, then joins their text with each Match highlighted black on yellow (ADR 0005). Nothing a Pass works out is stored in the History |
+| `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. Each held line is a `Line` (its text; its shown text and Matches once the Passes have run), built once on push or Chunk load; `Window.Lines` and `Stream.Lines` return `[]Line` |
+| `cmd/` | The `Executor` wraps a `reader.Stream` and is the `cmd.Stream` the UI uses: on each read it sets the shown text of copies of the Window's Lines to their text, runs every Pass the user has triggered over them, the Search last (`search.go`: marks each Line's Matches for the Search regex and highlights them black on yellow), then joins their shown text (ADR 0005). Each Pass builds its own lipgloss style from the renderer the Executor passes it. Nothing a Pass works out is stored in the History |
 | `ui/` | BubbleTea layout model orchestrating five components: Toolbar, LogView, Search Bar, Prompt, Help |
 | `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help, Scroll and Search keys), `SearchBar` (one-line textinput under the Log View; owns `enter`, like any text input; shows a bad regex's error in red while read-only), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
 | `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close` or `close_search`); `main` exits on it |
@@ -69,7 +69,7 @@ Close()
 
 **`cmd.Stream`** — what the UI uses (the `Executor`): a `reader.Stream` whose `Lines()` have every Pass run over them, plus:
 ```go
-GetWindow() string        // text of the lines in the Window after every Pass, Matches highlighted, for rendering
+GetWindow() string        // shown text of the lines in the Window after every Pass (Matches highlighted), for rendering
 Search(regex string) error // start a Search (on enter in the Search Bar); "" ends it (on close_search). A bad regex ends it and is returned; the Log View redraws after either
 ```
 

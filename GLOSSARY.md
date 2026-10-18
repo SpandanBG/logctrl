@@ -70,7 +70,7 @@ A section of a Line's text that the Search regex matches; a Line may have severa
 _Avoid_: matched span, hit, result
 
 **Pass**:
-Processing run over each Line in the Window before it is shown, such as a Search; every Pass runs again whenever the Window changes.
+Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes, and the Search always runs last, over each Line as the other Passes leave it.
 _Avoid_: command, stage, step, filter
 
 **Log View**:

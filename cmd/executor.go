@@ -1,62 +1,57 @@
 package cmd
 
 import (
+	"errors"
 	"strings"
 	"sync"
 
 	"github.com/SpandanBG/logctrl/reader"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Stream - the Window as the UI sees it: after every Pass.
 type Stream interface {
 	reader.Stream
-	GetWindow() string         // shown text of the lines in the Window, after every Pass, joined by newlines
-	Search(regex string) error // "" ends the Search
+	GetWindow() string    // shown text of the lines in the Window, after every Pass, joined by newlines
+	Update(msg any) error // hands `msg` to every Pass, such as SearchFor
 }
 
 var _ Stream = (*Executor)(nil)
 
 // Pass - processing run over each Line in the Window before it is shown,
-// formatting its shown text.
+// formatting its shown text. Update changes its state on a message of its own
+// (such as SearchFor) and ignores any other (see docs/adr/0006).
 type Pass interface {
 	Run(lines []reader.Line) []reader.Line
+	Update(msg any) error
 }
 
-// Executor - a reader.Stream whose Window has every Pass the user has
-// triggered run over it on each read, the Search last (see docs/adr/0005).
+// Executor - a reader.Stream whose Window has every Pass run over it on each
+// read, the Search last (see docs/adr/0005).
 type Executor struct {
 	reader.Stream
 
-	renderer *lipgloss.Renderer // styles each Pass
-	mu       sync.Mutex         // guards the Passes: Search runs in Update, reads in a tea.Cmd
-	passes   []Pass             // the Passes triggered, but the Search
-	search   *Search            // nil while no Search is running
+	mu     sync.Mutex // guards the Passes: updated in the UI's Update, run in a tea.Cmd
+	passes []Pass     // every Pass but the Search
+	search *Search
 }
 
-// NewExecutor - an Executor over `stream`, with no Pass triggered, whose
-// Passes are styled by `renderer`.
-func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer) *Executor {
-	return &Executor{Stream: stream, renderer: renderer}
+// NewExecutor - an Executor over `stream` running `others` in order, then
+// `search`.
+func NewExecutor(stream reader.Stream, search *Search, others ...Pass) *Executor {
+	return &Executor{Stream: stream, passes: others, search: search}
 }
 
-// Search - starts a Search for `regex`, or ends it if `regex` is empty. A regex
-// that does not compile ends the Search and is returned as the error.
-func (e *Executor) Search(regex string) error {
+// Update - hands `msg` to every Pass, returning their errors joined.
+func (e *Executor) Update(msg any) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.search = nil
-	if regex == "" {
-		return nil
+	var errs []error
+	for _, pass := range e.passes {
+		errs = append(errs, pass.Update(msg))
 	}
-
-	search, err := NewSearch(e.renderer, regex)
-	if err != nil {
-		return err
-	}
-	e.search = search
-	return nil
+	errs = append(errs, e.search.Update(msg))
+	return errors.Join(errs...)
 }
 
 // Lines - the lines in the Window, after every Pass.
@@ -71,10 +66,7 @@ func (e *Executor) Lines() []reader.Line {
 	for _, pass := range e.passes {
 		lines = pass.Run(lines)
 	}
-	if e.search != nil {
-		lines = e.search.Run(lines)
-	}
-	return lines
+	return e.search.Run(lines)
 }
 
 // GetWindow - the shown text of the lines in the Window, after every Pass,

@@ -516,15 +516,15 @@ func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("err"))
 
-	testutil.Equal(t, "[]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[]", fmt.Sprint(stream.Updates()))
 
 	model, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[err]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[{err}]", fmt.Sprint(stream.Updates()))
 
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("or"))
 	_, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[err error]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[{err} {error}]", fmt.Sprint(stream.Updates()))
 }
 
 func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
@@ -533,7 +533,7 @@ func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
 
 	_, _ = press(model, runtime, ctrlL)
 
-	testutil.Equal(t, fmt.Sprint([]string{"err", ""}), fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[{err} {}]", fmt.Sprint(stream.Updates()))
 }
 
 func Test_UIEscKeepsEnteredSearch(t *testing.T) {
@@ -544,7 +544,7 @@ func Test_UIEscKeepsEnteredSearch(t *testing.T) {
 
 	_, _ = press(model, runtime, esc)
 
-	testutil.Equal(t, "[err]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[{err}]", fmt.Sprint(stream.Updates()))
 }
 
 func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
@@ -553,7 +553,7 @@ func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
 	model = enterSearch(model, runtime, "err(")
 	model, _ = press(model, runtime, keys("k"))
 
-	testutil.Equal(t, "[err(]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[{err(}]", fmt.Sprint(stream.Updates()))
 	testutil.Equal(t, true, strings.Contains(model.View(),
 		"\x1b[31m/error parsing regexp: missing closing ): `err(`\x1b[0m"))
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
@@ -581,7 +581,7 @@ func Test_UIFixedRegexReplacesError(t *testing.T) {
 	model, _ = press(model, runtime, keys(")"))
 	model, _ = press(model, runtime, enter)
 
-	testutil.Equal(t, "[err( err()]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, "[{err(} {err()}]", fmt.Sprint(stream.Updates()))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err()"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "error parsing regexp"))
 }

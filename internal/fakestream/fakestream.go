@@ -14,14 +14,14 @@ import (
 
 // Stream - a cmd.Stream whose Window text is set by the test.
 type Stream struct {
-	mu       sync.Mutex
-	height   int
-	window   string
-	next     chan bool
-	closed   bool
-	scrolls  []int
-	follows  int
-	searches []string
+	mu      sync.Mutex
+	height  int
+	window  string
+	next    chan bool
+	closed  bool
+	scrolls []int
+	follows int
+	updates []any
 }
 
 var _ cmd.Stream = (*Stream)(nil)
@@ -76,13 +76,17 @@ func (s *Stream) MoveBy(n int) int {
 	return n
 }
 
-// Search - records `regex`; returns the error if it does not compile.
-func (s *Stream) Search(regex string) error {
+// Update - records `msg`; returns the error if it is a SearchFor whose regex
+// does not compile.
+func (s *Stream) Update(msg any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.searches = append(s.searches, regex)
-	_, err := regexp.Compile(regex)
-	return err
+	s.updates = append(s.updates, msg)
+	if searchFor, ok := msg.(cmd.SearchFor); ok {
+		_, err := regexp.Compile(searchFor.Regex)
+		return err
+	}
+	return nil
 }
 
 func (s *Stream) Close() {
@@ -112,11 +116,11 @@ func (s *Stream) Follows() int {
 	return s.follows
 }
 
-// Searches - every regex the UI started a Search for, in order; "" ends one.
-func (s *Stream) Searches() []string {
+// Updates - every message the UI handed to the Passes, in order.
+func (s *Stream) Updates() []any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return append([]string(nil), s.searches...)
+	return append([]any(nil), s.updates...)
 }
 
 // SetWindow - changes the Window text without notifying the UI, as a Scroll

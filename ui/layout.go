@@ -120,7 +120,7 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case components.TeaSearchEntered:
 		u.searchTyping = false
 		u.searchEntered = true
-		if err := u.stream.Search(msg.Regex); err != nil {
+		if err := u.stream.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
 			u.searchBar, _ = u.searchBar.Update(components.TeaSearchFailed{Err: err})
 		}
 		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
@@ -321,7 +321,7 @@ func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
 	u.searchActive = false
 	u.searchTyping = false
 	u.searchEntered = false
-	u.stream.Search("")
+	u.stream.Update(cmd.SearchFor{})
 	u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
 
 	var cmd tea.Cmd

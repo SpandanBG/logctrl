@@ -28,7 +28,7 @@ go test -bench=. ./reader  # Run benchmarks
 `logctrl` is a terminal UI log viewer that reads log streams from stdin and displays them interactively. It uses a **parent-child process model**:
 
 - **Parent** (`main.go`): Opens `/dev/tty` in raw mode, creates a pipe, re-execs itself as a child with `logctrl_child=<fd>` env var, then multiplexes I/O between PTY master/slave and stdin. Handles `SIGWINCH` (resize) and `SIGTERM` (kills process group on exit).
-- **Child** (`main.go → startChildProcess`): Detects `logctrl_child` env var, reads logs from that file descriptor via `Stream`, wraps it in the `cmd.Executor`, and launches the BubbleTea UI; both get lipgloss's default renderer, passed in so tests can force colors.
+- **Child** (`main.go → startChildProcess`): Detects `logctrl_child` env var, reads logs from that file descriptor via `Stream`, wraps it in the `cmd.Executor` with every Pass (built idle; the Search last), and launches the BubbleTea UI; the Passes and the UI get lipgloss's default renderer, passed in so tests can force colors.
 
 ### Data Flow
 
@@ -45,7 +45,7 @@ PTY master ──→ stdout (rendered UI)
 | Package | Role |
 |---|---|
 | `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. Each held line is a `Line` (its text; its shown text and Matches once the Passes have run), built once on push or Chunk load; `Window.Lines` and `Stream.Lines` return `[]Line` |
-| `cmd/` | The `Executor` wraps a `reader.Stream` and is the `cmd.Stream` the UI uses: on each read it sets the shown text of copies of the Window's Lines to their text, runs every Pass the user has triggered over them, the Search last (`search.go`: marks each Line's Matches for the Search regex and highlights them black on yellow), then joins their shown text (ADR 0005). Each Pass builds its own lipgloss style from the renderer the Executor passes it. Nothing a Pass works out is stored in the History |
+| `cmd/` | The `Executor` wraps a `reader.Stream` and is the `cmd.Stream` the UI uses: on each read it sets the shown text of copies of the Window's Lines to their text, runs every Pass over them, the Search last (`search.go`: marks each Line's Matches for the Search regex and highlights them black on yellow), then joins their shown text (ADR 0005). Each Pass builds its own lipgloss style from the renderer it is built with, and has the same `Update(msg any) error`: the UI hands a typed message (`SearchFor{Regex}`) to the Executor's `Update`, which hands it to every Pass; each acts on its own messages and ignores the rest (ADR 0006). Nothing a Pass works out is stored in the History |
 | `ui/` | BubbleTea layout model orchestrating five components: Toolbar, LogView, Search Bar, Prompt, Help |
 | `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help, Scroll and Search keys), `SearchBar` (one-line textinput under the Log View; owns `enter`, like any text input; shows a bad regex's error in red while read-only), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
 | `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close` or `close_search`); `main` exits on it |
@@ -69,8 +69,8 @@ Close()
 
 **`cmd.Stream`** — what the UI uses (the `Executor`): a `reader.Stream` whose `Lines()` have every Pass run over them, plus:
 ```go
-GetWindow() string        // shown text of the lines in the Window after every Pass (Matches highlighted), for rendering
-Search(regex string) error // start a Search (on enter in the Search Bar); "" ends it (on close_search). A bad regex ends it and is returned; the Log View redraws after either
+GetWindow() string    // shown text of the lines in the Window after every Pass (Matches highlighted), for rendering
+Update(msg any) error // hand msg to every Pass, errors joined: SearchFor{Regex} starts a Search (on enter in the Search Bar), SearchFor{} ends it (on close_search). A bad regex ends it and is returned; the Log View redraws after either
 ```
 
 All UI components implement `tea.Model` (`Init`, `Update`, `View`).

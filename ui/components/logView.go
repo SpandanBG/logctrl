@@ -21,6 +21,9 @@ type TeaScroll int
 // TeaFollow - make the Window Following.
 type TeaFollow struct{}
 
+// TeaLogRefresh - show the Window again, e.g. after a Search starts or ends.
+type TeaLogRefresh struct{}
+
 // ----- Private tea.Msg
 type teaLogCmd string
 
@@ -72,6 +75,9 @@ func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return l.scroll(int(msg))
 	case TeaFollow:
 		return l.follow()
+	case TeaLogRefresh:
+		l.view.SetContent(l.stream.GetWindow())
+		return l, nil
 	}
 	return l, nil
 }

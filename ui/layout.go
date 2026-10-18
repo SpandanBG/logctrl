@@ -41,12 +41,13 @@ type uiModel struct {
 	searchEntered bool // a regex has been entered in the Search Bar
 }
 
-func NewUI(stream cmd.Stream, keymap []config.Entry) (
+// NewUI - the app over `stream`, keyed by `keymap`, styled by `renderer`.
+func NewUI(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer) (
 	app *tea.Program,
 	exit func(),
 ) {
 	app = tea.NewProgram(
-		newModel(stream, keymap),
+		newModel(stream, keymap, renderer),
 		tea.WithAltScreen(),
 	)
 
@@ -58,7 +59,7 @@ func NewUI(stream cmd.Stream, keymap []config.Entry) (
 	return
 }
 
-func newModel(stream cmd.Stream, keymap []config.Entry) uiModel {
+func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer) uiModel {
 	actionOf := map[string]config.Action{}
 	for _, entry := range keymap {
 		actionOf[entry.Key] = entry.Action
@@ -86,7 +87,7 @@ func newModel(stream cmd.Stream, keymap []config.Entry) uiModel {
 			ui.SizeModifier(-toolbarSize),
 			keymap,
 		),
-		searchBar: components.NewSearchBar(ui.SizeRatio(1)),
+		searchBar: components.NewSearchBar(ui.SizeRatio(1), renderer),
 	}
 }
 
@@ -119,7 +120,10 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case components.TeaSearchEntered:
 		u.searchTyping = false
 		u.searchEntered = true
-		u.stream.Search(msg.Regex) // a bad regex ends the Search; shown in a later phase
+		if err := u.stream.Search(msg.Regex); err != nil {
+			u.searchBar, _ = u.searchBar.Update(components.TeaSearchFailed{Err: err})
+		}
+		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
 		return u, nil
 	}
 
@@ -318,6 +322,7 @@ func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
 	u.searchTyping = false
 	u.searchEntered = false
 	u.stream.Search("")
+	u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
 
 	var cmd tea.Cmd
 	u, cmd = u.resizePanels()

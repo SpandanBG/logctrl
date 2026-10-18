@@ -70,7 +70,7 @@ func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Mo
 		t.Fatal(err)
 	}
 
-	model := tea.Model(newModel(stream, keymap))
+	model := tea.Model(newModel(stream, keymap, testutil.Colors()))
 	runtime.Run(model.Init())
 
 	return runtime.Settle(model), stream, runtime
@@ -545,6 +545,73 @@ func Test_UIEscKeepsEnteredSearch(t *testing.T) {
 	_, _ = press(model, runtime, esc)
 
 	testutil.Equal(t, "[err]", fmt.Sprint(stream.Searches()))
+}
+
+func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model = enterSearch(model, runtime, "err(")
+	model, _ = press(model, runtime, keys("k"))
+
+	testutil.Equal(t, "[err(]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, true, strings.Contains(model.View(),
+		"\x1b[31m/error parsing regexp: missing closing ): `err(`\x1b[0m"))
+	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+}
+
+func Test_UISearchKeyAfterBadRegexBringsItBackAndEscShowsErrorAgain(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err(")
+
+	model, _ = press(model, runtime, keys("/"))
+	editView := ansi.Strip(model.View())
+	model, _ = press(model, runtime, esc)
+
+	testutil.Equal(t, true, strings.Contains(editView, "/err("))
+	testutil.Equal(t, false, strings.Contains(editView, "error parsing regexp"))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/error parsing regexp: missing closing ): `err(`"))
+	testutil.Equal(t, 26, stream.Height())
+}
+
+func Test_UIFixedRegexReplacesError(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err(")
+
+	model, _ = press(model, runtime, keys("/"))
+	model, _ = press(model, runtime, keys(")"))
+	model, _ = press(model, runtime, enter)
+
+	testutil.Equal(t, "[err( err()]", fmt.Sprint(stream.Searches()))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err()"))
+	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "error parsing regexp"))
+}
+
+func Test_UILogViewRedrawsWhenSearchStartsOrEnds(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		regex   string
+		closing bool // close the Search Bar after entering `regex`
+	}{
+		{name: "Search starts", regex: "err"},
+		{name: "bad regex ends the Search", regex: "err("},
+		{name: "Search Bar closes", regex: "err", closing: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			if test.closing {
+				model = enterSearch(model, runtime, test.regex)
+			}
+
+			stream.SetWindow("error 1") // as the Executor would show it after the change
+			if test.closing {
+				model, _ = press(model, runtime, ctrlL)
+			} else {
+				model = enterSearch(model, runtime, test.regex)
+			}
+
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "error 1"))
+		})
+	}
 }
 
 // enterSearch - opens the Search Bar and enters `regex` in it.

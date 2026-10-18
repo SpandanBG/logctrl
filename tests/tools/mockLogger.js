@@ -8,7 +8,7 @@ async function makeLogs() {
   console.log("hello")
   await waitFor(sleep_time)
   for (let i = 0; i < 10_000; i++) {
-    console.log(i)
+    console.log(i % 2 == 0 ? 'even' : 'odd', ' ', i)
     await waitFor(sleep_time)
   }
   console.log("world")

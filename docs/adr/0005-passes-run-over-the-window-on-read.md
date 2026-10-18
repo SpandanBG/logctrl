@@ -10,4 +10,5 @@ A Search, and the formatting that will follow it, adds context to each Line, suc
 
 - `reader.Stream` returns `Lines()`, not text. Only the Executor's `GetWindow` turns Lines into text, after every Pass has run.
 - A Pass only ever sees the Window, so it can't find a Match outside it. Moving the Window to an older Match will need its own way of finding one, such as scanning the History or the Log File.
+- Passes match the raw Text, so a Log Feed that brings its own ANSI color codes can have a Match split or overlap an escape code and garble its color when highlighted. This is a known limitation, left for a later phase.
 - `GetWindow` runs inside a `tea.Cmd`, on a different goroutine from `Update`, where `Search` is called. So the Executor guards its Passes with a mutex.

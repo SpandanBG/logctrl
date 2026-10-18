@@ -15,6 +15,7 @@ import (
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/SpandanBG/logctrl/utils"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
@@ -106,8 +107,9 @@ func startChildProcess(keymap []config.Entry) {
 	// Get the log feed pipe
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
-	stream := cmd.NewExecutor(reader.NewStream(logFeed))
-	app, exit := ui.NewUI(stream, keymap)
+	renderer := lipgloss.DefaultRenderer()
+	stream := cmd.NewExecutor(reader.NewStream(logFeed), renderer)
+	app, exit := ui.NewUI(stream, keymap, renderer)
 	defer exit()
 
 	if _, err := app.Run(); err != nil {

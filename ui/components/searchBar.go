@@ -29,17 +29,29 @@ type TeaSearchEntered struct {
 	Regex string
 }
 
-type searchBar struct {
-	width   ui.SizeI
-	view    textinput.Model
-	entered string // the regex last entered
+// TeaSearchFailed - the regex last entered cannot be searched for, because of
+// `Err`.
+type TeaSearchFailed struct {
+	Err error
 }
 
-// NewSearchBar - the one-line Search Bar, `width` wide.
-func NewSearchBar(width ui.SizeI) tea.Model {
+type searchBar struct {
+	width      ui.SizeI
+	view       textinput.Model
+	entered    string         // the regex last entered
+	failed     error          // why the regex last entered cannot be searched for, if so
+	errorStyle lipgloss.Style // how `failed` is shown
+}
+
+// NewSearchBar - the one-line Search Bar, `width` wide, styled by `renderer`.
+func NewSearchBar(width ui.SizeI, renderer *lipgloss.Renderer) tea.Model {
 	view := textinput.New()
 	view.Prompt = "/"
-	return searchBar{width: width, view: view}
+	return searchBar{
+		width:      width,
+		view:       view,
+		errorStyle: renderer.NewStyle().Foreground(lipgloss.Color("1")),
+	}
 }
 
 func (s searchBar) Init() tea.Cmd {
@@ -55,6 +67,9 @@ func (s searchBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.view.PromptStyle = lipgloss.NewStyle()
 		s.view.TextStyle = lipgloss.NewStyle()
 		return s, s.view.Focus()
+	case TeaSearchFailed:
+		s.failed = msg.Err
+		return s, nil
 	case TeaSearchClose:
 		s = s.readOnly()
 		s.view.Reset()
@@ -76,6 +91,9 @@ func (s searchBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s searchBar) View() string {
+	if s.failed != nil && !s.view.Focused() {
+		return s.errorStyle.Render(s.view.Prompt + s.failed.Error())
+	}
 	return s.view.View()
 }
 
@@ -90,6 +108,7 @@ func (s searchBar) enter() (tea.Model, tea.Cmd) {
 
 	s = s.readOnly()
 	s.entered = s.view.Value()
+	s.failed = nil
 	return s, func() tea.Msg { return TeaSearchEntered{Regex: s.entered} }
 }
 

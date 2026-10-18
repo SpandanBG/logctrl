@@ -90,7 +90,7 @@ The panel, opened and closed by the user, listing every key in the Keymap and wh
 _Avoid_: help menu, help window, popup
 
 **Search Bar**:
-The one-line panel under the Log View where the user types the regex for a Search. Once entered, the regex stays on show, read-only, until the user closes the Search Bar.
+The one-line panel under the Log View where the user types the regex for a Search. Once entered, the regex stays on show, read-only, until the user closes the Search Bar; a regex that cannot be searched for shows why in its place, ready to be fixed.
 _Avoid_: search box, input box, Prompt
 
 ## Controls

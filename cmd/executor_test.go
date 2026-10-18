@@ -23,7 +23,7 @@ func matches(lines []reader.Line) string {
 func Test_ExecutorShowsStreamWindowWhileNoSearch(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1\nok 2")
-	exec := cmd.NewExecutor(stream)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	testutil.Equal(t, "error 1\nok 2", exec.GetWindow())
 	testutil.Equal(t, "[[] []]", matches(exec.Lines()))
@@ -32,20 +32,21 @@ func Test_ExecutorShowsStreamWindowWhileNoSearch(t *testing.T) {
 func Test_ExecutorSearchMarksMatchesInWindowKeepingText(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1\nok 2\n2 errors")
-	exec := cmd.NewExecutor(stream)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	if err := exec.Search("err"); err != nil {
 		t.Fatal(err)
 	}
 
-	testutil.Equal(t, "[[{0 3}] [] [{2 5}]]", matches(exec.Lines()))
-	testutil.Equal(t, "error 1\nok 2\n2 errors", exec.GetWindow())
+	lines := exec.Lines()
+	testutil.Equal(t, "[[{0 3}] [] [{2 5}]]", matches(lines))
+	testutil.Equal(t, "2 errors", lines[2].Text)
 }
 
 func Test_ExecutorSearchMarksLinesThatComeIntoWindow(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("ok 1")
-	exec := cmd.NewExecutor(stream)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Search("err"); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,7 @@ func Test_ExecutorSearchMarksLinesThatComeIntoWindow(t *testing.T) {
 func Test_ExecutorEmptyRegexEndsSearch(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1")
-	exec := cmd.NewExecutor(stream)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Search("err"); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func Test_ExecutorEmptyRegexEndsSearch(t *testing.T) {
 func Test_ExecutorBadRegexEndsSearchWithError(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error( 1")
-	exec := cmd.NewExecutor(stream)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Search("err"); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func Test_ExecutorBadRegexEndsSearchWithError(t *testing.T) {
 func Test_ExecutorSearchWhileWindowIsRead(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1")
-	exec := cmd.NewExecutor(stream)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	// the UI reads the Window in a tea.Cmd while Update starts a Search
 	var wg sync.WaitGroup
@@ -103,4 +104,18 @@ func Test_ExecutorSearchWhileWindowIsRead(t *testing.T) {
 		exec.Search(fmt.Sprint("err", i%2))
 	}
 	wg.Wait()
+}
+
+func Test_ExecutorHighlightsEachMatchInWindow(t *testing.T) {
+	stream := fakestream.New()
+	stream.SetWindow("error 1, error 2\nok 3")
+	exec := cmd.NewExecutor(stream, testutil.Colors())
+
+	if err := exec.Search("err"); err != nil {
+		t.Fatal(err)
+	}
+
+	testutil.Equal(t,
+		"\x1b[30;43merr\x1b[0mor 1, \x1b[30;43merr\x1b[0mor 2\nok 3",
+		exec.GetWindow())
 }

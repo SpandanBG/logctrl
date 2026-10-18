@@ -2,6 +2,7 @@
 package fakestream
 
 import (
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -75,11 +76,13 @@ func (s *Stream) MoveBy(n int) int {
 	return n
 }
 
+// Search - records `regex`; returns the error if it does not compile.
 func (s *Stream) Search(regex string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.searches = append(s.searches, regex)
-	return nil
+	_, err := regexp.Compile(regex)
+	return err
 }
 
 func (s *Stream) Close() {

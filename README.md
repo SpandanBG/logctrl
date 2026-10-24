@@ -48,7 +48,7 @@ Press `h` at any time to open the Help, which lists every key.
 | `esc` | `close` | Close the Prompt or the Help, or cancel typing a Search |
 | `k` | `scroll_up` | Scroll the Log View or the Help up (older lines) |
 | `j` | `scroll_down` | Scroll the Log View or the Help down (newer lines) |
-| `G` | `follow` | Follow the newest lines |
+| `G` | `follow` | Follow the newest lines, dropping the Current Line |
 | `/` | `open_search` | Open the Search Bar, or edit the regex in it |
 | `ctrl+l` | `close_search` | Close the Search Bar |
 

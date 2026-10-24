@@ -445,7 +445,7 @@ func Test_UIEnterMakesSearchBarReadOnly(t *testing.T) {
 	model, _ = press(model, runtime, keys("G"))
 
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-	testutil.Equal(t, 1, stream.Follows())
+	testutil.Equal(t, 2, stream.Follows()) // on enter, then G
 	testutil.Equal(t, 26, stream.Height())
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "errk"))
@@ -543,12 +543,12 @@ func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
 	testutil.Equal(t, "[]", updates(stream))
 
 	model, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{}]", updates(stream))
+	testutil.Equal(t, "[SearchFor{err}]", updates(stream))
 
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("or"))
 	_, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{} SearchFor{error} FindCurrentLine{}]", updates(stream))
+	testutil.Equal(t, "[SearchFor{err} SearchFor{error}]", updates(stream))
 }
 
 func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
@@ -557,7 +557,7 @@ func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
 
 	_, _ = press(model, runtime, ctrlL)
 
-	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{} SearchFor{}]", updates(stream))
+	testutil.Equal(t, "[SearchFor{err} SearchFor{}]", updates(stream))
 }
 
 func Test_UIEscKeepsEnteredSearch(t *testing.T) {
@@ -568,7 +568,7 @@ func Test_UIEscKeepsEnteredSearch(t *testing.T) {
 
 	_, _ = press(model, runtime, esc)
 
-	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{}]", updates(stream))
+	testutil.Equal(t, "[SearchFor{err}]", updates(stream))
 }
 
 func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
@@ -605,7 +605,7 @@ func Test_UIFixedRegexReplacesError(t *testing.T) {
 	model, _ = press(model, runtime, keys(")"))
 	model, _ = press(model, runtime, enter)
 
-	testutil.Equal(t, "[SearchFor{err(} SearchFor{err()} FindCurrentLine{}]", updates(stream))
+	testutil.Equal(t, "[SearchFor{err(} SearchFor{err()}]", updates(stream))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err()"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "error parsing regexp"))
 }
@@ -825,24 +825,50 @@ func updates(stream *fakestream.Stream) string {
 	return fmt.Sprint(each)
 }
 
-func Test_UIEnterFindsCurrentLineInBackgroundOnceRegexCompiles(t *testing.T) {
+func Test_UIEnterWithNewRegexMakesWindowFollowing(t *testing.T) {
 	for _, test := range []struct {
 		regex    string
 		expected string
 	}{
-		{regex: "err", expected: "[SearchFor{err} FindCurrentLine{}]"},
+		{regex: "err", expected: "[SearchFor{err}]"},
 		{regex: "err(", expected: "[SearchFor{err(}]"},
 	} {
 		t.Run(test.regex, func(t *testing.T) {
 			model, stream, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("k"))
 			model, _ = press(model, runtime, keys("/"))
 			model, _ = press(model, runtime, keys(test.regex))
 
-			stream.SetWindow("err 5") // as the Executor would show it once found
+			stream.SetWindow("err 5") // as the Executor would show it
 			model, _ = press(model, runtime, enter)
 
 			testutil.Equal(t, test.expected, updates(stream))
+			testutil.Equal(t, 1, stream.Follows())
 			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "err 5"))
 		})
 	}
+}
+
+func Test_UIEnterWithSameRegexChangesNothing(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err")
+	model, _ = press(model, runtime, up) // Pins the Window on the Current Line
+
+	model, _ = press(model, runtime, keys("/"))
+	_, _ = press(model, runtime, enter)
+
+	testutil.Equal(t, "[SearchFor{err} PreviousMatch{}]", updates(stream))
+	testutil.Equal(t, 1, stream.Follows()) // only on the first enter
+}
+
+func Test_UIFollowKeyDropsCurrentLineKeepingSearch(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterSearch(model, runtime, "err")
+	model, _ = press(model, runtime, up)
+
+	model, _ = press(model, runtime, keys("G"))
+
+	testutil.Equal(t, "[SearchFor{err} PreviousMatch{} Follow{}]", updates(stream))
+	testutil.Equal(t, 2, stream.Follows()) // on enter, then G
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
 }

@@ -36,9 +36,10 @@ type uiModel struct {
 	actionOf      map[string]config.Action // the Action each key in the Keymap triggers
 	promptActive  bool
 	helpActive    bool
-	searchActive  bool // the Search Bar is shown
-	searchTyping  bool // the Search Bar is shown and editable
-	searchEntered bool // a regex has been entered in the Search Bar
+	searchActive  bool   // the Search Bar is shown
+	searchTyping  bool   // the Search Bar is shown and editable
+	searchEntered bool   // a regex has been entered in the Search Bar
+	regex         string // the regex being searched for; "" if none
 }
 
 // NewUI - the app over `stream`, keyed by `keymap`, styled by `renderer`.
@@ -121,13 +122,15 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case components.TeaSearchEntered:
 		u.searchTyping = false
 		u.searchEntered = true
-		if err := u.stream.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
-			u.searchBar, _ = u.searchBar.Update(components.TeaSearchFailed{Err: err})
-			u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+		if msg.Regex == u.regex {
 			return u, nil
 		}
-		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
-		return u.updateStream(cmd.FindCurrentLine{})
+		u.regex = msg.Regex
+		if err := u.stream.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
+			u.regex = ""
+			u.searchBar, _ = u.searchBar.Update(components.TeaSearchFailed{Err: err})
+		}
+		return u.followLogView()
 	}
 
 	return u.batchUpdate(msg)
@@ -151,6 +154,7 @@ func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case config.ScrollDown:
 		return u.scrollLogView(1)
 	case config.Follow:
+		u.stream.Update(cmd.Follow{}) // before Following, so no scan Pins the Window after it
 		return u.followLogView()
 	case config.OpenSearch:
 		return u.openSearch()
@@ -347,6 +351,7 @@ func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
 	u.searchActive = false
 	u.searchTyping = false
 	u.searchEntered = false
+	u.regex = ""
 	u.stream.Update(cmd.SearchFor{})
 	u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
 

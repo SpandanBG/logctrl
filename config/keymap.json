@@ -5,7 +5,7 @@
   { "key": "esc", "action": "close", "description": "Close the Prompt or the Help, or cancel typing a Search" },
   { "key": "k", "action": "scroll_up", "description": "Scroll the Log View or the Help up" },
   { "key": "j", "action": "scroll_down", "description": "Scroll the Log View or the Help down" },
-  { "key": "G", "action": "follow", "description": "Follow the newest lines" },
+  { "key": "G", "action": "follow", "description": "Follow the newest lines, dropping the Current Line" },
   { "key": "/", "action": "open_search", "description": "Open the Search Bar" },
   { "key": "ctrl+l", "action": "close_search", "description": "Close the Search Bar" },
   { "key": "up", "action": "previous_match", "description": "Step to the previous Line with a Match" },

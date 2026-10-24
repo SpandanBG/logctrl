@@ -63,14 +63,14 @@ func numbered(n int, errs ...int) []string {
 	return lines
 }
 
-// enter - searches for `regex` and finds the Current Line, as the UI does on
-// enter.
+// enter - searches for `regex` and finds the Current Line, as the user does
+// with enter then a first step.
 func enter(t *testing.T, exec *cmd.Executor, regex string) {
 	t.Helper()
 	if err := exec.Update(cmd.SearchFor{Regex: regex}); err != nil {
 		t.Fatal(err)
 	}
-	if err := exec.Update(cmd.FindCurrentLine{}); err != nil {
+	if err := exec.Update(cmd.PreviousMatch{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -88,6 +88,65 @@ func numbers(lines []reader.Line) string {
 		each = append(each, line.Number)
 	}
 	return fmt.Sprint(each)
+}
+
+func Test_ExecutorSearchForKeepsWindowFollowingWithNoCurrentLine(t *testing.T) {
+	stream, more := feed(t, 5, numbered(20, 12, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+
+	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
+		t.Fatal(err)
+	}
+	more("ok 20")
+
+	testutil.Equal(t, "[16 17 18 19 20]", numbers(exec.Lines()))
+	testutil.Equal(t, -1, currentLine(exec))
+	testutil.Equal(t, "[[{0 3}] [] [] [] []]", matches(exec.Lines()))
+}
+
+func Test_ExecutorFirstStepCentresWindowOnNewestLineWithMatchAtOrAboveBottom(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		step any
+	}{
+		{name: "PreviousMatch", step: cmd.PreviousMatch{}},
+		{name: "NextMatch", step: cmd.NextMatch{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream, more := feed(t, 5, numbered(20, 12, 16)...)
+			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+			if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
+				t.Fatal(err)
+			}
+			more("ok 20", "ok 21")
+
+			if err := exec.Update(test.step); err != nil {
+				t.Fatal(err)
+			}
+			more("ok 22")
+
+			testutil.Equal(t, "[14 15 16 17 18]", numbers(exec.Lines())) // Pinned
+			testutil.Equal(t, 16, currentLine(exec))
+		})
+	}
+}
+
+func Test_ExecutorFollowDropsCurrentLineKeepingMatches(t *testing.T) {
+	stream, more := feed(t, 5, numbered(20, 12, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	enter(t, exec, "err")
+	testutil.Equal(t, 16, currentLine(exec))
+
+	if err := exec.Update(cmd.Follow{}); err != nil {
+		t.Fatal(err)
+	}
+	stream.MoveToEnd() // as the Log View does
+	more("ok 20")
+	testutil.Equal(t, -1, currentLine(exec))
+	testutil.Equal(t, "[[{0 3}] [] [] [] []]", matches(exec.Lines()))
+
+	exec.Update(cmd.PreviousMatch{}) // finds the Current Line again
+	testutil.Equal(t, 16, currentLine(exec))
 }
 
 func Test_ExecutorSearchCentresWindowOnNewestLineWithMatchInIt(t *testing.T) {
@@ -114,14 +173,14 @@ func Test_ExecutorSearchLooksBackForLineWithMatchWhenWindowHasNone(t *testing.T)
 	testutil.Equal(t, "[498 499 500 501 502]", numbers(exec.Lines()))
 }
 
-func Test_ExecutorSearchPinsWindowWhereItIsWhenNoLineMatches(t *testing.T) {
+func Test_ExecutorSearchKeepsWindowFollowingWhenNoLineMatches(t *testing.T) {
 	stream, more := feed(t, 3, numbered(10)...)
 	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
 
 	enter(t, exec, "err")
 	more("ok 10")
 
-	testutil.Equal(t, "ok 7\nok 8\nok 9", shown(exec))
+	testutil.Equal(t, "ok 8\nok 9\nok 10", shown(exec))
 	testutil.Equal(t, "  \n  \n  ", gutter(exec)) // no Current Line
 }
 
@@ -134,29 +193,6 @@ func currentLine(exec *cmd.Executor) int {
 		}
 	}
 	return -1
-}
-
-func Test_ExecutorSearchForOnlyPinsWindowUntilCurrentLineIsFound(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		updates  []any
-		expected int
-	}{
-		{name: "SearchFor alone", updates: []any{cmd.SearchFor{Regex: "err"}}, expected: -1},
-		{name: "then FindCurrentLine", updates: []any{cmd.SearchFor{Regex: "err"}, cmd.FindCurrentLine{}}, expected: 2},
-		{name: "after the Search ended", updates: []any{cmd.SearchFor{Regex: "err"}, cmd.SearchFor{}, cmd.FindCurrentLine{}}, expected: -1},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			stream, more := feed(t, 3, numbered(10, 2)...)
-			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
-			for _, msg := range test.updates {
-				exec.Update(msg)
-			}
-			more("ok 10")
-
-			testutil.Equal(t, test.expected, currentLine(exec))
-		})
-	}
 }
 
 func Test_ExecutorPreviousMatchStepsToOlderLineWithMatch(t *testing.T) {
@@ -206,14 +242,12 @@ func Test_ExecutorNextMatchStepsToNewerLineWithMatchIncludingLinesArrivedSince(t
 	}
 }
 
-func Test_ExecutorNextMatchFindsLineWithMatchArrivedSinceNoneMatched(t *testing.T) {
+func Test_ExecutorFirstStepFindsLineWithMatchArrivedSinceNoneMatched(t *testing.T) {
 	stream, more := feed(t, 3, numbered(10)...)
 	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
 	enter(t, exec, "err")
 	more(numbered(20, 15)[10:]...)
 
-	exec.Update(cmd.PreviousMatch{}) // nothing older to step to
-	testutil.Equal(t, -1, currentLine(exec))
 	exec.Update(cmd.NextMatch{})
 
 	testutil.Equal(t, "[14 15 16]", numbers(exec.Lines()))

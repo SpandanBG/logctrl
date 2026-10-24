@@ -54,7 +54,7 @@ The contiguous range of Line Numbers currently shown to the user, as tall as the
 _Avoid_: RAB, random access buffer, viewport, page
 
 **Following**:
-The Window mode in which it always shows the newest lines; the user can return to it at any time with a single key.
+The Window mode in which it always shows the newest lines; the user can return to it at any time with a single key, which also drops any Current Line. Entering a new Search regex returns the Window to it too.
 _Avoid_: live mode, tailing, auto-scroll
 
 **Pinned**:
@@ -74,7 +74,7 @@ A section of a Line's text that the Search regex matches; a Line may have severa
 _Avoid_: matched span, hit, result
 
 **Current Line**:
-The Line with a Match that the user has stepped to during a Search, marked out from the other Lines and kept in the middle of the Window; the user steps from it to the previous (older) or next (newer) Line with a Match. There is at most one, and none while no Line matches.
+The Line with a Match that the user has stepped to during a Search, marked out from the other Lines and kept in the middle of the Window; the user steps from it to the previous (older) or next (newer) Line with a Match. There is at most one: none until the user first steps during a Search, none while no Line matches, and none again once the user returns the Window to Following with its key.
 _Avoid_: result, hit, cursor, selection, Current Match
 
 **Pass**:

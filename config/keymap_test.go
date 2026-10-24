@@ -18,7 +18,7 @@ var builtIn = []config.Entry{
 	{Key: "esc", Action: config.Close, Description: "Close the Prompt or the Help, or cancel typing a Search"},
 	{Key: "k", Action: config.ScrollUp, Description: "Scroll the Log View or the Help up"},
 	{Key: "j", Action: config.ScrollDown, Description: "Scroll the Log View or the Help down"},
-	{Key: "G", Action: config.Follow, Description: "Follow the newest lines"},
+	{Key: "G", Action: config.Follow, Description: "Follow the newest lines, dropping the Current Line"},
 	{Key: "/", Action: config.OpenSearch, Description: "Open the Search Bar"},
 	{Key: "ctrl+l", Action: config.CloseSearch, Description: "Close the Search Bar"},
 	{Key: "up", Action: config.PreviousMatch, Description: "Step to the previous Line with a Match"},

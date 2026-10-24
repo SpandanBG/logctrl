@@ -5,7 +5,7 @@ How a change gets into logctrl: from an issue, through `/tdd`, to a reviewed com
 ## Setup
 
 - **Go**: the version in `go.mod` (1.23 or later). logctrl runs on macOS and Linux; it needs `/dev/tty`.
-- **Hooks**: run `make hooks` once. The pre-commit hook in `.githooks/` runs `make test`, so a commit that fails vet or the tests is stopped.
+- **Hooks**: run `make hooks` once. The pre-commit hook in `.githooks/` runs `make test`, so a commit that isn't `gofmt`ed or fails vet or the tests is stopped.
 - **Node.js** (optional): only for `make mock`, a fake process that writes log lines, for trying logctrl by hand: `node tests/tools/mockLogger.js | go run main.go`.
 
 ## Commands
@@ -13,13 +13,12 @@ How a change gets into logctrl: from an issue, through `/tdd`, to a reviewed com
 ```bash
 make dev     # go run main.go
 make build   # binary at bin/out
-make test    # go vet + go test -race ./...
-make cover   # coverage across packages against COVER_MIN, as CI runs it
+make test    # gofmt check + go vet + go test -race ./...
+make cover   # coverage across packages against COVER_MIN, as CI runs it (never cached)
 make hooks   # use the committed pre-commit hook
 go test -bench=. ./reader   # benchmarks
+scripts/prove-fails.sh <file> <old> <new> <go test args>   # break code, run tests, restore (TDD-4)
 ```
-
-If `make cover` fails with `cover: open .../<file>.go: no such file or directory` for a file that no longer exists, a coverage build of it is still in the Go build cache: run `go clean -cache` and try again (`-testcache` alone doesn't clear it).
 
 ## Workflow
 
@@ -38,7 +37,8 @@ A change isn't done until the docs that describe it agree with it:
 |---|---|
 | [`GLOSSARY.md`](GLOSSARY.md) | A domain term is added or sharpened. Definitions only: no implementation details. |
 | [`docs/adr/`](docs/adr/) | A decision is hard to reverse, surprising without context, **and** the result of a real trade-off. All three, or no ADR. Number it after the last one and follow the existing ADRs' shape. |
-| [`CLAUDE.md`](CLAUDE.md) | Architecture, a package's role, a key interface, or a key binding changes. |
+| [`docs/architecture.md`](docs/architecture.md) | Architecture, a package's role, a key interface, or a key binding changes. |
+| [`CLAUDE.md`](CLAUDE.md) | A command, a testing rule, or where an agent should look changes. |
 | [`README.md`](README.md) | Anything a user sees: a key, an Action id, configuration, install or usage. |
 
 ## Commits

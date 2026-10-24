@@ -19,11 +19,14 @@ build:
 	go build -o bin/out main.go
 
 test:
+	@test -z "$$(gofmt -l .)" || (echo "not gofmt'ed (run gofmt -w):"; gofmt -l .; exit 1)
 	go vet ./...
 	go test -race ./...
 
+# -count=1: a cached test result keeps the coverage of files since changed or
+# deleted, so the total would be wrong.
 cover:
-	go test -race -coverprofile=cover.out -coverpkg=$(COVER_PKG_LIST) $(COVER_PKGS)
+	go test -race -count=1 -coverprofile=cover.out -coverpkg=$(COVER_PKG_LIST) $(COVER_PKGS)
 	@go tool cover -func=cover.out | awk -v min=$(COVER_MIN) '/^total:/ { \
 		sub("%", "", $$3); \
 		if ($$3 + 0 < min) { printf "coverage %s%% is below the %s%% minimum\n", $$3, min; exit 1 } \

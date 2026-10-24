@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs vet and the race-enabled tests before every commit.
+# Runs the gofmt check, vet and the race-enabled tests before every commit.
 # Enable with `make hooks`.
 set -e
 make test

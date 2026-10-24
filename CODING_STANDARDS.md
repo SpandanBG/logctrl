@@ -6,7 +6,7 @@ The rules every change to logctrl is reviewed against. Each rule has an ID to ci
 
 - **Scope.** The rules apply to the code a change adds or touches. Existing code that breaks a rule is listed under [Known exceptions](#known-exceptions), and isn't flagged in a diff that doesn't touch it.
 - **House overrides upstream.** A rule tagged **house** is how this repo does it, even where the upstream guide says otherwise; the rule names the upstream rule it overrides, so a review doesn't flag it.
-- **Tooling first.** Anything `go vet` (run by `make test`) already catches is not repeated here.
+- **Tooling first.** Anything `make test` already catches (`gofmt`, `go vet`) is not repeated here.
 - **Domain and design.** Names use the terms in [`GLOSSARY.md`](GLOSSARY.md); decisions in [`docs/adr/`](docs/adr/) bind, and are changed by a new ADR, not by a diff.
 - **Workflow** (issues, commits, docs to update) is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -27,7 +27,7 @@ Source tags:
 
 ### Formatting and names
 
-- **GO-1** Code is `gofmt`ed. Imports are grouped standard library first, then everything else. _(CRC, EG)_
+- **GO-1** Imports are grouped standard library first, then everything else. _(CRC, EG)_
 - **GO-2** Names are `MixedCaps` / `mixedCaps`, never underscores (test function names excepted, see TDD-12). Initialisms keep one case: `URL`, `ID`, `urlPath`, never `Url`. _(CRC, GSG)_
 - **GO-3** Package names are short, lower case, one word, and say what the package holds. No `util`, `common`, `misc`, `helper`, `types`. Exported names don't repeat the package: `widget.New`, not `widget.NewWidget`. _(CRC, EG, GSG)_
 - **GO-4** A name's length grows with its scope: `i`, `r`, `s` in a few lines; a descriptive name where it's used far from its declaration. _(CRC, GSG)_
@@ -78,7 +78,7 @@ Source tags:
 - **TDD-1** No production change without a failing test first. Write the test, watch it fail for the expected reason, then write only enough code to pass it. _(BECK, FOWLER)_
 - **TDD-2** One vertical slice at a time: one test, then its code, then the next test. Never write all the tests up front. _(BECK)_
 - **TDD-3** Test at seams: a package's public interface, agreed before the test is written. Never test private functions, mock internal collaborators, or check through a side channel. Files with no behaviour of their own (constants, empty stubs, `main.go`) get no tests. _(house)_
-- **TDD-4** A test added for code that already exists must be shown to fail: break the code on purpose, watch the test fail, undo the break. _(house)_
+- **TDD-4** A test added for code that already exists must be shown to fail: break the code on purpose, watch the test fail, undo the break (`scripts/prove-fails.sh`). _(house)_
 - **TDD-5** Expected values come from an independent source: a known-good literal, a worked example, the spec. Never paste the code's own output in as the expected value, and never recompute it the way the code does. _(BECK)_
 - **TDD-6** Refactoring is its own step, after green (at review), never mixed into making a test pass. _(BECK, FOWLER)_
 - **TDD-7** Every test asserts something. Never delete or weaken an assertion to make a test pass. _(BECK)_

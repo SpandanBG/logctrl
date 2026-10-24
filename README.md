@@ -96,7 +96,7 @@ make hooks   # enable the pre-commit hook
 node tests/tools/mockLogger.js | go run .   # watch a fake log producer (needs Node.js)
 ```
 
-See `CLAUDE.md` for the architecture, `GLOSSARY.md` for the terms used in the code and this README, and `docs/adr/` for design decisions.
+See `docs/architecture.md` for the architecture, `GLOSSARY.md` for the terms used in the code and this README, and `docs/adr/` for design decisions.
 
 ## License
 

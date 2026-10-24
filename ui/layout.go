@@ -77,6 +77,7 @@ func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Rende
 			ui.SizeRatio(1),
 			ui.SizeModifier(-toolbarSize),
 			stream,
+			renderer,
 		),
 		prompt: components.NewPrompt(
 			ui.SizeRatio(1),

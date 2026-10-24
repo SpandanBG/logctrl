@@ -2,6 +2,7 @@ package components
 
 import (
 	"github.com/SpandanBG/logctrl/cmd"
+	"github.com/SpandanBG/logctrl/reader"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,7 +26,10 @@ type TeaFollow struct{}
 type TeaLogRefresh struct{}
 
 // ----- Private tea.Msg
-type teaLogCmd string
+type teaLogCmd struct {
+	shown  string // the Window's shown text
+	gutter string // the Gutter cells of its Lines
+}
 
 var (
 	logViewStyle = lipgloss.NewStyle().
@@ -37,12 +41,14 @@ type logView struct {
 	width   ui.SizeI       // width modifier
 	height  ui.SizeI       // height modifier
 	view    viewport.Model // holds the viewport
+	gutter  gutterView     // the Gutter, left of the viewport
 	stream  cmd.Stream     // log feed stream to be displayed
 	ready   bool           // if `true` the viewport is ready to render
 	nextLog chan bool      // notification channel from stream
 }
 
-func NewLogView(width, height ui.SizeI, stream cmd.Stream) tea.Model {
+// NewLogView - the Log View over `stream`, its Gutter styled by `renderer`.
+func NewLogView(width, height ui.SizeI, stream cmd.Stream, renderer *lipgloss.Renderer) tea.Model {
 	nextLog := make(chan bool)
 
 	stream.SetBufferSize(1)
@@ -53,6 +59,7 @@ func NewLogView(width, height ui.SizeI, stream cmd.Stream) tea.Model {
 		height:  height,
 		stream:  stream,
 		nextLog: nextLog,
+		gutter:  newGutterView(renderer),
 	}
 }
 
@@ -68,7 +75,7 @@ func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		return l.updateViewSize(msg)
 	case teaLogCmd:
-		return l.refreshView(string(msg))
+		return l.refreshView(msg)
 	case TeaLogSizeUpdate:
 		return l.updateSize(msg)
 	case TeaScroll:
@@ -76,14 +83,15 @@ func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TeaFollow:
 		return l.follow()
 	case TeaLogRefresh:
-		l.view.SetContent(l.stream.GetWindow())
-		return l, nil
+		return l.show(), nil
 	}
 	return l, nil
 }
 
 func (l logView) View() string {
-	return logViewStyle.Render(l.view.View())
+	return logViewStyle.Render(
+		lipgloss.JoinHorizontal(lipgloss.Top, l.gutter.View(), l.view.View()),
+	)
 }
 
 // ------------------------- Private
@@ -91,23 +99,22 @@ func (l logView) View() string {
 // waiting for new lines to arrive.
 func (l logView) scroll(n int) (tea.Model, tea.Cmd) {
 	l.stream.MoveBy(n)
-	l.view.SetContent(l.stream.GetWindow())
-	return l, nil
+	return l.show(), nil
 }
 
 // follow - makes the window Following and shows it right away, without waiting
 // for new lines to arrive.
 func (l logView) follow() (tea.Model, tea.Cmd) {
 	l.stream.MoveToEnd()
-	l.view.SetContent(l.stream.GetWindow())
-	return l, nil
+	return l.show(), nil
 }
 
 func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	// get relative size of view
 	size = ui.ModifySize(size, l.width, l.height)
-	w := size.Width - logViewStyle.GetHorizontalFrameSize()
+	w := size.Width - logViewStyle.GetHorizontalFrameSize() - reader.GutterWidth
 	h := size.Height - logViewStyle.GetVerticalFrameSize()
+	l.gutter.height = h
 
 	// update view width and height
 	if l.ready {
@@ -124,16 +131,35 @@ func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	return l, nil
 }
 
-func (l logView) refreshView(logs string) (tea.Model, tea.Cmd) {
-	l.view.SetContent(logs)
+func (l logView) refreshView(window teaLogCmd) (tea.Model, tea.Cmd) {
+	l = l.display(window)
 	return l, l.fetchLog()
 }
 
 func (l logView) fetchLog() tea.Cmd {
 	return func() tea.Msg {
 		<-l.nextLog
-		return teaLogCmd(l.stream.GetWindow())
+		return l.window()
 	}
+}
+
+// window - the Window's shown text and Gutter cells, from one read.
+func (l logView) window() teaLogCmd {
+	shown, gutter := l.stream.GetWindow()
+	return teaLogCmd{shown: shown, gutter: gutter}
+}
+
+// show - shows the Window as it is now, without waiting for new lines.
+func (l logView) show() logView {
+	return l.display(l.window())
+}
+
+// display - shows `window`'s shown text in the viewport and its Gutter cells
+// beside it.
+func (l logView) display(window teaLogCmd) logView {
+	l.view.SetContent(window.shown)
+	l.gutter = l.gutter.setCells(window.gutter)
+	return l
 }
 
 func (l logView) updateSize(update TeaLogSizeUpdate) (tea.Model, tea.Cmd) {

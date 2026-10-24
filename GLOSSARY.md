@@ -78,12 +78,16 @@ The Line with a Match that the user has stepped to during a Search, marked out f
 _Avoid_: result, hit, cursor, selection, Current Match
 
 **Pass**:
-Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes, and the Search always runs last, over each Line as the other Passes leave it.
+Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes. The Search runs over each Line as the formatting Passes leave it, and the marks in the Gutter are worked out last, from each Line as every other Pass leaves it.
 _Avoid_: command, stage, step, filter
 
 **Log View**:
 The on-screen panel that shows the Window.
 _Avoid_: viewport, log panel
+
+**Gutter**:
+The shaded strip two columns wide down the left of the Log View, as tall as it and always shown, where marks about each Line are shown beside it, such as the one beside the Current Line; a mark moves with its Line.
+_Avoid_: sign column, margin, ruler
 
 **Toolbar**:
 The bar at the top of the screen listing the available keys.

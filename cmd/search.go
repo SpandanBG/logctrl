@@ -54,7 +54,6 @@ type Search struct {
 	scanning  bool           // a scan for message `gen` is running
 	history   history
 	highlight lipgloss.Style // how each Match is shown
-	bold      lipgloss.Style // how the rest of the Current Line is shown
 }
 
 // NewSearch - an idle Search, whose Matches are styled by `renderer`.
@@ -64,7 +63,6 @@ func NewSearch(renderer *lipgloss.Renderer) *Search {
 		highlight: renderer.NewStyle().
 			Foreground(lipgloss.Color("0")).
 			Background(lipgloss.Color("3")),
-		bold: renderer.NewStyle().Bold(true),
 	}
 }
 
@@ -117,7 +115,8 @@ func (s *Search) Update(msg any) error {
 }
 
 // Run - sets the Matches of each line in its shown text, then highlights them
-// there; empty matches are dropped. Leaves the lines as they are while idle.
+// there; empty matches are dropped. Marks the Current Line for the Gutter.
+// Leaves the lines as they are while idle.
 func (s *Search) Run(lines []reader.Line) []reader.Line {
 	if s.regex == nil {
 		return lines
@@ -125,6 +124,7 @@ func (s *Search) Run(lines []reader.Line) []reader.Line {
 
 	for i := range lines {
 		lines[i].Matches = s.matches(lines[i].Shown)
+		lines[i].GutterContext.Search.Current = lines[i].Number == s.current
 		lines[i].Shown = s.highlighted(lines[i])
 	}
 	return lines
@@ -142,28 +142,16 @@ func (s *Search) matches(shown string) []reader.Match {
 }
 
 // highlighted - the shown text of `line` with each of its Matches
-// highlighted, all of it bold if it is the Current Line.
+// highlighted.
 func (s *Search) highlighted(line reader.Line) string {
-	plain := func(text string) string { return text }
-	highlight := s.highlight.Render
-	if line.Number == s.current {
-		plain = func(text string) string {
-			if text == "" {
-				return ""
-			}
-			return s.bold.Render(text)
-		}
-		highlight = s.highlight.Bold(true).Render
-	}
-
 	var text strings.Builder
 	from := 0
 	for _, match := range line.Matches {
-		text.WriteString(plain(line.Shown[from:match.Start]))
-		text.WriteString(highlight(line.Shown[match.Start:match.End]))
+		text.WriteString(line.Shown[from:match.Start])
+		text.WriteString(s.highlight.Render(line.Shown[match.Start:match.End]))
 		from = match.End
 	}
-	text.WriteString(plain(line.Shown[from:]))
+	text.WriteString(line.Shown[from:])
 	return text.String()
 }
 

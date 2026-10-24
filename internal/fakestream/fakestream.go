@@ -17,6 +17,7 @@ type Stream struct {
 	mu      sync.Mutex
 	height  int
 	window  string
+	gutter  string
 	next    chan bool
 	closed  bool
 	scrolls []int
@@ -43,10 +44,10 @@ func (s *Stream) SetBufferSize(size int) {
 	s.height = size
 }
 
-func (s *Stream) GetWindow() string {
+func (s *Stream) GetWindow() (shown, gutter string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.window
+	return s.window, s.gutter
 }
 
 // Lines - the Window text, one Line per row, numbered from 0.
@@ -153,6 +154,13 @@ func (s *Stream) SetWindow(window string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.window = window
+}
+
+// SetGutter - changes the Gutter cells GetWindow returns with the Window text.
+func (s *Stream) SetGutter(gutter string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gutter = gutter
 }
 
 // Closed - whether Close has been called.

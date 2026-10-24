@@ -20,7 +20,7 @@ func startLogView(t *testing.T) (tea.Model, *fakestream.Stream, *testutil.Runtim
 	stream := fakestream.New()
 	runtime := testutil.NewRuntime(80, 30)
 
-	logView := components.NewLogView(ui.SizeRatio(1), ui.SizeModifier(-1), stream)
+	logView := components.NewLogView(ui.SizeRatio(1), ui.SizeModifier(-1), stream, testutil.Colors())
 	runtime.Run(logView.Init())
 
 	return runtime.Settle(logView), stream, runtime
@@ -121,4 +121,38 @@ func Test_LogViewFollowShowsNewestLinesWithoutWaitingForNewLines(t *testing.T) {
 	testutil.Equal(t, 1, stream.Follows())
 	testutil.Equal(t, true, strings.Contains(view, "newest line"))
 	testutil.Equal(t, false, strings.Contains(view, "older line"))
+}
+
+func Test_LogViewShowsEachLinesGutterBesideIt(t *testing.T) {
+	logView, stream, runtime := startLogView(t)
+
+	stream.SetGutter("  \n >")
+	stream.Notify(t, "first line\nsecond line")
+	logView = runtime.Settle(logView)
+
+	rows := strings.Split(ansi.Strip(logView.View()), "\n")
+	testutil.Equal(t, 30-1, len(rows))
+	testutil.Equal(t, true, strings.HasPrefix(rows[1], "│  first line"))
+	testutil.Equal(t, true, strings.HasPrefix(rows[2], "│ >second line"))
+	for i, row := range rows {
+		if ansi.StringWidth(row) != 80 {
+			t.Errorf("row %d is %d wide, not 80: %q", i, ansi.StringWidth(row), row)
+		}
+	}
+}
+
+func Test_LogViewShadesItsGutterAllTheWayDown(t *testing.T) {
+	logView, stream, runtime := startLogView(t)
+
+	stream.SetGutter(" >")
+	stream.Notify(t, "a log line")
+	logView = runtime.Settle(logView)
+
+	rows := strings.Split(logView.View(), "\n")
+	testutil.Equal(t, true, strings.HasPrefix(rows[1], "│\x1b[40m >\x1b[0ma log line"))
+	for i := 2; i <= 27; i++ { // the rows below the last Line
+		if !strings.HasPrefix(rows[i], "│\x1b[40m  \x1b[0m") {
+			t.Errorf("row %d has no shaded Gutter: %q", i, rows[i])
+		}
+	}
 }

@@ -15,4 +15,4 @@ The user steps from the Current Line to the previous (older) or next (newer) Lin
 - The Line Numbers remembered aren't bounded, at 8 bytes per Line with a Match. A sorted index of every Line with a Match is deferred until scanning proves slow.
 - A scan loads Chunks the Window doesn't show, so it can drop the Chunks the Window does show (ADR 0004), and they are read again on the next render.
 - If the Log File fails to read and the Current Line becomes unreachable, the Current Line is dropped.
-- The Current Line is shown bold, with its Matches still highlighted. A gutter marking it is left for a later phase.
+- The Current Line is shown bold, with its Matches still highlighted. A gutter marking it is left for a later phase. (ADR 0009 replaces the bold with a `>` in the Gutter beside it.)

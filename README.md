@@ -4,7 +4,7 @@ Watch, scroll, filter and run commands on live logs, right in your terminal.
 
 ## What it does
 
-Pipe any process into `logctrl` and its log lines appear in the Log View as they arrive. Scroll up to read older lines: the Log View stays where you put it while new lines keep arriving. Scroll back down to the newest line and it follows the live logs again.
+Pipe any process into `logctrl` and its log lines appear in the Log View as they arrive. Scroll up to read older lines: the Log View stays where you put it while new lines keep arriving. Scroll back down to the newest line and it follows the live logs again. Search the logs with a regex: every Match is highlighted, and you can step between the Lines that have one.
 
 - Everything received is also kept in a Log File, `$TMPDIR/logCtrl_logFile.txt`, so nothing is lost when it scrolls out of reach.
 - Quitting `logctrl` also stops the process piped into it.
@@ -51,8 +51,10 @@ Press `h` at any time to open the Help, which lists every key.
 | `G` | `follow` | Follow the newest lines, dropping the Current Line |
 | `/` | `open_search` | Open the Search Bar, or edit the regex in it |
 | `ctrl+l` | `close_search` | Close the Search Bar |
+| `up` | `previous_match` | Step to the previous (older) Line with a Match |
+| `down` | `next_match` | Step to the next (newer) Line with a Match |
 
-In the Search Bar, type a regex and press `enter`: the regex stays on show, read-only, and every other key works as usual. Press `/` to edit it again, `esc` to cancel an edit, and `ctrl+l` to close the Search Bar. Searching itself isn't implemented yet.
+In the Search Bar, type a regex and press `enter`: the regex stays on show, read-only, every Match is highlighted, and the Log View keeps following. Press `up` or `down` to step to the previous or next Line with a Match. The Log View stops following, centres on that Line and marks it with `>`. The first press finds the newest Line with a Match, searching up from the bottom of the Log View. `G` follows again and drops the `>`, but keeps the highlights. A bad regex shows its error in red. Press `/` to edit the regex, `esc` to cancel an edit, and `ctrl+l` to close the Search Bar and end the Search.
 
 `ctrl+c` and `ctrl+d` always quit, except while the Prompt is open, and can't be remapped.
 
@@ -63,8 +65,8 @@ Every key above can be changed in `~/.config/logCtrl/keymap.json`. List only the
 ```json
 [
   { "action": "quit", "key": "x" },
-  { "action": "scroll_up", "key": "up" },
-  { "action": "scroll_down", "key": "down", "description": "Newer lines" }
+  { "action": "scroll_up", "key": "pgup" },
+  { "action": "scroll_down", "key": "pgdown", "description": "Newer lines" }
 ]
 ```
 

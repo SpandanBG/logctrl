@@ -560,6 +560,53 @@ func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
 	testutil.Equal(t, "[SearchFor{err} SearchFor{}]", updates(stream))
 }
 
+func Test_UICloseSearchKeyFollowsOnceRegexIsEntered(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		regex string
+		typed []tea.KeyMsg // after entering the regex, before closing the Search Bar
+	}{
+		{name: "while read-only", regex: "err"},
+		{name: "while editing", regex: "err", typed: []tea.KeyMsg{keys("/"), keys("or")}},
+		{name: "after a bad regex", regex: "err("},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model = enterSearch(model, runtime, test.regex)
+			for _, key := range test.typed {
+				model, _ = press(model, runtime, key)
+			}
+			model, _ = press(model, runtime, keys("k"))
+			follows := stream.Follows()
+
+			_, _ = press(model, runtime, ctrlL)
+
+			testutil.Equal(t, follows+1, stream.Follows())
+		})
+	}
+}
+
+func Test_UIClosingSearchBarBeforeRegexIsEnteredKeepsWindow(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		close tea.KeyMsg
+	}{
+		{name: "close search key", close: ctrlL},
+		{name: "esc", close: esc},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("k"))
+			model, _ = press(model, runtime, keys("/"))
+			model, _ = press(model, runtime, keys("err"))
+
+			_, _ = press(model, runtime, test.close)
+
+			testutil.Equal(t, 0, stream.Follows())
+		})
+	}
+}
+
 func Test_UIEscKeepsEnteredSearch(t *testing.T) {
 	model, stream, runtime := startUI(t)
 	model = enterSearch(model, runtime, "err")

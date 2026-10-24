@@ -346,14 +346,20 @@ func (u uiModel) resizePanels() (uiModel, tea.Cmd) {
 	return u, tea.Batch(logViewCmd, helpCmd)
 }
 
-// closeSearch - removes the Search Bar, giving its row back to the Log View.
+// closeSearch - removes the Search Bar, giving its row back to the Log View;
+// if a regex was entered, ending its Search makes the Window Following.
 func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
+	ended := u.searchEntered
 	u.searchActive = false
 	u.searchTyping = false
 	u.searchEntered = false
 	u.regex = ""
-	u.stream.Update(cmd.SearchFor{})
-	u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+	u.stream.Update(cmd.SearchFor{}) // before Following, so no scan Pins the Window after it
+	if ended {
+		u.logView, _ = u.logView.Update(components.TeaFollow{})
+	} else {
+		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+	}
 
 	var cmd tea.Cmd
 	u, cmd = u.resizePanels()

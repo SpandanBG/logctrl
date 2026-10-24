@@ -50,11 +50,11 @@ Press `h` at any time to open the Help, which lists every key.
 | `j` | `scroll_down` | Scroll the Log View or the Help down (newer lines) |
 | `G` | `follow` | Follow the newest lines, dropping the Current Line |
 | `/` | `open_search` | Open the Search Bar, or edit the regex in it |
-| `ctrl+l` | `close_search` | Close the Search Bar |
+| `ctrl+l` | `close_search` | Close the Search Bar, ending the Search and following the newest lines |
 | `up` | `previous_match` | Step to the previous (older) Line with a Match |
 | `down` | `next_match` | Step to the next (newer) Line with a Match |
 
-In the Search Bar, type a regex and press `enter`: the regex stays on show, read-only, every Match is highlighted, and the Log View keeps following. Press `up` or `down` to step to the previous or next Line with a Match. The Log View stops following, centres on that Line and marks it with `>`. The first press finds the newest Line with a Match, searching up from the bottom of the Log View. `G` follows again and drops the `>`, but keeps the highlights. A bad regex shows its error in red. Press `/` to edit the regex, `esc` to cancel an edit, and `ctrl+l` to close the Search Bar and end the Search.
+In the Search Bar, type a regex and press `enter`: the regex stays on show, read-only, every Match is highlighted, and the Log View keeps following. Press `up` or `down` to step to the previous or next Line with a Match. The Log View stops following, centres on that Line and marks it with `>`. The first press finds the newest Line with a Match, searching up from the bottom of the Log View. `G` follows again and drops the `>`, but keeps the highlights. A bad regex shows its error in red. Press `/` to edit the regex, `esc` to cancel an edit, and `ctrl+l` to close the Search Bar, end the Search and follow the live logs again.
 
 `ctrl+c` and `ctrl+d` always quit, except while the Prompt is open, and can't be remapped.
 

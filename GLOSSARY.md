@@ -54,7 +54,7 @@ The contiguous range of Line Numbers currently shown to the user, as tall as the
 _Avoid_: RAB, random access buffer, viewport, page
 
 **Following**:
-The Window mode in which it always shows the newest lines; the user can return to it at any time with a single key, which also drops any Current Line. Entering a new Search regex returns the Window to it too.
+The Window mode in which it always shows the newest lines; the user can return to it at any time with a single key, which also drops any Current Line. Entering a new Search regex, or ending the Search by closing the Search Bar, returns the Window to it too.
 _Avoid_: live mode, tailing, auto-scroll
 
 **Pinned**:

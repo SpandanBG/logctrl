@@ -92,7 +92,7 @@ Keys are dispatched by Action from the merged Keymap (`config/keymap.json`, plus
 | `k` / `j` | Scroll the log view one line up (older) / down (newer); scroll the help while it is open |
 | `G` | Follow the newest lines (while prompt and help closed; not shown in the Toolbar); drops the Current Line, keeping the Search |
 | `/` | Open the Search Bar, or edit its regex (while prompt and help closed); `enter` makes it read-only and starts the Search, highlighting every Match and making the Window Following (ignored when empty; changes nothing for the regex already entered); a bad regex shows its error in red, and `/` brings the regex back to fix |
-| `ctrl+l` | Close the Search Bar, ending the Search (while typing in it or while it is read-only) |
+| `ctrl+l` | Close the Search Bar, ending the Search (while typing in it or while it is read-only); once a regex has been entered, also Follows the newest lines |
 | `up` / `down` | Step to the previous (older) / next (newer) Line with a Match, centring the Window on it (while a regex is entered and the Search Bar is read-only, with the prompt and help closed); with no Current Line, either finds it: the newest Line with a Match at or above the Window's bottom, Pinning the Window (nothing if no Line matches) |
 | `^C` / `^D` | Reserved, outside the Keymap: always Quit while the prompt is closed (including while typing in the Search Bar) |
 

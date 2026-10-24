@@ -15,6 +15,7 @@ import (
 const (
 	toolbarSize   = 1
 	searchBarSize = 1
+	filterBarSize = 1
 	promptSize    = 16
 )
 
@@ -33,6 +34,7 @@ type uiModel struct {
 	prompt        tea.Model
 	help          tea.Model
 	searchBar     tea.Model
+	filterBar     tea.Model
 	actionOf      map[string]config.Action // the Action each key in the Keymap triggers
 	promptActive  bool
 	helpActive    bool
@@ -40,6 +42,9 @@ type uiModel struct {
 	searchTyping  bool   // the Search Bar is shown and editable
 	searchEntered bool   // a regex has been entered in the Search Bar
 	regex         string // the regex being searched for; "" if none
+	filterActive  bool   // the Filter Bar is shown
+	filterTyping  bool   // the Filter Bar is shown and editable
+	filterEntered bool   // a regex has been entered in the Filter Bar
 }
 
 // NewUI - the app over `stream`, keyed by `keymap`, styled by `renderer`.
@@ -89,7 +94,8 @@ func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Rende
 			ui.SizeModifier(-toolbarSize),
 			keymap,
 		),
-		searchBar: components.NewSearchBar(ui.SizeRatio(1), renderer),
+		searchBar: components.NewRegexBar(ui.SizeRatio(1), components.SearchBar, renderer),
+		filterBar: components.NewRegexBar(ui.SizeRatio(1), components.FilterBar, renderer),
 	}
 }
 
@@ -100,6 +106,7 @@ func (u uiModel) Init() tea.Cmd {
 		u.prompt.Init(),
 		u.help.Init(),
 		u.searchBar.Init(),
+		u.filterBar.Init(),
 	)
 }
 
@@ -115,11 +122,19 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if u.searchTyping {
 			return u.receiveSearch(msg)
 		}
+		if u.filterTyping {
+			return u.receiveFilter(msg)
+		}
 		if u.helpActive {
 			return u.receiveHelp(msg)
 		}
 		return u.executeKeystroke(msg)
-	case components.TeaSearchEntered:
+	case components.TeaRegexEntered:
+		if msg.Bar == components.FilterBar {
+			u.filterTyping = false
+			u.filterEntered = true
+			return u, nil
+		}
 		u.searchTyping = false
 		u.searchEntered = true
 		if msg.Regex == u.regex {
@@ -128,7 +143,7 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		u.regex = msg.Regex
 		if err := u.stream.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
 			u.regex = ""
-			u.searchBar, _ = u.searchBar.Update(components.TeaSearchFailed{Err: err})
+			u.searchBar, _ = u.searchBar.Update(components.TeaRegexFailed{Err: err})
 		}
 		return u.followLogView()
 	}
@@ -158,6 +173,10 @@ func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return u.followLogView()
 	case config.OpenSearch:
 		return u.openSearch()
+	case config.OpenFilter:
+		return u.openFilter()
+	case config.CloseFilter:
+		return u.closeFilter()
 	case config.CloseSearch:
 		return u.closeSearch()
 	case config.PreviousMatch:
@@ -239,10 +258,11 @@ func (u uiModel) batchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		u.prompt, cmds[2] = u.prompt.Update(msg)
 	}
 
-	var helpCmd, searchBarCmd tea.Cmd
+	var helpCmd, searchBarCmd, filterBarCmd tea.Cmd
 	u.help, helpCmd = u.help.Update(msg)
 	u.searchBar, searchBarCmd = u.searchBar.Update(msg)
-	cmds = append(cmds, helpCmd, searchBarCmd)
+	u.filterBar, filterBarCmd = u.filterBar.Update(msg)
+	cmds = append(cmds, helpCmd, searchBarCmd, filterBarCmd)
 
 	return u, tea.Batch(cmds...)
 }
@@ -251,6 +271,10 @@ func (u uiModel) batchView() string {
 	views := []string{u.toolbar.View(), u.logView.View()}
 	if u.helpActive {
 		views[1] = u.help.View()
+	}
+
+	if u.filterActive {
+		views = append(views, u.filterBar.View())
 	}
 
 	if u.searchActive {
@@ -305,7 +329,7 @@ func (u uiModel) openSearch() (tea.Model, tea.Cmd) {
 
 	var logViewCmd, searchBarCmd tea.Cmd
 	u, logViewCmd = u.resizePanels()
-	u.searchBar, searchBarCmd = u.searchBar.Update(components.TeaSearchEdit{})
+	u.searchBar, searchBarCmd = u.searchBar.Update(components.TeaRegexEdit{})
 	return u, tea.Batch(logViewCmd, searchBarCmd)
 }
 
@@ -322,11 +346,64 @@ func (u uiModel) receiveSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return u, cmd
 }
 
-// resizePanels - fits the Log View into the rows the Toolbar, the Search Bar
-// and the Prompt leave, and the Help into the rows the Toolbar and the Search
-// Bar leave.
+// openFilter - shows the Filter Bar, editable, under the Log View and above
+// the Search Bar.
+func (u uiModel) openFilter() (tea.Model, tea.Cmd) {
+	u.filterActive = true
+	u.filterTyping = true
+
+	var logViewCmd, filterBarCmd tea.Cmd
+	u, logViewCmd = u.resizePanels()
+	u.filterBar, filterBarCmd = u.filterBar.Update(components.TeaRegexEdit{})
+	return u, tea.Batch(logViewCmd, filterBarCmd)
+}
+
+func (u uiModel) receiveFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch u.actionOf[msg.String()] {
+	case config.CloseFilter:
+		return u.closeFilter()
+	case config.Close:
+		return u.cancelFilter()
+	}
+
+	var cmd tea.Cmd
+	u.filterBar, cmd = u.filterBar.Update(msg)
+	return u, cmd
+}
+
+// closeFilter - removes the Filter Bar, emptied, giving its row back to the
+// Log View.
+func (u uiModel) closeFilter() (tea.Model, tea.Cmd) {
+	u.filterActive = false
+	u.filterTyping = false
+	u.filterEntered = false
+
+	var cmd tea.Cmd
+	u, cmd = u.resizePanels()
+	u.filterBar, _ = u.filterBar.Update(components.TeaRegexClose{})
+	return u, cmd
+}
+
+// cancelFilter - drops what was typed in the Filter Bar: back to the regex
+// last entered, or no Filter Bar if none was.
+func (u uiModel) cancelFilter() (tea.Model, tea.Cmd) {
+	if !u.filterEntered {
+		return u.closeFilter()
+	}
+
+	u.filterTyping = false
+	u.filterBar, _ = u.filterBar.Update(components.TeaRegexCancel{})
+	return u, nil
+}
+
+// resizePanels - fits the Log View into the rows the Toolbar, the Filter Bar,
+// the Search Bar and the Prompt leave, and the Help into the rows the Toolbar,
+// the Filter Bar and the Search Bar leave.
 func (u uiModel) resizePanels() (uiModel, tea.Cmd) {
 	modifier := toolbarSize
+	if u.filterActive {
+		modifier += filterBarSize
+	}
 	if u.searchActive {
 		modifier += searchBarSize
 	}
@@ -363,7 +440,7 @@ func (u uiModel) closeSearch() (tea.Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	u, cmd = u.resizePanels()
-	u.searchBar, _ = u.searchBar.Update(components.TeaSearchClose{})
+	u.searchBar, _ = u.searchBar.Update(components.TeaRegexClose{})
 	return u, cmd
 }
 
@@ -375,6 +452,6 @@ func (u uiModel) cancelSearch() (tea.Model, tea.Cmd) {
 	}
 
 	u.searchTyping = false
-	u.searchBar, _ = u.searchBar.Update(components.TeaSearchCancel{})
+	u.searchBar, _ = u.searchBar.Update(components.TeaRegexCancel{})
 	return u, nil
 }

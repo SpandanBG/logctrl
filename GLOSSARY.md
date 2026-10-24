@@ -67,7 +67,7 @@ _Avoid_: move, step, navigate
 
 **Search**:
 Looking for lines that match a regex the user types, from the newest line toward older ones.
-_Avoid_: find, filter, grep, reverse search
+_Avoid_: find, grep, reverse search
 
 **Match**:
 A section of a Line's text that the Search regex matches; a Line may have several, or none.
@@ -77,9 +77,13 @@ _Avoid_: matched span, hit, result
 The Line with a Match that the user has stepped to during a Search, marked out from the other Lines and kept in the middle of the Window; the user steps from it to the previous (older) or next (newer) Line with a Match. There is at most one: none until the user first steps during a Search, none while no Line matches, and none again once the user returns the Window to Following with its key.
 _Avoid_: result, hit, cursor, selection, Current Match
 
+**Filter**:
+Showing only the Lines that match a regex the user types; the other Lines are hidden from the Log View.
+_Avoid_: grep, search, hide rule
+
 **Pass**:
 Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes. The Search runs over each Line as the formatting Passes leave it, and the marks in the Gutter are worked out last, from each Line as every other Pass leaves it.
-_Avoid_: command, stage, step, filter
+_Avoid_: command, stage, step
 
 **Log View**:
 The on-screen panel that shows the Window.
@@ -104,6 +108,10 @@ _Avoid_: help menu, help window, popup
 **Search Bar**:
 The one-line panel under the Log View where the user types the regex for a Search. Once entered, the regex stays on show, read-only, until the user closes the Search Bar; a regex that cannot be searched for shows why in its place, ready to be fixed.
 _Avoid_: search box, input box, Prompt
+
+**Filter Bar**:
+The one-line panel under the Log View, above the Search Bar when both are shown, where the user types the regex for a Filter. Once entered, the regex stays on show, read-only, until the user closes the Filter Bar, which ends the Filter.
+_Avoid_: filter box, input box, Search Bar
 
 ## Controls
 

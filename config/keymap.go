@@ -32,15 +32,17 @@ const (
 	CloseSearch   Action = "close_search"
 	PreviousMatch Action = "previous_match"
 	NextMatch     Action = "next_match"
+	OpenFilter    Action = "open_filter"
+	CloseFilter   Action = "close_filter"
 )
 
 // Reserved - the keys that always Quit, outside the Keymap, so no Keymap file
 // can leave the user without an exit.
 var Reserved = []string{"ctrl+c", "ctrl+d"}
 
-// whileTyping - the Actions honoured while the user types in the Prompt or the
-// Search Bar, so they can't be on a key that would be typed.
-var whileTyping = []Action{Close, CloseSearch}
+// whileTyping - the Actions honoured while the user types in the Prompt, the
+// Search Bar or the Filter Bar, so they can't be on a key that would be typed.
+var whileTyping = []Action{Close, CloseSearch, CloseFilter}
 
 // Entry - one Action with the key that triggers it and its description.
 type Entry struct {
@@ -112,7 +114,7 @@ func merge(keymap, user []Entry) ([]Entry, error) {
 			return nil, fmt.Errorf("%s is on %q, which is not a key", entry.Action, entry.Key)
 		}
 		if slices.Contains(whileTyping, entry.Action) && isPrintable(entry.Key) {
-			return nil, fmt.Errorf("%s is on %q, which would be typed in the Prompt or the Search Bar", entry.Action, entry.Key)
+			return nil, fmt.Errorf("%s is on %q, which would be typed in the Prompt, the Search Bar or the Filter Bar", entry.Action, entry.Key)
 		}
 		if slices.Contains(Reserved, entry.Key) {
 			return nil, fmt.Errorf("%s is on reserved key %q", entry.Action, entry.Key)

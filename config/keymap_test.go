@@ -23,6 +23,8 @@ var builtIn = []config.Entry{
 	{Key: "ctrl+l", Action: config.CloseSearch, Description: "Close the Search Bar"},
 	{Key: "up", Action: config.PreviousMatch, Description: "Step to the previous Line with a Match"},
 	{Key: "down", Action: config.NextMatch, Description: "Step to the next Line with a Match"},
+	{Key: "f", Action: config.OpenFilter, Description: "Open the Filter Bar"},
+	{Key: "ctrl+f", Action: config.CloseFilter, Description: "Close the Filter Bar, clearing the Filter"},
 }
 
 // userFile - writes `content` as the user's Keymap file and returns its path.
@@ -77,6 +79,8 @@ func Test_KeymapRejectsBadUserFileTableDriven(t *testing.T) {
 		{name: "close on space", content: `[{"action": "close", "key": " "}]`},
 		{name: "close_search on a printable character", content: `[{"action": "close_search", "key": "x"}]`},
 		{name: "close_search on space", content: `[{"action": "close_search", "key": " "}]`},
+		{name: "close_filter on a printable character", content: `[{"action": "close_filter", "key": "x"}]`},
+		{name: "close_filter on space", content: `[{"action": "close_filter", "key": " "}]`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			path := userFile(t, test.content)

@@ -12,30 +12,44 @@ var (
 	readOnlyStyle = lipgloss.NewStyle().Faint(true)
 )
 
+// Bar - names a regex bar, so the messages it sends say which one it is.
+type Bar int
+
+const (
+	SearchBar Bar = iota
+	FilterBar
+)
+
+// prompts - what each regex bar shows before its regex.
+var prompts = map[Bar]string{SearchBar: "/", FilterBar: "f"}
+
 // ----- Public tea.Msg
 
-// TeaSearchEdit - makes the Search Bar editable, keeping its regex.
-type TeaSearchEdit struct{}
+// TeaRegexEdit - makes the regex bar editable, keeping its regex.
+type TeaRegexEdit struct{}
 
-// TeaSearchClose - empties the Search Bar, ready for the next Search.
-type TeaSearchClose struct{}
+// TeaRegexClose - empties the regex bar, ready for the next regex.
+type TeaRegexClose struct{}
 
-// TeaSearchCancel - drops what was typed since the regex was last entered,
-// making the Search Bar read-only again.
-type TeaSearchCancel struct{}
+// TeaRegexCancel - drops what was typed since the regex was last entered,
+// making the regex bar read-only again.
+type TeaRegexCancel struct{}
 
-// TeaSearchEntered - the user entered `Regex`; the Search Bar is read-only.
-type TeaSearchEntered struct {
+// TeaRegexEntered - the user entered `Regex` in `Bar`, now read-only.
+type TeaRegexEntered struct {
+	Bar   Bar
 	Regex string
 }
 
-// TeaSearchFailed - the regex last entered cannot be searched for, because of
-// `Err`.
-type TeaSearchFailed struct {
+// TeaRegexFailed - the regex last entered cannot be used, because of `Err`.
+type TeaRegexFailed struct {
 	Err error
 }
 
-type searchBar struct {
+// regexBar - a one-line input for a regex, such as the Search Bar or the
+// Filter Bar.
+type regexBar struct {
+	bar        Bar
 	width      ui.SizeI
 	view       textinput.Model
 	entered    string         // the regex last entered
@@ -43,39 +57,41 @@ type searchBar struct {
 	errorStyle lipgloss.Style // how `failed` is shown
 }
 
-// NewSearchBar - the one-line Search Bar, `width` wide, styled by `renderer`.
-func NewSearchBar(width ui.SizeI, renderer *lipgloss.Renderer) tea.Model {
+// NewRegexBar - the one-line regex bar `bar`, `width` wide, styled by
+// `renderer`.
+func NewRegexBar(width ui.SizeI, bar Bar, renderer *lipgloss.Renderer) tea.Model {
 	view := textinput.New()
-	view.Prompt = "/"
-	return searchBar{
+	view.Prompt = prompts[bar]
+	return regexBar{
+		bar:        bar,
 		width:      width,
 		view:       view,
 		errorStyle: renderer.NewStyle().Foreground(lipgloss.Color("1")),
 	}
 }
 
-func (s searchBar) Init() tea.Cmd {
+func (s regexBar) Init() tea.Cmd {
 	return tea.WindowSize()
 }
 
-func (s searchBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.view.Width = ui.ModifySize(msg, s.width, ui.SizeFixed(1)).Width - len(s.view.Prompt) - 1
 		return s, nil
-	case TeaSearchEdit:
+	case TeaRegexEdit:
 		s.view.PromptStyle = lipgloss.NewStyle()
 		s.view.TextStyle = lipgloss.NewStyle()
 		return s, s.view.Focus()
-	case TeaSearchFailed:
+	case TeaRegexFailed:
 		s.failed = msg.Err
 		return s, nil
-	case TeaSearchClose:
+	case TeaRegexClose:
 		s = s.readOnly()
 		s.view.Reset()
 		s.entered = ""
 		return s, nil
-	case TeaSearchCancel:
+	case TeaRegexCancel:
 		s = s.readOnly()
 		s.view.SetValue(s.entered)
 		return s, nil
@@ -90,7 +106,7 @@ func (s searchBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, cmd
 }
 
-func (s searchBar) View() string {
+func (s regexBar) View() string {
 	if s.failed != nil && !s.view.Focused() {
 		return s.errorStyle.Render(s.view.Prompt + s.failed.Error())
 	}
@@ -99,9 +115,9 @@ func (s searchBar) View() string {
 
 // ------------------------- Private
 
-// enter - makes the Search Bar read-only, keeping its regex. Ignored while
-// the Search Bar is empty.
-func (s searchBar) enter() (tea.Model, tea.Cmd) {
+// enter - makes the regex bar read-only, keeping its regex. Ignored while
+// the regex bar is empty.
+func (s regexBar) enter() (tea.Model, tea.Cmd) {
 	if s.view.Value() == "" {
 		return s, nil
 	}
@@ -109,11 +125,11 @@ func (s searchBar) enter() (tea.Model, tea.Cmd) {
 	s = s.readOnly()
 	s.entered = s.view.Value()
 	s.failed = nil
-	return s, func() tea.Msg { return TeaSearchEntered{Regex: s.entered} }
+	return s, func() tea.Msg { return TeaRegexEntered{Bar: s.bar, Regex: s.entered} }
 }
 
-// readOnly - stops the Search Bar taking keys, and dims it.
-func (s searchBar) readOnly() searchBar {
+// readOnly - stops the regex bar taking keys, and dims it.
+func (s regexBar) readOnly() regexBar {
 	s.view.Blur()
 	s.view.PromptStyle = readOnlyStyle
 	s.view.TextStyle = readOnlyStyle

@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func Test_ToolbarShowsOnlyHelpScrollSearchAndMatchKeysFromKeymapAtItsSize(t *testing.T) {
+func Test_ToolbarShowsOnlyHelpScrollSearchFilterAndMatchKeysFromKeymapAtItsSize(t *testing.T) {
 	toolbar := components.NewToolbar(ui.SizeRatio(1), ui.SizeFixed(1), []config.Entry{
 		{Key: "q", Action: config.Quit, Description: "Quit logctrl"},
 		{Key: "?", Action: config.OpenHelp, Description: "Open the Help"},
@@ -24,6 +24,8 @@ func Test_ToolbarShowsOnlyHelpScrollSearchAndMatchKeysFromKeymapAtItsSize(t *tes
 		{Key: "ctrl+o", Action: config.CloseSearch, Description: "Close the Search Bar"},
 		{Key: "N", Action: config.PreviousMatch, Description: "Step to the previous Line with a Match"},
 		{Key: "m", Action: config.NextMatch, Description: "Step to the next Line with a Match"},
+		{Key: "x", Action: config.OpenFilter, Description: "Open the Filter Bar"},
+		{Key: "ctrl+x", Action: config.CloseFilter, Description: "Close the Filter Bar"},
 	})
 
 	toolbar, _ = toolbar.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
@@ -31,5 +33,5 @@ func Test_ToolbarShowsOnlyHelpScrollSearchAndMatchKeysFromKeymapAtItsSize(t *tes
 
 	testutil.Equal(t, 80, lipgloss.Width(view))
 	testutil.Equal(t, 1, lipgloss.Height(view))
-	testutil.Equal(t, "Quick Help: ?:Help n/p:Scroll f:Search m/N:Match", strings.Join(strings.Fields(ansi.Strip(view)), " "))
+	testutil.Equal(t, "Quick Help: ?:Help n/p:Scroll f:Search x:Filter m/N:Match", strings.Join(strings.Fields(ansi.Strip(view)), " "))
 }

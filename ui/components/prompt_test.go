@@ -12,11 +12,12 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// typeText - sends `text` to the model as typed keys.
+// keys - `text` as typed keys.
 func keys(text string) tea.KeyMsg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(text)}
 }
 
+// typeText - sends `text` to the model as typed keys.
 func typeText(model tea.Model, text string) tea.Model {
 	model, _ = model.Update(keys(text))
 	return model

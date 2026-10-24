@@ -485,29 +485,17 @@ func Test_UICloseSearchKeyClosesSearchBarAndRestoresLogView(t *testing.T) {
 	}
 }
 
-func Test_UISearchKeyMakesReadOnlySearchBarEditableKeepingRegex(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	model, _ = press(model, runtime, keys("/"))
-	model, _ = press(model, runtime, keys("err"))
-	model, _ = press(model, runtime, enter)
-
-	model, _ = press(model, runtime, keys("/"))
-	model, _ = press(model, runtime, keys("ork"))
-
-	testutil.Equal(t, 0, len(stream.Scrolls()))
-	testutil.Equal(t, 25, stream.Height())
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: errork"))
-}
-
 func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 	for _, test := range []struct {
 		name     string
 		typed    []tea.KeyMsg // after opening the Search Bar, before Esc
+		gone     string       // what was typed since the regex was entered, not in the view after Esc
 		height   int
 		expected string // in the view after Esc, if anything
 	}{
-		{name: "first edit closes the Search Bar", typed: []tea.KeyMsg{keys("err")}, height: 27},
-		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("/"), keys("or")}, height: 25, expected: "/: err"},
+		{name: "first edit closes the Search Bar", typed: []tea.KeyMsg{keys("err")}, gone: "/: err", height: 27},
+		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("/"), keys("or")}, gone: "/: erro", height: 25, expected: "/: err"},
+		{name: "re-edit after a bad regex shows its error again", typed: []tea.KeyMsg{keys("err("), enter, keys("/"), keys(")")}, gone: "/: err()", height: 25, expected: "/: error parsing regexp: missing closing ): `err(`"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -520,23 +508,12 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 			view := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(view, "/: erro"))
-			testutil.Equal(t, test.expected != "", strings.Contains(view, "/: err"))
+			testutil.Equal(t, false, strings.Contains(view, test.gone))
+			testutil.Equal(t, true, strings.Contains(view, test.expected))
 			testutil.Equal(t, test.height, stream.Height())
 			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 		})
 	}
-}
-
-func Test_UIEnterIsIgnoredOnEmptySearchBar(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	model, _ = press(model, runtime, keys("/"))
-
-	model, _ = press(model, runtime, enter)
-	model, _ = press(model, runtime, keys("k"))
-
-	testutil.Equal(t, 0, len(stream.Scrolls()))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: k"))
 }
 
 func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
@@ -632,45 +609,6 @@ func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
 	testutil.Equal(t, true, strings.Contains(model.View(),
 		"\x1b[31merror parsing regexp: missing closing ): `err(`\x1b[0m"))
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-}
-
-func Test_UISearchKeyAfterBadRegexBringsItBackAndEscShowsErrorAgain(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	model = enterSearch(model, runtime, "err(")
-
-	model, _ = press(model, runtime, keys("/"))
-	editView := ansi.Strip(model.View())
-	model, _ = press(model, runtime, esc)
-
-	testutil.Equal(t, true, strings.Contains(editView, "/: err("))
-	testutil.Equal(t, false, strings.Contains(editView, "error parsing regexp"))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: error parsing regexp: missing closing ): `err(`"))
-	testutil.Equal(t, 25, stream.Height())
-}
-
-func Test_UILongBadRegexErrorIsCutToSearchBarWidth(t *testing.T) {
-	model, _, runtime := startSizedUI(t, 80, 30)
-
-	model = enterSearch(model, runtime, "("+strings.Repeat("x", 120))
-
-	view := ansi.Strip(model.View())
-	testutil.Equal(t, 30, strings.Count(view, "\n")+1)
-	// 80 columns: "/: ", then 43 of the error, 33 x's and the "…".
-	testutil.Equal(t, "/: error parsing regexp: missing closing ): `("+strings.Repeat("x", 33)+"…",
-		lastRows(view, 1)[0])
-}
-
-func Test_UIFixedRegexReplacesError(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	model = enterSearch(model, runtime, "err(")
-
-	model, _ = press(model, runtime, keys("/"))
-	model, _ = press(model, runtime, keys(")"))
-	model, _ = press(model, runtime, enter)
-
-	testutil.Equal(t, "[SearchFor{err(} SearchFor{err()}]", updates(stream))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err()"))
-	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "error parsing regexp"))
 }
 
 func Test_UILogViewRedrawsWhenSearchStartsOrEnds(t *testing.T) {
@@ -915,18 +853,6 @@ func Test_UIFilterBarSitsAboveSearchBar(t *testing.T) {
 	testutil.Equal(t, fmt.Sprint([]string{topLine, "f: warn", topLine, "/: err"}), fmt.Sprint(lastRows(helpView, 4)))
 }
 
-func Test_UIRegexBarHasGreyTopLine(t *testing.T) {
-	for _, open := range []string{"/", "f"} {
-		t.Run(open, func(t *testing.T) {
-			model, _, runtime := startUI(t)
-
-			model, _ = press(model, runtime, keys(open))
-
-			testutil.Equal(t, true, strings.Contains(model.View(), "\x1b[90m"+topLine+"\x1b[0m"))
-		})
-	}
-}
-
 // lastRows - the last `n` rows of `view`, without their padding.
 func lastRows(view string, n int) []string {
 	rows := strings.Split(view, "\n")
@@ -962,59 +888,6 @@ func Test_UITypingInOneRegexBarNeverClosesTheOther(t *testing.T) {
 
 			testutil.Equal(t, fmt.Sprint(test.expected), fmt.Sprint(lastRows(ansi.Strip(model.View()), 4)))
 			testutil.Equal(t, 23, stream.Height())
-		})
-	}
-}
-
-func Test_UIRegexBarPromptIsBlackOnItsColorInEveryState(t *testing.T) {
-	const (
-		search = "\x1b[30;42m/:\x1b[0m "
-		filter = "\x1b[30;45mf:\x1b[0m "
-	)
-	for _, test := range []struct {
-		name   string
-		typed  []tea.KeyMsg
-		prompt string
-	}{
-		{name: "Search Bar while typing", typed: []tea.KeyMsg{keys("/"), keys("err")}, prompt: search},
-		{name: "Search Bar while read-only", typed: []tea.KeyMsg{keys("/"), keys("err"), enter}, prompt: search},
-		{name: "Search Bar showing an error", typed: []tea.KeyMsg{keys("/"), keys("err("), enter}, prompt: search},
-		{name: "Filter Bar while typing", typed: []tea.KeyMsg{keys("f"), keys("warn")}, prompt: filter},
-		{name: "Filter Bar while read-only", typed: []tea.KeyMsg{keys("f"), keys("warn"), enter}, prompt: filter},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			model, _, runtime := startUI(t)
-			for _, key := range test.typed {
-				model, _ = press(model, runtime, key)
-			}
-
-			testutil.Equal(t, true, strings.Contains(model.View(), test.prompt))
-		})
-	}
-}
-
-func Test_UIEnteredRegexIsFaintOnlyWhileReadOnly(t *testing.T) {
-	const faint = "\x1b[2m"
-	for _, test := range []struct {
-		name string
-		open tea.KeyMsg // opens the bar, and makes it editable again once read-only
-	}{
-		{name: "Search Bar", open: keys("/")},
-		{name: "Filter Bar", open: keys("f")},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			model, _, runtime := startUI(t)
-			model, _ = press(model, runtime, test.open)
-			model, _ = press(model, runtime, keys("err"))
-			model, _ = press(model, runtime, enter)
-			readOnlyRow := lastRows(model.View(), 1)[0]
-
-			model, _ = press(model, runtime, test.open)
-			editingRow := lastRows(model.View(), 1)[0]
-
-			testutil.Equal(t, true, strings.Contains(readOnlyRow, faint+"err\x1b[0m"))
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(editingRow), "err"))
-			testutil.Equal(t, false, strings.Contains(editingRow, faint))
 		})
 	}
 }

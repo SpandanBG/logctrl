@@ -10,4 +10,4 @@ Each Pass needs the user to change its state (the Search its regex, later Passes
 
 - A message no Pass knows is silently ignored, as in BubbleTea; a typo in a message type is not caught by the compiler.
 - An idle Pass still runs on each read and leaves the Lines as they are.
-- The messages that read the History outside the Window (`FindCurrentLine{}`, `PreviousMatch{}`, `NextMatch{}`) are the exception: the Executor handles them itself and doesn't broadcast them (see ADR 0007).
+- The messages that read the History outside the Window (`FindCurrentLine{}`, `PreviousMatch{}`, `NextMatch{}`) are broadcast like any other; the Search acts on them through the port the Executor gives it (see ADR 0008).

@@ -24,6 +24,10 @@ _Avoid_: index, offset, position
 The number of lines received on the Log Feed so far.
 _Avoid_: count, length
 
+**History**:
+Every Line received on the Log Feed, from Line Number 0 to Total, whether held in the Live Buffer or read back from the Log File in Chunks.
+_Avoid_: backlog, scrollback, buffer, log
+
 **Line Index**:
 The record of where in the Log File certain Line Numbers begin, kept up to date as lines arrive, so any line can be found without reading the Log File from the start.
 _Avoid_: offset table, line map

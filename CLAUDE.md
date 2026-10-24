@@ -16,6 +16,8 @@ go test -bench=. ./reader  # Run benchmarks
 
 ## Testing (required)
 
+Full rules: `CODING_STANDARDS.md` (Go, clean code, tests and TDD, CLI; each rule has an ID to cite) and `CONTRIBUTING.md` (workflow, docs to update, commits).
+
 - **Every behaviour change goes through `/tdd`**: no production change without a failing test first, one vertical slice at a time.
 - Test at seams (a package's public interface), not per file. Files with no behaviour of their own (constants, empty stubs, `main.go`) get no tests.
 - When a test is added for code that already exists, prove it can fail: break the code on purpose, watch the test fail, undo the break.

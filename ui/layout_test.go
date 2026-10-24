@@ -993,6 +993,32 @@ func Test_UIRegexBarPromptIsBlackOnItsColourInEveryState(t *testing.T) {
 	}
 }
 
+func Test_UIEnteredRegexIsFaintOnlyWhileReadOnly(t *testing.T) {
+	const faint = "\x1b[2m"
+	for _, test := range []struct {
+		name string
+		open tea.KeyMsg // opens the bar, and makes it editable again once read-only
+	}{
+		{name: "Search Bar", open: keys("/")},
+		{name: "Filter Bar", open: keys("f")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, _, runtime := startUI(t)
+			model, _ = press(model, runtime, test.open)
+			model, _ = press(model, runtime, keys("err"))
+			model, _ = press(model, runtime, enter)
+			readOnlyRow := lastRows(model.View(), 1)[0]
+
+			model, _ = press(model, runtime, test.open)
+			editingRow := lastRows(model.View(), 1)[0]
+
+			testutil.Equal(t, true, strings.Contains(readOnlyRow, faint+"err\x1b[0m"))
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(editingRow), "err"))
+			testutil.Equal(t, false, strings.Contains(editingRow, faint))
+		})
+	}
+}
+
 func Test_UIReservedKeysDoNotQuitWhilePromptOpen(t *testing.T) {
 	for _, key := range []tea.KeyMsg{
 		{Type: tea.KeyCtrlC},

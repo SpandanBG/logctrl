@@ -19,7 +19,7 @@ make hooks   # use the committed pre-commit hook
 go test -bench=. ./reader   # benchmarks
 ```
 
-If `make cover` fails with `cover: open .../<file>.go: no such file or directory` for a file that no longer exists, the Go test cache is stale: run `go clean -testcache` and try again.
+If `make cover` fails with `cover: open .../<file>.go: no such file or directory` for a file that no longer exists, a coverage build of it is still in the Go build cache: run `go clean -cache` and try again (`-testcache` alone doesn't clear it).
 
 ## Workflow
 

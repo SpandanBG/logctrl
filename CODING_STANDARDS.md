@@ -125,4 +125,4 @@ Existing code that breaks a rule above. Don't flag these in a diff that doesn't 
 | CLI-4 | `main.go` `startPTY`, `startDataPump`, `resizePty` | `log.Fatalf` after the terminal goes raw exits without restoring it ([#12](https://github.com/SpandanBG/logctrl/issues/12)) |
 | GO-10 | `main.go` `startDataPump` | `io.Copy` errors are dropped ([#14](https://github.com/SpandanBG/logctrl/issues/14)) |
 | CLI-2 | `main.go` | fatal errors carry `log`'s timestamp prefix; "unable to to open /dev/tty" ([#14](https://github.com/SpandanBG/logctrl/issues/14)) |
-| CLI-6 | `ui/components/regexBar.go` `readOnlyStyle`, the `TextStyle` reset | styles not built from the injected renderer ([#2](https://github.com/SpandanBG/logctrl/issues/2)) |
+| CLI-6 | `ui/components/logView.go` `logViewStyle`, `toolbar.go` `toolbarStyle`, `help.go` `helpStyle` and `helpKeyStyle` | package-level styles with colours, not built from the injected renderer ([#15](https://github.com/SpandanBG/logctrl/issues/15)) |

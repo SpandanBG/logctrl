@@ -645,6 +645,18 @@ func Test_UISearchKeyAfterBadRegexBringsItBackAndEscShowsErrorAgain(t *testing.T
 	testutil.Equal(t, 25, stream.Height())
 }
 
+func Test_UILongBadRegexErrorIsCutToSearchBarWidth(t *testing.T) {
+	model, _, runtime := startSizedUI(t, 80, 30)
+
+	model = enterSearch(model, runtime, "("+strings.Repeat("x", 120))
+
+	view := ansi.Strip(model.View())
+	testutil.Equal(t, 30, strings.Count(view, "\n")+1)
+	// 80 columns: "/: ", then 43 of the error, 33 x's and the "…".
+	testutil.Equal(t, "/: error parsing regexp: missing closing ): `("+strings.Repeat("x", 33)+"…",
+		lastRows(view, 1)[0])
+}
+
 func Test_UIFixedRegexReplacesError(t *testing.T) {
 	model, stream, runtime := startUI(t)
 	model = enterSearch(model, runtime, "err(")

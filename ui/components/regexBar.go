@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var (
@@ -57,6 +58,7 @@ type regexBar struct {
 	view        textinput.Model
 	entered     string         // the regex last entered
 	failed      error          // why the regex last entered cannot be searched for, if so
+	errorWidth  int            // how much of `failed` fits after the prompt
 	errorStyle  lipgloss.Style // how `failed` is shown
 	promptStyle lipgloss.Style // how the prompt is shown, in every state
 	barStyle    lipgloss.Style // the grey line along the top of the regex bar, as wide as it
@@ -88,7 +90,8 @@ func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		width := ui.ModifySize(msg, s.width, ui.SizeFixed(1)).Width
 		s.barStyle = s.barStyle.Width(width)
-		s.view.Width = width - len(prompts[s.bar]) - 2
+		s.errorWidth = width - len(prompts[s.bar]+" ") // after the prompt and its space
+		s.view.Width = s.errorWidth - 1                // leaving a cell for the cursor
 		return s, nil
 	case TeaRegexEdit:
 		s.view.TextStyle = lipgloss.NewStyle()
@@ -119,7 +122,7 @@ func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s regexBar) View() string {
 	prompt := s.promptStyle.Render(prompts[s.bar]) + " "
 	if s.failed != nil && !s.view.Focused() {
-		return s.barStyle.Render(prompt + s.errorStyle.Render(s.failed.Error()))
+		return s.barStyle.Render(prompt + s.errorStyle.Render(ansi.Truncate(s.failed.Error(), s.errorWidth, "…")))
 	}
 	return s.barStyle.Render(prompt + s.view.View())
 }

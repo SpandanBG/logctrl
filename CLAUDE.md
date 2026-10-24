@@ -103,3 +103,13 @@ While typing in the Search Bar or the Filter Bar, only `esc`, that bar's own clo
 ### Environment Variables
 
 - `logctrl_child` — integer file descriptor; set by parent on re-exec to signal child mode.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for SpandanBG/logctrl, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

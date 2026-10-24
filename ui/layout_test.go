@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
 	"github.com/SpandanBG/logctrl/internal/fakestream"
 	"github.com/SpandanBG/logctrl/internal/testutil"
@@ -79,9 +81,31 @@ func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Mo
 // press - sends `key` to the UI and settles it. Returns whether the UI quit.
 func press(model tea.Model, runtime *testutil.Runtime, key tea.KeyMsg) (tea.Model, bool) {
 	model, cmd := model.Update(key)
+	cmd = once(cmd)
 	quit := quits(cmd)
 	runtime.Run(cmd)
 	return runtime.Settle(model), quit
+}
+
+// once - `cmd` run at most once, every call returning its message, and so for
+// each command in a batch, so checking it for Quit doesn't repeat its effects.
+func once(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	var run sync.Once
+	var msg tea.Msg
+	return func() tea.Msg {
+		run.Do(func() {
+			msg = cmd()
+			if batch, ok := msg.(tea.BatchMsg); ok {
+				for i := range batch {
+					batch[i] = once(batch[i])
+				}
+			}
+		})
+		return msg
+	}
 }
 
 // quits - whether `cmd` (or any command in a batch) asks the program to quit.
@@ -516,15 +540,15 @@ func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("err"))
 
-	testutil.Equal(t, "[]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[]", updates(stream))
 
 	model, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[{err}]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{}]", updates(stream))
 
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("or"))
 	_, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[{err} {error}]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{} SearchFor{error} FindCurrentLine{}]", updates(stream))
 }
 
 func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
@@ -533,7 +557,7 @@ func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
 
 	_, _ = press(model, runtime, ctrlL)
 
-	testutil.Equal(t, "[{err} {}]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{} SearchFor{}]", updates(stream))
 }
 
 func Test_UIEscKeepsEnteredSearch(t *testing.T) {
@@ -544,7 +568,7 @@ func Test_UIEscKeepsEnteredSearch(t *testing.T) {
 
 	_, _ = press(model, runtime, esc)
 
-	testutil.Equal(t, "[{err}]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[SearchFor{err} FindCurrentLine{}]", updates(stream))
 }
 
 func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
@@ -553,7 +577,7 @@ func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
 	model = enterSearch(model, runtime, "err(")
 	model, _ = press(model, runtime, keys("k"))
 
-	testutil.Equal(t, "[{err(}]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[SearchFor{err(}]", updates(stream))
 	testutil.Equal(t, true, strings.Contains(model.View(),
 		"\x1b[31m/error parsing regexp: missing closing ): `err(`\x1b[0m"))
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
@@ -581,7 +605,7 @@ func Test_UIFixedRegexReplacesError(t *testing.T) {
 	model, _ = press(model, runtime, keys(")"))
 	model, _ = press(model, runtime, enter)
 
-	testutil.Equal(t, "[{err(} {err()}]", fmt.Sprint(stream.Updates()))
+	testutil.Equal(t, "[SearchFor{err(} SearchFor{err()} FindCurrentLine{}]", updates(stream))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err()"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "error parsing regexp"))
 }
@@ -725,6 +749,100 @@ func Test_UIReservedKeysDoNotQuitWhilePromptOpen(t *testing.T) {
 			_, quit := press(model, runtime, key)
 
 			testutil.Equal(t, false, quit)
+		})
+	}
+}
+
+var (
+	up   = tea.KeyMsg{Type: tea.KeyUp}
+	down = tea.KeyMsg{Type: tea.KeyDown}
+)
+
+// steps - the steps between Lines with a Match the UI asked for, in order.
+func steps(stream *fakestream.Stream) string {
+	var each []string
+	for _, msg := range stream.Updates() {
+		switch msg.(type) {
+		case cmd.PreviousMatch:
+			each = append(each, "previous")
+		case cmd.NextMatch:
+			each = append(each, "next")
+		}
+	}
+	return fmt.Sprint(each)
+}
+
+func Test_UIStepKeysStepBetweenLinesWithMatchOnlyWhileRegexEnteredAndReadOnly(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		before   []tea.KeyMsg // pressed after entering a Search, unless `noSearch`
+		noSearch bool
+		expected string
+	}{
+		{name: "regex entered", expected: "[previous next]"},
+		{name: "no Search", noSearch: true, expected: "[]"},
+		{name: "typing in the Search Bar", before: []tea.KeyMsg{keys("/")}, expected: "[]"},
+		{name: "Help open", before: []tea.KeyMsg{keys("h")}, expected: "[]"},
+		{name: "Prompt open", before: []tea.KeyMsg{tab}, expected: "[]"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			if !test.noSearch {
+				model = enterSearch(model, runtime, "err")
+			}
+			for _, key := range test.before {
+				model, _ = press(model, runtime, key)
+			}
+
+			model, _ = press(model, runtime, up)
+			_, _ = press(model, runtime, down)
+
+			testutil.Equal(t, test.expected, steps(stream))
+		})
+	}
+}
+
+func Test_UILogViewRedrawsAfterStep(t *testing.T) {
+	for _, key := range []tea.KeyMsg{up, down} {
+		t.Run(key.String(), func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model = enterSearch(model, runtime, "err")
+
+			stream.SetWindow("err 5") // as the Executor would show it after the step
+			model, _ = press(model, runtime, key)
+
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "err 5"))
+		})
+	}
+}
+
+// updates - every message the UI handed to the Passes, each with its type.
+func updates(stream *fakestream.Stream) string {
+	var each []string
+	for _, msg := range stream.Updates() {
+		each = append(each, strings.TrimPrefix(fmt.Sprintf("%T%v", msg, msg), "cmd."))
+	}
+	return fmt.Sprint(each)
+}
+
+func Test_UIEnterFindsCurrentLineInBackgroundOnceRegexCompiles(t *testing.T) {
+	for _, test := range []struct {
+		regex    string
+		expected string
+	}{
+		{regex: "err", expected: "[SearchFor{err} FindCurrentLine{}]"},
+		{regex: "err(", expected: "[SearchFor{err(}]"},
+	} {
+		t.Run(test.regex, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			model, _ = press(model, runtime, keys("/"))
+			model, _ = press(model, runtime, keys(test.regex))
+
+			stream.SetWindow("err 5") // as the Executor would show it once found
+			model, _ = press(model, runtime, enter)
+
+			testutil.Equal(t, test.expected, updates(stream))
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "err 5"))
 		})
 	}
 }

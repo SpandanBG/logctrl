@@ -10,6 +10,6 @@ A Search, and the formatting that will follow it, adds context to each Line, suc
 
 - `reader.Stream` returns `Lines()`, not text. A Line's Text stays as it came from the Log Feed; only its shown text is formatted, and the Executor's `GetWindow` joins the shown text after every Pass has run.
 - The Executor runs every Pass, each doing nothing while idle (the Search while no regex is entered), with the Search held apart so it always runs last (see ADR 0006).
-- A Pass only ever sees the Window, so it can't find a Match outside it. Moving the Window to an older Match will need its own way of finding one, such as scanning the History or the Log File.
+- A Pass only ever sees the Window, so it can't find a Match outside it. Stepping to a Line with a Match outside the Window is done by the Executor, which scans the History (see ADR 0007).
 - The Search matches the shown text as it stands, so a Log Feed, or a Pass run before the Search, that brings its own ANSI color codes can have a Match split or overlap an escape code and garble its color when highlighted. This is a known limitation, left for a later phase.
 - `GetWindow` runs inside a `tea.Cmd`, on a different goroutine from `Update`, where the UI updates the Passes. So the Executor guards its Passes with a mutex.

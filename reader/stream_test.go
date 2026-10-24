@@ -36,6 +36,83 @@ func startSmallStream(t *testing.T, height, capacity, chunkSize int) (Stream, *o
 	return s, w, next
 }
 
+// numbers - the Line Number of each Line.
+func numbers(lines []Line) string {
+	each := make([]int, 0, len(lines))
+	for _, line := range lines {
+		each = append(each, line.Number)
+	}
+	return fmt.Sprint(each)
+}
+
+func Test_StreamLinesCarryTheirLineNumbers(t *testing.T) {
+	s, w, next := startSmallStream(t, 2, 5, 2)
+	for i := range 20 {
+		fmt.Fprintf(w, "line %d\n", i)
+		<-next
+	}
+
+	testutil.Equal(t, "[18 19]", numbers(s.Lines())) // from the Live Buffer
+	s.MoveBy(-100)
+	testutil.Equal(t, "[0 1]", numbers(s.Lines())) // from a Chunk
+}
+
+func Test_StreamReadsLinesByLineNumberWhereverTheWindowIs(t *testing.T) {
+	s, w, next := startSmallStream(t, 2, 5, 2)
+	for i := range 20 {
+		fmt.Fprintf(w, "line %d\n", i)
+		<-next
+	}
+
+	testutil.Equal(t, 20, s.Total())
+	lines := s.Read(13, 17) // a Chunk, then the Live Buffer (holding 15..19)
+	testutil.Equal(t, "[13 14 15 16]", numbers(lines))
+	testutil.Equal(t, "line 13\nline 14\nline 15\nline 16", texts(lines))
+	testutil.Equal(t, "[18 19]", numbers(s.Lines())) // the Window has not moved
+}
+
+func Test_StreamFirstLineMovesUpOnceLogFileFailsToRead(t *testing.T) {
+	s, w, next := startSmallStream(t, 2, 5, 2)
+	for i := range 20 {
+		fmt.Fprintf(w, "line %d\n", i)
+		<-next
+	}
+	testutil.Equal(t, 0, s.First())
+
+	s.(*stream).logFile.Close()
+	testutil.Equal(t, "[15 16]", numbers(s.Read(0, 17)))
+	testutil.Equal(t, 15, s.First())
+}
+
+func Test_StreamPinCentredOnLine(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		height   int
+		number   int
+		expected string
+	}{
+		{name: "in the middle", height: 3, number: 10, expected: "[9 10 11]"},
+		{name: "upper middle when height is even", height: 4, number: 10, expected: "[9 10 11 12]"},
+		{name: "stops at the first line", height: 3, number: 0, expected: "[0 1 2]"},
+		{name: "stops at the newest line", height: 3, number: 19, expected: "[17 18 19]"},
+		{name: "in a Chunk", height: 3, number: 3, expected: "[2 3 4]"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s, w, next := startSmallStream(t, test.height, 5, 2)
+			for i := range 20 {
+				fmt.Fprintf(w, "line %d\n", i)
+				<-next
+			}
+
+			s.PinCentredOn(test.number)
+			fmt.Fprintln(w, "line 20")
+			<-next
+
+			testutil.Equal(t, test.expected, numbers(s.Lines())) // Pinned: line 20 is not shown
+		})
+	}
+}
+
 func Test_StreamWindowHasLineWhenNotified(t *testing.T) {
 	s, w, next := startStream(t, 1)
 

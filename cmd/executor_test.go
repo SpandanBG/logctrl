@@ -2,8 +2,13 @@ package cmd_test
 
 import (
 	"fmt"
+	"os"
+	"slices"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/internal/fakestream"
@@ -18,6 +23,379 @@ func matches(lines []reader.Line) string {
 		each = append(each, line.Matches)
 	}
 	return fmt.Sprint(each)
+}
+
+// feed - a real reader.Stream over a pipe, `height` lines tall, fed `lines`.
+// Returns it with a func feeding it more lines.
+func feed(t *testing.T, height int, lines ...string) (reader.Stream, func(...string)) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := make(chan bool)
+	stream := reader.NewStream(r)
+	stream.SetBufferSize(height)
+	stream.Start(next)
+	t.Cleanup(func() {
+		w.Close()
+		stream.Close()
+	})
+
+	more := func(lines ...string) {
+		for _, line := range lines {
+			fmt.Fprintln(w, line)
+			<-next
+		}
+	}
+	more(lines...)
+	return stream, more
+}
+
+// numbered - lines "ok 0".."ok n-1", but "err i" for each i in `errs`.
+func numbered(n int, errs ...int) []string {
+	lines := make([]string, n)
+	for i := range lines {
+		lines[i] = fmt.Sprint("ok ", i)
+		if slices.Contains(errs, i) {
+			lines[i] = fmt.Sprint("err ", i)
+		}
+	}
+	return lines
+}
+
+// enter - searches for `regex` and finds the Current Line, as the UI does on
+// enter.
+func enter(t *testing.T, exec *cmd.Executor, regex string) {
+	t.Helper()
+	if err := exec.Update(cmd.SearchFor{Regex: regex}); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Update(cmd.FindCurrentLine{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// numbers - the Line Number of each Line.
+func numbers(lines []reader.Line) string {
+	each := make([]int, 0, len(lines))
+	for _, line := range lines {
+		each = append(each, line.Number)
+	}
+	return fmt.Sprint(each)
+}
+
+func Test_ExecutorSearchCentresWindowOnNewestLineWithMatchInIt(t *testing.T) {
+	stream, more := feed(t, 5, numbered(20, 12, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+
+	enter(t, exec, "err")
+	more("ok 20")
+
+	testutil.Equal(t, "[14 15 16 17 18]", numbers(exec.Lines())) // Pinned: line 20 is not shown
+	testutil.Equal(t,
+		"ok 14\nok 15\n\x1b[1;30;43merr\x1b[0m\x1b[1m 16\x1b[0m\nok 17\nok 18",
+		exec.GetWindow())
+}
+
+func Test_ExecutorSearchLooksBackForLineWithMatchWhenWindowHasNone(t *testing.T) {
+	// 12,000 lines: the Live Buffer holds the newest 10,000; line 500 is only in
+	// the Log File
+	stream, _ := feed(t, 5, numbered(12_000, 300, 500)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+
+	enter(t, exec, "err")
+
+	testutil.Equal(t, "[498 499 500 501 502]", numbers(exec.Lines()))
+}
+
+func Test_ExecutorSearchPinsWindowWhereItIsWhenNoLineMatches(t *testing.T) {
+	stream, more := feed(t, 3, numbered(10)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+
+	enter(t, exec, "err")
+	more("ok 10")
+
+	testutil.Equal(t, "ok 7\nok 8\nok 9", exec.GetWindow()) // nothing bold
+}
+
+// currentLine - the Line Number of the Line shown bold, or -1 if none is.
+func currentLine(exec *cmd.Executor) int {
+	for _, line := range exec.Lines() {
+		if strings.Contains(line.Shown, "\x1b[1m") {
+			return line.Number
+		}
+	}
+	return -1
+}
+
+func Test_ExecutorSearchForOnlyPinsWindowUntilCurrentLineIsFound(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		updates  []any
+		expected int
+	}{
+		{name: "SearchFor alone", updates: []any{cmd.SearchFor{Regex: "err"}}, expected: -1},
+		{name: "then FindCurrentLine", updates: []any{cmd.SearchFor{Regex: "err"}, cmd.FindCurrentLine{}}, expected: 2},
+		{name: "after the Search ended", updates: []any{cmd.SearchFor{Regex: "err"}, cmd.SearchFor{}, cmd.FindCurrentLine{}}, expected: -1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream, more := feed(t, 3, numbered(10, 2)...)
+			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+			for _, msg := range test.updates {
+				exec.Update(msg)
+			}
+			more("ok 10")
+
+			testutil.Equal(t, test.expected, currentLine(exec))
+		})
+	}
+}
+
+func Test_ExecutorPreviousMatchStepsToOlderLineWithMatch(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(30, 3, 10, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "r") // "err" has two Matches
+	testutil.Equal(t, 16, currentLine(exec))
+
+	for _, expected := range []struct {
+		current int
+		window  string
+	}{
+		{current: 10, window: "[8 9 10 11 12]"},
+		{current: 3, window: "[1 2 3 4 5]"},
+		{current: 3, window: "[1 2 3 4 5]"}, // the oldest: nothing to step to
+	} {
+		if err := exec.Update(cmd.PreviousMatch{}); err != nil {
+			t.Fatal(err)
+		}
+		testutil.Equal(t, expected.window, numbers(exec.Lines()))
+		testutil.Equal(t, expected.current, currentLine(exec))
+	}
+}
+
+func Test_ExecutorNextMatchStepsToNewerLineWithMatchIncludingLinesArrivedSince(t *testing.T) {
+	stream, more := feed(t, 5, numbered(20, 3, 10)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+	exec.Update(cmd.PreviousMatch{})
+	testutil.Equal(t, 3, currentLine(exec))
+
+	for _, expected := range []struct {
+		more    []string
+		current int
+		window  string
+	}{
+		{current: 10, window: "[8 9 10 11 12]"},
+		{current: 10, window: "[8 9 10 11 12]"}, // the newest: nothing to step to
+		{more: numbered(30, 25)[20:], current: 25, window: "[23 24 25 26 27]"},
+	} {
+		more(expected.more...)
+		if err := exec.Update(cmd.NextMatch{}); err != nil {
+			t.Fatal(err)
+		}
+		testutil.Equal(t, expected.window, numbers(exec.Lines()))
+		testutil.Equal(t, expected.current, currentLine(exec))
+	}
+}
+
+func Test_ExecutorNextMatchFindsLineWithMatchArrivedSinceNoneMatched(t *testing.T) {
+	stream, more := feed(t, 3, numbered(10)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+	more(numbered(20, 15)[10:]...)
+
+	exec.Update(cmd.PreviousMatch{}) // nothing older to step to
+	testutil.Equal(t, -1, currentLine(exec))
+	exec.Update(cmd.NextMatch{})
+
+	testutil.Equal(t, "[14 15 16]", numbers(exec.Lines()))
+	testutil.Equal(t, 15, currentLine(exec))
+}
+
+func Test_ExecutorStepsNowhereWhileNoSearch(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		updates []any
+	}{
+		{name: "never searched"},
+		{name: "search ended", updates: []any{cmd.SearchFor{Regex: "err"}, cmd.SearchFor{}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream, more := feed(t, 3, numbered(10, 2)...)
+			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+			for _, msg := range test.updates {
+				exec.Update(msg)
+			}
+			stream.MoveToEnd()
+
+			exec.Update(cmd.PreviousMatch{})
+			more(numbered(12, 11)[10:]...)
+			exec.Update(cmd.NextMatch{})
+			more("ok 12")
+
+			testutil.Equal(t, "ok 10\nerr 11\nok 12", exec.GetWindow()) // still Following
+		})
+	}
+}
+
+// counted - a reader.Stream counting the reads made outside the Window.
+type counted struct {
+	reader.Stream
+	reads int
+}
+
+func (c *counted) Read(from, to int) []reader.Line {
+	c.reads++
+	return c.Stream.Read(from, to)
+}
+
+func Test_ExecutorRemembersLinesWithMatchFoundUntilPassesAreUpdated(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(3_000, 100, 2_900)...)
+	reads := &counted{Stream: stream}
+	exec := cmd.NewExecutor(reads, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+	exec.Update(cmd.PreviousMatch{})
+	testutil.Equal(t, 100, currentLine(exec))
+	scanned := reads.reads
+
+	exec.Update(cmd.NextMatch{})
+	exec.Update(cmd.PreviousMatch{})
+	testutil.Equal(t, 100, currentLine(exec))
+	testutil.Equal(t, scanned, reads.reads) // stepped over ground already scanned
+
+	exec.Update(struct{}{}) // any message to the Passes
+	exec.Update(cmd.NextMatch{})
+	testutil.Equal(t, 2_900, currentLine(exec))
+	testutil.Equal(t, true, reads.reads > scanned)
+}
+
+// cutOff - a reader.Stream whose reads leave out Lines older than `first`, as
+// once the Log File fails to read (see docs/adr/0004).
+type cutOff struct {
+	reader.Stream
+	first int
+}
+
+func (c *cutOff) Read(from, to int) []reader.Line {
+	return c.Stream.Read(max(from, c.first), to)
+}
+
+func (c *cutOff) First() int {
+	return c.first
+}
+
+func Test_ExecutorDropsCurrentLineOnceItCannotBeRead(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(3_000, 100, 200, 2_900)...)
+	unread := &cutOff{Stream: stream}
+	exec := cmd.NewExecutor(unread, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+	exec.Update(cmd.PreviousMatch{})
+	exec.Update(cmd.PreviousMatch{})
+	exec.Update(cmd.NextMatch{})
+	testutil.Equal(t, 200, currentLine(exec))
+
+	unread.first = 250
+	exec.Update(cmd.PreviousMatch{}) // line 100 can no longer be read
+	testutil.Equal(t, "[198 199 200 201 202]", numbers(exec.Lines()))
+	exec.Update(cmd.NextMatch{})
+	testutil.Equal(t, 2_900, currentLine(exec))
+}
+
+// gated - a reader.Stream whose reads outside the Window, once armed, wait
+// until released, so a test can act while a scan is running.
+type gated struct {
+	reader.Stream
+	armed   atomic.Bool
+	reading chan struct{} // receives once per read while armed
+	release chan struct{} // closed to let reads finish
+}
+
+func newGated(stream reader.Stream) *gated {
+	return &gated{Stream: stream, reading: make(chan struct{}, 100), release: make(chan struct{})}
+}
+
+func (g *gated) Read(from, to int) []reader.Line {
+	if g.armed.Load() {
+		g.reading <- struct{}{}
+		<-g.release
+	}
+	return g.Stream.Read(from, to)
+}
+
+// within - fails the test unless `do` returns within a second.
+func within(t *testing.T, what string, do func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		do()
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatalf("%s did not return while a scan was running", what)
+	}
+}
+
+func Test_ExecutorSearchForCancelsStepInFlight(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(3_000, 100, 2_900)...)
+	gate := newGated(stream)
+	exec := cmd.NewExecutor(gate, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+
+	gate.armed.Store(true)
+	stepped := make(chan struct{})
+	go func() {
+		defer close(stepped)
+		exec.Update(cmd.PreviousMatch{})
+	}()
+	<-gate.reading
+
+	within(t, "SearchFor", func() { exec.Update(cmd.SearchFor{}) })
+	gate.armed.Store(false)
+	close(gate.release)
+	<-stepped
+
+	stream.MoveToEnd()
+	testutil.Equal(t, "[2995 2996 2997 2998 2999]", numbers(exec.Lines())) // the step was not applied
+	testutil.Equal(t, -1, currentLine(exec))
+}
+
+func Test_ExecutorIgnoresStepWhileScanRuns(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(3_000, 100, 2_900, 2_950)...)
+	gate := newGated(stream)
+	exec := cmd.NewExecutor(gate, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+	exec.Update(cmd.PreviousMatch{}) // to 2900, remembered
+	testutil.Equal(t, 2_900, currentLine(exec))
+
+	gate.armed.Store(true)
+	stepped := make(chan struct{})
+	go func() {
+		defer close(stepped)
+		exec.Update(cmd.PreviousMatch{}) // scans for 100
+	}()
+	<-gate.reading
+
+	within(t, "NextMatch", func() { exec.Update(cmd.NextMatch{}) })
+	testutil.Equal(t, 2_900, currentLine(exec)) // not 2950
+	gate.armed.Store(false)
+	close(gate.release)
+	<-stepped
+
+	testutil.Equal(t, 100, currentLine(exec))
+}
+
+func Test_ExecutorNextMatchFindsFirstLineWhenSearchStartedBeforeAnyArrived(t *testing.T) {
+	stream, more := feed(t, 3)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()))
+	enter(t, exec, "err")
+	more("err 0", "ok 1")
+
+	exec.Update(cmd.NextMatch{})
+
+	testutil.Equal(t, 0, currentLine(exec))
 }
 
 func Test_ExecutorShowsStreamWindowWhileNoSearch(t *testing.T) {

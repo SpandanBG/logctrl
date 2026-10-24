@@ -69,6 +69,10 @@ _Avoid_: find, filter, grep, reverse search
 A section of a Line's text that the Search regex matches; a Line may have several, or none.
 _Avoid_: matched span, hit, result
 
+**Current Line**:
+The Line with a Match that the user has stepped to during a Search, marked out from the other Lines and kept in the middle of the Window; the user steps from it to the previous (older) or next (newer) Line with a Match. There is at most one, and none while no Line matches.
+_Avoid_: result, hit, cursor, selection, Current Match
+
 **Pass**:
 Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes, and the Search always runs last, over each Line as the other Passes leave it.
 _Avoid_: command, stage, step, filter

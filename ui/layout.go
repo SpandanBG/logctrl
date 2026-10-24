@@ -122,9 +122,11 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		u.searchEntered = true
 		if err := u.stream.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
 			u.searchBar, _ = u.searchBar.Update(components.TeaSearchFailed{Err: err})
+			u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+			return u, nil
 		}
 		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
-		return u, nil
+		return u.updateStream(cmd.FindCurrentLine{})
 	}
 
 	return u.batchUpdate(msg)
@@ -153,8 +155,31 @@ func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return u.openSearch()
 	case config.CloseSearch:
 		return u.closeSearch()
+	case config.PreviousMatch:
+		return u.step(cmd.PreviousMatch{})
+	case config.NextMatch:
+		return u.step(cmd.NextMatch{})
 	}
 	return u, nil
+}
+
+// step - while a regex is entered, steps to the Line with a Match `msg` asks
+// for.
+func (u uiModel) step(msg any) (tea.Model, tea.Cmd) {
+	if !u.searchEntered {
+		return u, nil
+	}
+	return u.updateStream(msg)
+}
+
+// updateStream - hands `msg` to the Stream in the background, as it may scan
+// the History, then redraws the Log View.
+func (u uiModel) updateStream(msg any) (tea.Model, tea.Cmd) {
+	stream := u.stream
+	return u, func() tea.Msg {
+		stream.Update(msg)
+		return components.TeaLogRefresh{}
+	}
 }
 
 func (u uiModel) followLogView() (tea.Model, tea.Cmd) {

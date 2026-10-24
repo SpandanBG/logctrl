@@ -7,5 +7,7 @@
   { "key": "j", "action": "scroll_down", "description": "Scroll the Log View or the Help down" },
   { "key": "G", "action": "follow", "description": "Follow the newest lines" },
   { "key": "/", "action": "open_search", "description": "Open the Search Bar" },
-  { "key": "ctrl+l", "action": "close_search", "description": "Close the Search Bar" }
+  { "key": "ctrl+l", "action": "close_search", "description": "Close the Search Bar" },
+  { "key": "up", "action": "previous_match", "description": "Step to the previous Line with a Match" },
+  { "key": "down", "action": "next_match", "description": "Step to the next Line with a Match" }
 ]

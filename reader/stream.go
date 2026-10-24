@@ -24,8 +24,12 @@ type Stream interface {
 	Start(chan bool)
 	SetBufferSize(int)
 	Lines() []Line
+	Total() int
+	First() int
+	Read(from, to int) []Line
 	MoveToEnd()
 	MoveBy(int) int
+	PinCentredOn(int)
 	Close()
 }
 
@@ -99,6 +103,37 @@ func (s *stream) Lines() []Line {
 	return s.window.Lines()
 }
 
+// Total - the number of lines received so far.
+func (s *stream) Total() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.history.Total()
+}
+
+// First - the line number of the oldest line that can be read: the first of
+// the session, or the oldest held once the Log File has failed to read.
+func (s *stream) First() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.history.First()
+}
+
+// Read - the lines with line numbers in [from, to), wherever the window is,
+// leaving out any the History can no longer show.
+func (s *stream) Read(from, to int) []Line {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for {
+		from, to := max(from, s.history.First()), min(to, s.history.Total())
+		if from >= to {
+			return nil
+		}
+		if lines, ok := s.history.Lines(from, to); ok {
+			return lines
+		}
+	}
+}
+
 // MoveToEnd - makes the window follow the newest lines.
 func (s *stream) MoveToEnd() {
 	s.mu.Lock()
@@ -112,6 +147,14 @@ func (s *stream) MoveBy(n int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.window.MoveBy(n)
+}
+
+// PinCentredOn - pins the window with line `number` in its middle, stopping at
+// the first and newest lines.
+func (s *stream) PinCentredOn(number int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.window.PinCentredOn(number)
 }
 
 // scanRawLines - like bufio.ScanLines but keeps the terminator, so the History

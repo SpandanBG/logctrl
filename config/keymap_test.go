@@ -21,6 +21,8 @@ var builtIn = []config.Entry{
 	{Key: "G", Action: config.Follow, Description: "Follow the newest lines"},
 	{Key: "/", Action: config.OpenSearch, Description: "Open the Search Bar"},
 	{Key: "ctrl+l", Action: config.CloseSearch, Description: "Close the Search Bar"},
+	{Key: "up", Action: config.PreviousMatch, Description: "Step to the previous Line with a Match"},
+	{Key: "down", Action: config.NextMatch, Description: "Step to the next Line with a Match"},
 }
 
 // userFile - writes `content` as the user's Keymap file and returns its path.
@@ -87,7 +89,7 @@ func Test_KeymapRejectsBadUserFileTableDriven(t *testing.T) {
 }
 
 func Test_KeymapAcceptsKeysBubbleTeaReportsTableDriven(t *testing.T) {
-	for _, key := range []string{"x", "?", "enter", "up", "pgdown", "ctrl+x", "alt+x", "f5"} {
+	for _, key := range []string{"x", "?", "enter", "left", "pgdown", "ctrl+x", "alt+x", "f5"} {
 		t.Run(key, func(t *testing.T) {
 			path := userFile(t, `[{"action": "quit", "key": "`+key+`"}]`)
 
@@ -115,6 +117,15 @@ func Test_KeymapRemapsFollow(t *testing.T) {
 
 	testutil.Equal(t, nil, err)
 	testutil.Equal(t, "end", keymap[6].Key)
+}
+
+func Test_KeymapRemapsStepsBetweenLinesWithMatch(t *testing.T) {
+	path := userFile(t, `[{"action": "previous_match", "key": "N"}, {"action": "next_match", "key": "n"}]`)
+
+	keymap, err := config.LoadKeymap(path)
+
+	testutil.Equal(t, nil, err)
+	testutil.Equal(t, "N n", keymap[9].Key+" "+keymap[10].Key)
 }
 
 func Test_KeymapRejectsUnreadableUserFile(t *testing.T) {

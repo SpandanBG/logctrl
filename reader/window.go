@@ -66,6 +66,14 @@ func (w *Window) MoveBy(n int) int {
 	return newStart - start
 }
 
+// PinCentredOn - pins the window with line `number` in its middle (the upper
+// middle row if its height is even), stopping at the first and newest lines.
+func (w *Window) PinCentredOn(number int) {
+	w.following = false
+	w.start = w.reachable(number - (w.height-1)/2)
+	w.end = w.start + w.height
+}
+
 // MoveToEnd - glues the window to the newest lines.
 func (w *Window) MoveToEnd() {
 	w.following = true

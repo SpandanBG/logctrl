@@ -44,10 +44,10 @@ PTY master ──→ stdout (rendered UI)
 
 | Package | Role |
 |---|---|
-| `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. Each held line is a `Line` (its text; its shown text and Matches once the Passes have run), built once on push or Chunk load; `Window.Lines` and `Stream.Lines` return `[]Line` |
-| `cmd/` | The `Executor` wraps a `reader.Stream` and is the `cmd.Stream` the UI uses: on each read it sets the shown text of copies of the Window's Lines to their text, runs every Pass over them, the Search last (`search.go`: marks each Line's Matches for the Search regex and highlights them black on yellow), then joins their shown text (ADR 0005). Each Pass builds its own lipgloss style from the renderer it is built with, and has the same `Update(msg any) error`: the UI hands a typed message (`SearchFor{Regex}`) to the Executor's `Update`, which hands it to every Pass; each acts on its own messages and ignores the rest (ADR 0006). Nothing a Pass works out is stored in the History |
+| `reader/` | `Stream` tees the Log Feed into the Log File and a `History`: a `LiveBuffer` (bounded ring addressed by Line Number) plus older lines loaded from the Log File in Chunks via a sparse Line Index (ADR 0004). A `Window` (two Line Numbers + Following/Pinned) selects what is shown, back to Line Number 0. Each held line is a `Line` (its Line Number and text; its shown text and Matches once the Passes have run), built once on push or Chunk load; `Window.Lines` and `Stream.Lines` return `[]Line` |
+| `cmd/` | The `Executor` wraps a `reader.Stream` and is the `cmd.Stream` the UI uses: on each read it sets the shown text of copies of the Window's Lines to their text, runs every Pass over them, the Search last (`search.go`: marks each Line's Matches for the Search regex and highlights them black on yellow), then joins their shown text (ADR 0005). Each Pass builds its own lipgloss style from the renderer it is built with, and has the same `Update(msg any) error`: the UI hands a typed message (`SearchFor{Regex}`) to the Executor's `Update`, which hands it to every Pass; each acts on its own messages and ignores the rest (ADR 0006). The Executor handles `FindCurrentLine{}`, `PreviousMatch{}` and `NextMatch{}` itself: it finds and steps between Lines with a Match, scanning the History a batch at a time with its lock released between batches, Pins the Window centred on the Current Line (shown bold), and cancels a scan on any broadcast message; the Search remembers the Lines with a Match it has found until then (ADR 0007). Nothing a Pass works out is stored in the History |
 | `ui/` | BubbleTea layout model orchestrating five components: Toolbar, LogView, Search Bar, Prompt, Help |
-| `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help, Scroll and Search keys), `SearchBar` (one-line textinput under the Log View; owns `enter`, like any text input; shows a bad regex's error in red while read-only), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
+| `ui/components/` | `LogView` (viewport + Stream poll), `Toolbar` (Help, Scroll, Search and Match keys), `SearchBar` (one-line textinput under the Log View; owns `enter`, like any text input; shows a bad regex's error in red while read-only), `Prompt` (togglable textarea), `Help` (scrollable Keymap table) |
 | `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close` or `close_search`); `main` exits on it |
 | `ui/utils/` | Responsive sizing system (`Ratio`, `Fixed`, `Modifier` types) and ANSI color constants |
 | `utils/` | `SIGWINCH` handler with callback pattern |
@@ -59,18 +59,22 @@ Domain terms are defined in `GLOSSARY.md`; design decisions in `docs/adr/`.
 
 **`reader.Stream`** — the bridge from the pipe:
 ```go
-Start(chan bool)    // begin consuming from pipe; notified after each line is held
-SetBufferSize(int)  // set the Window height (held lines are kept)
-Lines() []Line      // lines in the Window
-MoveToEnd()         // Window follows the newest lines
-MoveBy(int) int     // scroll the Window; returns lines actually moved
+Start(chan bool)          // begin consuming from pipe; notified after each line is held
+SetBufferSize(int)        // set the Window height (held lines are kept)
+Lines() []Line            // lines in the Window
+Total() int               // lines received so far
+First() int               // Line Number of the oldest line that can be read (moves up if the Log File fails to read)
+Read(from, to int) []Line // lines with Line Numbers in [from, to), wherever the Window is
+MoveToEnd()               // Window follows the newest lines
+MoveBy(int) int           // scroll the Window; returns lines actually moved
+PinCentredOn(int)         // Pin the Window with that Line Number in its middle, stopping at either end
 Close()
 ```
 
 **`cmd.Stream`** — what the UI uses (the `Executor`): a `reader.Stream` whose `Lines()` have every Pass run over them, plus:
 ```go
 GetWindow() string    // shown text of the lines in the Window after every Pass (Matches highlighted), for rendering
-Update(msg any) error // hand msg to every Pass, errors joined: SearchFor{Regex} starts a Search (on enter in the Search Bar), SearchFor{} ends it (on close_search). A bad regex ends it and is returned; the Log View redraws after either
+Update(msg any) error // hand msg to every Pass, errors joined: SearchFor{Regex} starts a Search (on enter in the Search Bar), SearchFor{} ends it (on close_search). A bad regex ends it and is returned; the Log View redraws after either. FindCurrentLine{} (sent in a tea.Cmd after a good enter), PreviousMatch{} and NextMatch{} (up/down, in a tea.Cmd) find and step between Lines with a Match
 ```
 
 All UI components implement `tea.Model` (`Init`, `Update`, `View`).
@@ -89,6 +93,7 @@ Keys are dispatched by Action from the merged Keymap (`config/keymap.json`, plus
 | `G` | Follow the newest lines (while prompt and help closed; not shown in the Toolbar) |
 | `/` | Open the Search Bar, or edit its regex (while prompt and help closed); `enter` makes it read-only and starts the Search (ignored when empty); a bad regex shows its error in red, and `/` brings the regex back to fix |
 | `ctrl+l` | Close the Search Bar, ending the Search (while typing in it or while it is read-only) |
+| `up` / `down` | Step to the previous (older) / next (newer) Line with a Match, centring the Window on it (while a regex is entered and the Search Bar is read-only, with the prompt and help closed); enter Pins the Window and finds the Current Line, the newest Line with a Match at or above the Window's bottom |
 | `^C` / `^D` | Reserved, outside the Keymap: always Quit while the prompt is closed (including while typing in the Search Bar) |
 
 ### Environment Variables

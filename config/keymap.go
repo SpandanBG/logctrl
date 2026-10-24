@@ -21,15 +21,17 @@ import (
 type Action string
 
 const (
-	OpenHelp    Action = "open_help"
-	Quit        Action = "quit"
-	OpenPrompt  Action = "open_prompt"
-	Close       Action = "close"
-	ScrollUp    Action = "scroll_up"
-	ScrollDown  Action = "scroll_down"
-	Follow      Action = "follow"
-	OpenSearch  Action = "open_search"
-	CloseSearch Action = "close_search"
+	OpenHelp      Action = "open_help"
+	Quit          Action = "quit"
+	OpenPrompt    Action = "open_prompt"
+	Close         Action = "close"
+	ScrollUp      Action = "scroll_up"
+	ScrollDown    Action = "scroll_down"
+	Follow        Action = "follow"
+	OpenSearch    Action = "open_search"
+	CloseSearch   Action = "close_search"
+	PreviousMatch Action = "previous_match"
+	NextMatch     Action = "next_match"
 )
 
 // Reserved - the keys that always Quit, outside the Keymap, so no Keymap file

@@ -38,7 +38,7 @@ func (h *History) Push(raw string) {
 		h.index = append(h.index, h.size)
 	}
 	h.size += int64(len(raw))
-	h.lb.Push(Line{Text: text(raw)})
+	h.lb.Push(Line{Number: h.lb.Total(), Text: text(raw)})
 }
 
 // Total - number of lines received so far.
@@ -96,7 +96,7 @@ func (h *History) chunk(c int) ([]Line, bool) {
 	raws := strings.SplitAfter(string(buf), "\n")
 	lines := make([]Line, len(raws))
 	for i, raw := range raws {
-		lines[i] = Line{Text: text(raw)}
+		lines[i] = Line{Number: c*h.chunkSize + i, Text: text(raw)}
 	}
 	if len(h.chunks) == maxChunks {
 		h.dropFurthest(c)

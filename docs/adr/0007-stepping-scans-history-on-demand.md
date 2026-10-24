@@ -1,0 +1,16 @@
+---
+status: accepted
+---
+
+# Stepping between Lines with a Match scans the History on demand and remembers what it found
+
+The user steps from the Current Line to the previous (older) or next (newer) Line with a Match. Such a Line can be anywhere from Line Number 0 to Total, while a Pass only ever sees the Window (ADR 0005). So the Executor handles the step messages (`PreviousMatch{}`, `NextMatch{}`) itself rather than broadcasting them: it owns the Stream, so it can read Lines outside the Window. When the Search hasn't already found the Line it needs, the Executor scans the History from the Current Line, one Chunk at a time, by Line Number. It runs every Pass over each batch, so a Line matches as it would be shown. Between Chunks it releases the Stream's lock, so the Log Feed keeps flowing. It then Pins the Window centred on the Line it found and tells the Search that this is its Current Line. The scan runs in a `tea.Cmd`, so the UI stays responsive. Enter scans the same way to find the first Current Line, looking back from the Window's bottom Line, but in two messages: `SearchFor` is quick (it compiles the regex, broadcasts it and Pins the Window) and is sent straight from the UI's `Update`, so it stays in order with `close_search`; the UI then sends `FindCurrentLine{}` in a `tea.Cmd`, which does nothing if the Search has ended by the time it runs. Only one scan runs at a time: further steps are ignored while it runs, and ending the Search or entering a new regex cancels it. For the current regex, the Search remembers the Line Numbers of the Lines with a Match it has found, and the ranges of Line Numbers it has scanned, so stepping back over the same ground reads nothing. Held Lines never change, so these go stale only when the shown text being matched changes. They are therefore dropped on a new regex, when the Search ends, and on any other message broadcast to the Passes. We rejected an index built on enter (a full scan of the Log File for every regex, plus an indexing state to show), scanning without remembering (every step back over the same ground reads it again), and letting the Search Pass read the Stream (a Pass would reach outside the Window it runs over).
+
+## Consequences
+
+- A `Line` carries its Line Number, and the reader Stream can read Lines by Line Number (`Read`, one call per batch, so its lock is released between them), say which is the first it can still read (`First`), and Pin the Window centred on a Line Number (`PinCentredOn`), stopping at Line Number 0 and the newest Line.
+- A step at the oldest or newest Line with a Match does nothing: there is no wrap and no message. A step down looks through every Line up to Total, including Lines that arrived after enter.
+- The Line Numbers remembered aren't bounded, at 8 bytes per Line with a Match. A sorted index of every Line with a Match is deferred until scanning proves slow.
+- A scan loads Chunks the Window doesn't show, so it can drop the Chunks the Window does show (ADR 0004), and they are read again on the next render.
+- If the Log File fails to read and the Current Line becomes unreachable, the Current Line is dropped.
+- The Current Line is shown bold, with its Matches still highlighted. A gutter marking it is left for a later phase.

@@ -2,6 +2,7 @@ package reader
 
 // Line - one entry of the Log Feed, as held in the LiveBuffer or a Chunk.
 type Line struct {
+	Number  int     // its Line Number
 	Text    string  // without its terminator
 	Shown   string  // Text as formatted by the Passes, for display; empty as held
 	Matches []Match // where the Search regex matches Shown; nil if nowhere

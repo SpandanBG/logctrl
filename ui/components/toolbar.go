@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// helpText - the keys that open the Help, Scroll down/up and open the Search
-// Bar.
+// helpText - the keys that open the Help, Scroll down/up, open the Search Bar
+// and step to the next/previous Line with a Match.
 func helpText(keymap []config.Entry) string {
 	keyOf := map[config.Action]string{}
 	for _, entry := range keymap {
@@ -19,7 +19,9 @@ func helpText(keymap []config.Entry) string {
 		ui.Magenta_Color + keyOf[config.OpenHelp] + ui.Black_Color + ":Help  " +
 		ui.Magenta_Color + keyOf[config.ScrollDown] + "/" + keyOf[config.ScrollUp] +
 		ui.Black_Color + ":Scroll  " +
-		ui.Magenta_Color + keyOf[config.OpenSearch] + ui.Black_Color + ":Search" +
+		ui.Magenta_Color + keyOf[config.OpenSearch] + ui.Black_Color + ":Search  " +
+		ui.Magenta_Color + keyOf[config.NextMatch] + "/" + keyOf[config.PreviousMatch] +
+		ui.Black_Color + ":Match" +
 		ui.Reset_Color
 }
 

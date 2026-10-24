@@ -22,6 +22,7 @@ type Stream struct {
 	scrolls []int
 	follows int
 	updates []any
+	pins    []int
 }
 
 var _ cmd.Stream = (*Stream)(nil)
@@ -48,7 +49,7 @@ func (s *Stream) GetWindow() string {
 	return s.window
 }
 
-// Lines - the Window text, one Line per row.
+// Lines - the Window text, one Line per row, numbered from 0.
 func (s *Stream) Lines() []reader.Line {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -57,10 +58,26 @@ func (s *Stream) Lines() []reader.Line {
 	}
 
 	var lines []reader.Line
-	for _, text := range strings.Split(s.window, "\n") {
-		lines = append(lines, reader.Line{Text: text})
+	for i, text := range strings.Split(s.window, "\n") {
+		lines = append(lines, reader.Line{Number: i, Text: text})
 	}
 	return lines
+}
+
+// Total - the number of Lines in the Window text.
+func (s *Stream) Total() int {
+	return len(s.Lines())
+}
+
+// First - always 0: the Window text can always be read.
+func (s *Stream) First() int {
+	return 0
+}
+
+// Read - the Lines of the Window text with line numbers in [from, to).
+func (s *Stream) Read(from, to int) []reader.Line {
+	lines := s.Lines()
+	return lines[max(from, 0):min(to, len(lines))]
 }
 
 func (s *Stream) MoveToEnd() {
@@ -87,6 +104,13 @@ func (s *Stream) Update(msg any) error {
 		return err
 	}
 	return nil
+}
+
+// PinCentredOn - records `number` as a Pin the UI made.
+func (s *Stream) PinCentredOn(number int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pins = append(s.pins, number)
 }
 
 func (s *Stream) Close() {

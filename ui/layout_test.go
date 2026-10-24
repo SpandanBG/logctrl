@@ -430,9 +430,9 @@ func Test_UISearchKeyOpensSearchBarAndShrinksLogView(t *testing.T) {
 	testutil.Equal(t, false, quit)
 	testutil.Equal(t, 0, len(stream.Scrolls()))
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
-	// 30 rows - 1 toolbar row - 1 Search Bar row - 2 border rows
-	testutil.Equal(t, 26, stream.Height())
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/q.*jk"))
+	// 30 rows - 1 toolbar row - 2 Search Bar rows - 2 border rows
+	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: q.*jk"))
 }
 
 func Test_UIEnterMakesSearchBarReadOnly(t *testing.T) {
@@ -447,8 +447,8 @@ func Test_UIEnterMakesSearchBarReadOnly(t *testing.T) {
 
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 	testutil.Equal(t, 2, stream.Follows()) // on enter, then G
-	testutil.Equal(t, 26, stream.Height())
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "errk"))
 }
 
@@ -471,13 +471,13 @@ func Test_UICloseSearchKeyClosesSearchBarAndRestoresLogView(t *testing.T) {
 			closedView := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(closedView, "/err"))
+			testutil.Equal(t, false, strings.Contains(closedView, "/: err"))
 			testutil.Equal(t, 30, lipgloss.Height(model.View()))
 			testutil.Equal(t, 27, stream.Height())
 			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 
 			model, _ = press(model, runtime, keys("/"))
-			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "/err"))
+			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "/: err"))
 		})
 	}
 }
@@ -492,8 +492,8 @@ func Test_UISearchKeyMakesReadOnlySearchBarEditableKeepingRegex(t *testing.T) {
 	model, _ = press(model, runtime, keys("ork"))
 
 	testutil.Equal(t, 0, len(stream.Scrolls()))
-	testutil.Equal(t, 26, stream.Height())
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/errork"))
+	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: errork"))
 }
 
 func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
@@ -504,7 +504,7 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 		expected string // in the view after Esc, if anything
 	}{
 		{name: "first edit closes the Search Bar", typed: []tea.KeyMsg{keys("err")}, height: 27},
-		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("/"), keys("or")}, height: 26, expected: "/err"},
+		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("/"), keys("or")}, height: 25, expected: "/: err"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -517,8 +517,8 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 			view := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(view, "/erro"))
-			testutil.Equal(t, test.expected != "", strings.Contains(view, "/err"))
+			testutil.Equal(t, false, strings.Contains(view, "/: erro"))
+			testutil.Equal(t, test.expected != "", strings.Contains(view, "/: err"))
 			testutil.Equal(t, test.height, stream.Height())
 			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 		})
@@ -533,7 +533,7 @@ func Test_UIEnterIsIgnoredOnEmptySearchBar(t *testing.T) {
 	model, _ = press(model, runtime, keys("k"))
 
 	testutil.Equal(t, 0, len(stream.Scrolls()))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/k"))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: k"))
 }
 
 func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
@@ -627,7 +627,7 @@ func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
 
 	testutil.Equal(t, "[SearchFor{err(}]", updates(stream))
 	testutil.Equal(t, true, strings.Contains(model.View(),
-		"\x1b[31m/error parsing regexp: missing closing ): `err(`\x1b[0m"))
+		"\x1b[31merror parsing regexp: missing closing ): `err(`\x1b[0m"))
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 }
 
@@ -639,10 +639,10 @@ func Test_UISearchKeyAfterBadRegexBringsItBackAndEscShowsErrorAgain(t *testing.T
 	editView := ansi.Strip(model.View())
 	model, _ = press(model, runtime, esc)
 
-	testutil.Equal(t, true, strings.Contains(editView, "/err("))
+	testutil.Equal(t, true, strings.Contains(editView, "/: err("))
 	testutil.Equal(t, false, strings.Contains(editView, "error parsing regexp"))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/error parsing regexp: missing closing ): `err(`"))
-	testutil.Equal(t, 26, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: error parsing regexp: missing closing ): `err(`"))
+	testutil.Equal(t, 25, stream.Height())
 }
 
 func Test_UIFixedRegexReplacesError(t *testing.T) {
@@ -654,7 +654,7 @@ func Test_UIFixedRegexReplacesError(t *testing.T) {
 	model, _ = press(model, runtime, enter)
 
 	testutil.Equal(t, "[SearchFor{err(} SearchFor{err()}]", updates(stream))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err()"))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err()"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "error parsing regexp"))
 }
 
@@ -703,9 +703,9 @@ func Test_UIHelpOpensAboveReadOnlySearchBar(t *testing.T) {
 	model, _ = press(model, runtime, esc)
 
 	testutil.Equal(t, true, strings.Contains(helpView, "Scroll the Log View or the Help down"))
-	testutil.Equal(t, true, strings.HasSuffix(strings.TrimSpace(helpView), "/err"))
+	testutil.Equal(t, true, strings.HasSuffix(strings.TrimSpace(helpView), "/: err"))
 	testutil.Equal(t, 30, lipgloss.Height(helpView))
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 }
 
 func Test_UIPromptOpensBelowReadOnlySearchBar(t *testing.T) {
@@ -719,11 +719,11 @@ func Test_UIPromptOpensBelowReadOnlySearchBar(t *testing.T) {
 	model, _ = press(model, runtime, esc)
 
 	testutil.Equal(t, 30, lipgloss.Height(promptView))
-	// 30 rows - 1 toolbar row - 1 Search Bar row - 16 prompt rows - 2 border rows
-	testutil.Equal(t, 10, promptHeight)
-	testutil.Equal(t, true, strings.Index(promptView, "/err") < strings.Index(promptView, "cmd"))
-	testutil.Equal(t, 26, stream.Height())
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+	// 30 rows - 1 toolbar row - 2 Search Bar rows - 16 prompt rows - 2 border rows
+	testutil.Equal(t, 9, promptHeight)
+	testutil.Equal(t, true, strings.Index(promptView, "/: err") < strings.Index(promptView, "cmd"))
+	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 }
 
 func Test_UIReservedKeysQuitWhileTypingInSearchBarOrFilterBar(t *testing.T) {
@@ -796,9 +796,9 @@ func Test_UIFilterKeyOpensFilterBarAndShrinksLogView(t *testing.T) {
 	testutil.Equal(t, false, quit)
 	testutil.Equal(t, 0, len(stream.Scrolls()))
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
-	// 30 rows - 1 toolbar row - 1 Filter Bar row - 2 border rows
-	testutil.Equal(t, 26, stream.Height())
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "fq.*jk/"))
+	// 30 rows - 1 toolbar row - 2 Filter Bar rows - 2 border rows
+	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "f: q.*jk/"))
 }
 
 func Test_UIEnterMakesFilterBarReadOnlyWithoutSearching(t *testing.T) {
@@ -814,10 +814,10 @@ func Test_UIEnterMakesFilterBarReadOnlyWithoutSearching(t *testing.T) {
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 	testutil.Equal(t, "[]", updates(stream))
 	testutil.Equal(t, 0, stream.Follows())
-	testutil.Equal(t, 26, stream.Height())
-	testutil.Equal(t, true, strings.Contains(view, "ferr"))
+	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, true, strings.Contains(view, "f: err"))
 	testutil.Equal(t, false, strings.Contains(view, "errk"))
-	testutil.Equal(t, false, strings.Contains(view, "/err"))
+	testutil.Equal(t, false, strings.Contains(view, "/: err"))
 }
 
 func Test_UICloseFilterKeyClosesFilterBarAndRestoresLogView(t *testing.T) {
@@ -839,7 +839,7 @@ func Test_UICloseFilterKeyClosesFilterBarAndRestoresLogView(t *testing.T) {
 			closedView := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(closedView, "ferr"))
+			testutil.Equal(t, false, strings.Contains(closedView, "f: err"))
 			testutil.Equal(t, 30, lipgloss.Height(model.View()))
 			testutil.Equal(t, 27, stream.Height())
 			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
@@ -847,7 +847,7 @@ func Test_UICloseFilterKeyClosesFilterBarAndRestoresLogView(t *testing.T) {
 			testutil.Equal(t, 0, stream.Follows())
 
 			model, _ = press(model, runtime, keys("f"))
-			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "ferr"))
+			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "f: err"))
 		})
 	}
 }
@@ -860,7 +860,7 @@ func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {
 		expected string // in the view after Esc, if anything
 	}{
 		{name: "first edit closes the Filter Bar", typed: []tea.KeyMsg{keys("err")}, height: 27},
-		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("f"), keys("or")}, height: 26, expected: "ferr"},
+		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("f"), keys("or")}, height: 25, expected: "f: err"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -873,8 +873,8 @@ func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {
 			view := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(view, "ferro"))
-			testutil.Equal(t, test.expected != "", strings.Contains(view, "ferr"))
+			testutil.Equal(t, false, strings.Contains(view, "f: erro"))
+			testutil.Equal(t, test.expected != "", strings.Contains(view, "f: err"))
 			testutil.Equal(t, test.height, stream.Height())
 			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
 		})
@@ -893,11 +893,26 @@ func Test_UIFilterBarSitsAboveSearchBar(t *testing.T) {
 	helpView := ansi.Strip(model.View())
 
 	testutil.Equal(t, 30, lipgloss.Height(view))
-	// 30 rows - 1 toolbar row - 1 Filter Bar row - 1 Search Bar row - 2 border rows
-	testutil.Equal(t, 25, stream.Height())
-	testutil.Equal(t, "[fwarn /err]", fmt.Sprint(lastRows(view, 2)))
+	// 30 rows - 1 toolbar row - 2 Filter Bar rows - 2 Search Bar rows - 2 border rows
+	testutil.Equal(t, 23, stream.Height())
+	testutil.Equal(t, fmt.Sprint([]string{topLine, "f: warn", topLine, "/: err"}), fmt.Sprint(lastRows(view, 4)))
 	testutil.Equal(t, 30, lipgloss.Height(helpView))
-	testutil.Equal(t, "[fwarn /err]", fmt.Sprint(lastRows(helpView, 2)))
+	testutil.Equal(t, fmt.Sprint([]string{topLine, "f: warn", topLine, "/: err"}), fmt.Sprint(lastRows(helpView, 4)))
+}
+
+// topLine - the grey line along the top of a regex bar, as wide as the screen.
+var topLine = strings.Repeat("─", 80)
+
+func Test_UIRegexBarHasGreyTopLine(t *testing.T) {
+	for _, open := range []string{"/", "f"} {
+		t.Run(open, func(t *testing.T) {
+			model, _, runtime := startUI(t)
+
+			model, _ = press(model, runtime, keys(open))
+
+			testutil.Equal(t, true, strings.Contains(model.View(), "\x1b[90m"+topLine+"\x1b[0m"))
+		})
+	}
 }
 
 // lastRows - the last `n` rows of `view`, without their padding.
@@ -916,10 +931,10 @@ func Test_UITypingInOneRegexBarNeverClosesTheOther(t *testing.T) {
 		open     tea.KeyMsg // opens the bar typed in, after the other is entered
 		other    string     // the regex entered in the other bar
 		key      tea.KeyMsg // the other bar's close key, then its open key, typed
-		expected string     // the rows of both bars
+		expected []string   // the rows of both bars
 	}{
-		{name: "typing in Filter Bar", open: keys("f"), other: "/err", key: ctrlL, expected: "[fa/b /err]"},
-		{name: "typing in Search Bar", open: keys("/"), other: "fwarn", key: ctrlF, expected: "[fwarn /afb]"},
+		{name: "typing in Filter Bar", open: keys("f"), other: "/err", key: ctrlL, expected: []string{topLine, "f: a/b", topLine, "/: err"}},
+		{name: "typing in Search Bar", open: keys("/"), other: "fwarn", key: ctrlF, expected: []string{topLine, "f: warn", topLine, "/: afb"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -933,8 +948,35 @@ func Test_UITypingInOneRegexBarNeverClosesTheOther(t *testing.T) {
 			model, _ = press(model, runtime, keys(test.other[:1]))
 			model, _ = press(model, runtime, keys("b"))
 
-			testutil.Equal(t, test.expected, fmt.Sprint(lastRows(ansi.Strip(model.View()), 2)))
-			testutil.Equal(t, 25, stream.Height())
+			testutil.Equal(t, fmt.Sprint(test.expected), fmt.Sprint(lastRows(ansi.Strip(model.View()), 4)))
+			testutil.Equal(t, 23, stream.Height())
+		})
+	}
+}
+
+func Test_UIRegexBarPromptIsBlackOnItsColourInEveryState(t *testing.T) {
+	const (
+		search = "\x1b[30;42m/:\x1b[0m "
+		filter = "\x1b[30;45mf:\x1b[0m "
+	)
+	for _, test := range []struct {
+		name   string
+		typed  []tea.KeyMsg
+		prompt string
+	}{
+		{name: "Search Bar while typing", typed: []tea.KeyMsg{keys("/"), keys("err")}, prompt: search},
+		{name: "Search Bar while read-only", typed: []tea.KeyMsg{keys("/"), keys("err"), enter}, prompt: search},
+		{name: "Search Bar showing an error", typed: []tea.KeyMsg{keys("/"), keys("err("), enter}, prompt: search},
+		{name: "Filter Bar while typing", typed: []tea.KeyMsg{keys("f"), keys("warn")}, prompt: filter},
+		{name: "Filter Bar while read-only", typed: []tea.KeyMsg{keys("f"), keys("warn"), enter}, prompt: filter},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, _, runtime := startUI(t)
+			for _, key := range test.typed {
+				model, _ = press(model, runtime, key)
+			}
+
+			testutil.Equal(t, true, strings.Contains(model.View(), test.prompt))
 		})
 	}
 }
@@ -1072,5 +1114,5 @@ func Test_UIFollowKeyDropsCurrentLineKeepingSearch(t *testing.T) {
 
 	testutil.Equal(t, "[SearchFor{err} PreviousMatch{} Follow{}]", updates(stream))
 	testutil.Equal(t, 2, stream.Follows()) // on enter, then G
-	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/err"))
+	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 }

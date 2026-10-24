@@ -21,7 +21,10 @@ const (
 )
 
 // prompts - what each regex bar shows before its regex.
-var prompts = map[Bar]string{SearchBar: "/", FilterBar: "f"}
+var prompts = map[Bar]string{SearchBar: "/:", FilterBar: "f:"}
+
+// promptColors - the background of each regex bar's prompt.
+var promptColors = map[Bar]lipgloss.Color{SearchBar: "2", FilterBar: "5"}
 
 // ----- Public tea.Msg
 
@@ -49,24 +52,30 @@ type TeaRegexFailed struct {
 // regexBar - a one-line input for a regex, such as the Search Bar or the
 // Filter Bar.
 type regexBar struct {
-	bar        Bar
-	width      ui.SizeI
-	view       textinput.Model
-	entered    string         // the regex last entered
-	failed     error          // why the regex last entered cannot be searched for, if so
-	errorStyle lipgloss.Style // how `failed` is shown
+	bar         Bar
+	width       ui.SizeI
+	view        textinput.Model
+	entered     string         // the regex last entered
+	failed      error          // why the regex last entered cannot be searched for, if so
+	errorStyle  lipgloss.Style // how `failed` is shown
+	promptStyle lipgloss.Style // how the prompt is shown, in every state
+	barStyle    lipgloss.Style // the grey line along the top of the regex bar, as wide as it
 }
 
 // NewRegexBar - the one-line regex bar `bar`, `width` wide, styled by
 // `renderer`.
 func NewRegexBar(width ui.SizeI, bar Bar, renderer *lipgloss.Renderer) tea.Model {
 	view := textinput.New()
-	view.Prompt = prompts[bar]
+	view.Prompt = ""
 	return regexBar{
-		bar:        bar,
-		width:      width,
-		view:       view,
-		errorStyle: renderer.NewStyle().Foreground(lipgloss.Color("1")),
+		bar:         bar,
+		width:       width,
+		view:        view,
+		errorStyle:  renderer.NewStyle().Foreground(lipgloss.Color("1")),
+		promptStyle: renderer.NewStyle().Foreground(lipgloss.Color("0")).Background(promptColors[bar]),
+		barStyle: renderer.NewStyle().
+			Border(lipgloss.NormalBorder(), true, false, false, false).
+			BorderForeground(lipgloss.Color("240")),
 	}
 }
 
@@ -77,10 +86,11 @@ func (s regexBar) Init() tea.Cmd {
 func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		s.view.Width = ui.ModifySize(msg, s.width, ui.SizeFixed(1)).Width - len(s.view.Prompt) - 1
+		width := ui.ModifySize(msg, s.width, ui.SizeFixed(1)).Width
+		s.barStyle = s.barStyle.Width(width)
+		s.view.Width = width - len(prompts[s.bar]) - 2
 		return s, nil
 	case TeaRegexEdit:
-		s.view.PromptStyle = lipgloss.NewStyle()
 		s.view.TextStyle = lipgloss.NewStyle()
 		return s, s.view.Focus()
 	case TeaRegexFailed:
@@ -107,10 +117,11 @@ func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s regexBar) View() string {
+	prompt := s.promptStyle.Render(prompts[s.bar]) + " "
 	if s.failed != nil && !s.view.Focused() {
-		return s.errorStyle.Render(s.view.Prompt + s.failed.Error())
+		return s.barStyle.Render(prompt + s.errorStyle.Render(s.failed.Error()))
 	}
-	return s.view.View()
+	return s.barStyle.Render(prompt + s.view.View())
 }
 
 // ------------------------- Private
@@ -128,10 +139,9 @@ func (s regexBar) enter() (tea.Model, tea.Cmd) {
 	return s, func() tea.Msg { return TeaRegexEntered{Bar: s.bar, Regex: s.entered} }
 }
 
-// readOnly - stops the regex bar taking keys, and dims it.
+// readOnly - stops the regex bar taking keys, and dims its regex.
 func (s regexBar) readOnly() regexBar {
 	s.view.Blur()
-	s.view.PromptStyle = readOnlyStyle
 	s.view.TextStyle = readOnlyStyle
 	return s
 }

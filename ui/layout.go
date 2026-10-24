@@ -14,8 +14,8 @@ import (
 
 const (
 	toolbarSize   = 1
-	searchBarSize = 1
-	filterBarSize = 1
+	searchBarSize = 2
+	filterBarSize = 2
 	promptSize    = 16
 )
 

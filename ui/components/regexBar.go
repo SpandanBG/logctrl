@@ -16,22 +16,32 @@ const (
 	FilterBar
 )
 
-// prompts - what each regex bar shows before its regex.
-var prompts = map[Bar]string{SearchBar: "/:", FilterBar: "f:"}
+// barHeight - the rows a shown regex bar takes: its grey top line, then its
+// prompt and regex.
+const barHeight = 2
 
-// promptColors - the background of each regex bar's prompt.
-var promptColors = map[Bar]lipgloss.Color{SearchBar: "2", FilterBar: "5"}
+// barPrompt - what a regex bar shows before its regex.
+type barPrompt struct {
+	text       string
+	background lipgloss.Color
+}
+
+// prompts - the prompt of each regex bar.
+var prompts = map[Bar]barPrompt{
+	SearchBar: {text: "/:", background: "2"},
+	FilterBar: {text: "f:", background: "5"},
+}
 
 // ----- Public tea.Msg
 
-// TeaRegexEdit - makes the regex bar editable, keeping its regex.
+// TeaRegexEdit - shows the regex bar, editable, keeping its regex.
 type TeaRegexEdit struct{}
 
-// TeaRegexClose - empties the regex bar, ready for the next regex.
+// TeaRegexClose - hides the regex bar, emptied, ready for the next regex.
 type TeaRegexClose struct{}
 
 // TeaRegexCancel - drops what was typed since the regex was last entered,
-// making the regex bar read-only again.
+// making the regex bar read-only again, or hides it if no regex was entered.
 type TeaRegexCancel struct{}
 
 // TeaRegexEntered - the user entered `Regex` in `Bar`, now read-only.
@@ -45,12 +55,15 @@ type TeaRegexFailed struct {
 	Err error
 }
 
-// regexBar - a one-line input for a regex, such as the Search Bar or the
-// Filter Bar.
-type regexBar struct {
+// RegexBar - an input for a regex, such as the Search Bar or the Filter Bar:
+// hidden, typing, or read-only once a regex is entered, showing that regex or
+// why it cannot be used. Typing() implies Shown(); Entered() stays true after
+// TeaRegexFailed, until the regex bar is closed.
+type RegexBar struct {
 	bar           Bar
 	width         ui.SizeI
 	view          textinput.Model
+	shown         bool           // whether the regex bar is shown
 	entered       string         // the regex last entered
 	failed        error          // why the regex last entered cannot be searched for, if so
 	errorWidth    int            // how much of `failed` fits after the prompt
@@ -61,49 +74,57 @@ type regexBar struct {
 	barStyle      lipgloss.Style // the grey line along the top of the regex bar, as wide as it
 }
 
-// NewRegexBar - the one-line regex bar `bar`, `width` wide, styled by
+// NewRegexBar - the regex bar `bar`, hidden, `width` wide, styled by
 // `renderer`.
-func NewRegexBar(width ui.SizeI, bar Bar, renderer *lipgloss.Renderer) tea.Model {
+func NewRegexBar(width ui.SizeI, bar Bar, renderer *lipgloss.Renderer) RegexBar {
 	view := textinput.New()
 	view.Prompt = ""
-	return regexBar{
+	return RegexBar{
 		bar:           bar,
 		width:         width,
 		view:          view,
 		errorStyle:    renderer.NewStyle().Foreground(lipgloss.Color("1")),
 		editStyle:     renderer.NewStyle(),
 		readOnlyStyle: renderer.NewStyle().Faint(true),
-		promptStyle:   renderer.NewStyle().Foreground(lipgloss.Color("0")).Background(promptColors[bar]),
+		promptStyle:   renderer.NewStyle().Foreground(lipgloss.Color("0")).Background(prompts[bar].background),
 		barStyle: renderer.NewStyle().
 			Border(lipgloss.NormalBorder(), true, false, false, false).
 			BorderForeground(lipgloss.Color("240")),
 	}
 }
 
-func (s regexBar) Init() tea.Cmd {
+// Init - asks for the window size, to fit the regex bar to its width.
+func (s RegexBar) Init() tea.Cmd {
 	return tea.WindowSize()
 }
 
-func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+// Update - UpdateBar, as a tea.Model.
+func (s RegexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return s.UpdateBar(msg)
+}
+
+// UpdateBar - Update, keeping the RegexBar type, so its state can be read.
+func (s RegexBar) UpdateBar(msg tea.Msg) (RegexBar, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		width := ui.ModifySize(msg, s.width, ui.SizeFixed(1)).Width
+		width := ui.ModifySize(msg, s.width, ui.SizeModifier(0)).Width // only the width is read, so the height is left as it is
 		s.barStyle = s.barStyle.Width(width)
-		s.errorWidth = width - len(prompts[s.bar]+" ") // after the prompt and its space
-		s.view.Width = s.errorWidth - 1                // leaving a cell for the cursor
+		s.errorWidth = width - len(prompts[s.bar].text+" ") // after the prompt and its space
+		s.view.Width = s.errorWidth - 1                     // leaving a cell for the cursor
 		return s, nil
 	case TeaRegexEdit:
+		s.shown = true
 		s.view.TextStyle = s.editStyle
 		return s, s.view.Focus()
 	case TeaRegexFailed:
 		s.failed = msg.Err
 		return s, nil
 	case TeaRegexClose:
-		s = s.readOnly()
-		s.view.Reset()
-		s.entered = ""
-		return s, nil
+		return s.close(), nil
 	case TeaRegexCancel:
+		if s.entered == "" {
+			return s.close(), nil
+		}
 		s = s.readOnly()
 		s.view.SetValue(s.entered)
 		return s, nil
@@ -118,19 +139,47 @@ func (s regexBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, cmd
 }
 
-func (s regexBar) View() string {
-	prompt := s.promptStyle.Render(prompts[s.bar]) + " "
-	if s.failed != nil && !s.view.Focused() {
-		return s.barStyle.Render(prompt + s.errorStyle.Render(ansi.Truncate(s.failed.Error(), s.errorWidth, "…")))
+// View - the regex bar, or "" while it is hidden.
+func (s RegexBar) View() string {
+	if !s.shown {
+		return ""
 	}
-	return s.barStyle.Render(prompt + s.view.View())
+
+	content := s.view.View()
+	if s.failed != nil && !s.view.Focused() {
+		content = s.errorStyle.Render(ansi.Truncate(s.failed.Error(), s.errorWidth, "…"))
+	}
+	return s.barStyle.Render(s.promptStyle.Render(prompts[s.bar].text) + " " + content)
+}
+
+// Shown - whether the regex bar is shown.
+func (s RegexBar) Shown() bool {
+	return s.shown
+}
+
+// Typing - whether the regex bar is shown and editable.
+func (s RegexBar) Typing() bool {
+	return s.view.Focused()
+}
+
+// Entered - whether a regex has been entered since the regex bar was opened.
+func (s RegexBar) Entered() bool {
+	return s.entered != ""
+}
+
+// Height - the rows the regex bar takes: none while hidden.
+func (s RegexBar) Height() int {
+	if !s.shown {
+		return 0
+	}
+	return barHeight
 }
 
 // ------------------------- Private
 
 // enter - makes the regex bar read-only, keeping its regex. Ignored while
 // the regex bar is empty.
-func (s regexBar) enter() (tea.Model, tea.Cmd) {
+func (s RegexBar) enter() (RegexBar, tea.Cmd) {
 	if s.view.Value() == "" {
 		return s, nil
 	}
@@ -141,8 +190,17 @@ func (s regexBar) enter() (tea.Model, tea.Cmd) {
 	return s, func() tea.Msg { return TeaRegexEntered{Bar: s.bar, Regex: s.entered} }
 }
 
+// close - hides the regex bar, emptied.
+func (s RegexBar) close() RegexBar {
+	s = s.readOnly()
+	s.view.Reset()
+	s.entered = ""
+	s.shown = false
+	return s
+}
+
 // readOnly - stops the regex bar taking keys, and dims its regex.
-func (s regexBar) readOnly() regexBar {
+func (s RegexBar) readOnly() RegexBar {
 	s.view.Blur()
 	s.view.TextStyle = s.readOnlyStyle
 	return s

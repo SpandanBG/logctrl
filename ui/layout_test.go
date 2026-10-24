@@ -26,6 +26,9 @@ var (
 	ctrlF = tea.KeyMsg{Type: tea.KeyCtrlF}
 )
 
+// topLine - the grey line along the top of a regex bar, as wide as the screen.
+var topLine = strings.Repeat("─", 80)
+
 func keys(text string) tea.KeyMsg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(text)}
 }
@@ -912,9 +915,6 @@ func Test_UIFilterBarSitsAboveSearchBar(t *testing.T) {
 	testutil.Equal(t, fmt.Sprint([]string{topLine, "f: warn", topLine, "/: err"}), fmt.Sprint(lastRows(helpView, 4)))
 }
 
-// topLine - the grey line along the top of a regex bar, as wide as the screen.
-var topLine = strings.Repeat("─", 80)
-
 func Test_UIRegexBarHasGreyTopLine(t *testing.T) {
 	for _, open := range []string{"/", "f"} {
 		t.Run(open, func(t *testing.T) {
@@ -966,7 +966,7 @@ func Test_UITypingInOneRegexBarNeverClosesTheOther(t *testing.T) {
 	}
 }
 
-func Test_UIRegexBarPromptIsBlackOnItsColourInEveryState(t *testing.T) {
+func Test_UIRegexBarPromptIsBlackOnItsColorInEveryState(t *testing.T) {
 	const (
 		search = "\x1b[30;42m/:\x1b[0m "
 		filter = "\x1b[30;45mf:\x1b[0m "

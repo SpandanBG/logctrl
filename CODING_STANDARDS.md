@@ -37,7 +37,7 @@ Source tags:
 
 ### Comments
 
-- **GO-8** _house_ Every top-level declaration, exported or not, has a doc comment in the form `name - what it is or does.`, as in `// NewRegexBar - the one-line regex bar ...`. Struct fields say what they hold in a trailing comment. This overrides the upstream `Name does ...` sentence form (CRC "Comment Sentences", GSG).
+- **GO-8** _house_ Every top-level declaration, exported or not, has a doc comment in the form `name - what it is or does.`, as in `// NewRegexBar - the regex bar ...`. Struct fields say what they hold in a trailing comment. This overrides the upstream `Name does ...` sentence form (CRC "Comment Sentences", GSG).
 - **GO-9** Package comments sit directly above the `package` clause, with no blank line. _(CRC, GSG)_
 
 ### Errors

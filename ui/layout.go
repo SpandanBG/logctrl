@@ -70,42 +70,6 @@ func NewUI(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer
 	return
 }
 
-func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer) uiModel {
-	actionOf := map[string]config.Action{}
-	for _, entry := range keymap {
-		actionOf[entry.Key] = entry.Action
-	}
-
-	return uiModel{
-		stream:   stream,
-		actionOf: actionOf,
-		toolbar: components.NewToolbar(
-			ui.SizeRatio(1),
-			ui.SizeFixed(toolbarSize),
-			keymap,
-		),
-		logView: components.NewLogView(
-			ui.SizeRatio(1),
-			ui.SizeModifier(-toolbarSize),
-			stream,
-			renderer,
-		),
-		prompt: components.NewPrompt(
-			ui.SizeRatio(1),
-			ui.SizeFixed(promptSize),
-		),
-		help: components.NewHelp(
-			ui.SizeRatio(1),
-			ui.SizeModifier(-toolbarSize),
-			keymap,
-		),
-		bars: [len(closeActions)]components.RegexBar{
-			components.SearchBar: components.NewRegexBar(ui.SizeRatio(1), components.SearchBar, renderer),
-			components.FilterBar: components.NewRegexBar(ui.SizeRatio(1), components.FilterBar, renderer),
-		},
-	}
-}
-
 func (u uiModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		u.toolbar.Init(),
@@ -169,6 +133,43 @@ func (u uiModel) View() string {
 }
 
 // ------------------------- Private
+
+func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer) uiModel {
+	actionOf := map[string]config.Action{}
+	for _, entry := range keymap {
+		actionOf[entry.Key] = entry.Action
+	}
+
+	return uiModel{
+		stream:   stream,
+		actionOf: actionOf,
+		toolbar: components.NewToolbar(
+			ui.SizeRatio(1),
+			ui.SizeFixed(toolbarSize),
+			keymap,
+		),
+		logView: components.NewLogView(
+			ui.SizeRatio(1),
+			ui.SizeModifier(-toolbarSize),
+			stream,
+			renderer,
+		),
+		prompt: components.NewPrompt(
+			ui.SizeRatio(1),
+			ui.SizeFixed(promptSize),
+		),
+		help: components.NewHelp(
+			ui.SizeRatio(1),
+			ui.SizeModifier(-toolbarSize),
+			keymap,
+		),
+		bars: [len(closeActions)]components.RegexBar{
+			components.SearchBar: components.NewRegexBar(ui.SizeRatio(1), components.SearchBar, renderer),
+			components.FilterBar: components.NewRegexBar(ui.SizeRatio(1), components.FilterBar, renderer),
+		},
+	}
+}
+
 func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch u.actionOf[msg.String()] {
 	case config.Quit:

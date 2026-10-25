@@ -7,25 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// helpText - the keys that open the Help, Scroll down/up, open the Search Bar,
-// open the Filter Bar and step to the next/previous Line with a Match.
-func helpText(keymap []config.Entry) string {
-	keyOf := map[config.Action]string{}
-	for _, entry := range keymap {
-		keyOf[entry.Action] = entry.Key
-	}
-
-	return ui.Grey_Color + "Quick Help:\t\t" +
-		ui.Magenta_Color + keyOf[config.OpenHelp] + ui.Black_Color + ":Help  " +
-		ui.Magenta_Color + keyOf[config.ScrollDown] + "/" + keyOf[config.ScrollUp] +
-		ui.Black_Color + ":Scroll  " +
-		ui.Magenta_Color + keyOf[config.OpenSearch] + ui.Black_Color + ":Search  " +
-		ui.Magenta_Color + keyOf[config.OpenFilter] + ui.Black_Color + ":Filter  " +
-		ui.Magenta_Color + keyOf[config.NextMatch] + "/" + keyOf[config.PreviousMatch] +
-		ui.Black_Color + ":Match" +
-		ui.Reset_Color
-}
-
 var (
 	toolbarStyle = lipgloss.NewStyle().
 		Background(lipgloss.Color("43")).
@@ -67,6 +48,26 @@ func (t toolbar) View() string {
 }
 
 // ------------------------- Private
+
+// helpText - the keys that open the Help, Scroll down/up, open the Search Bar,
+// open the Filter Bar and step to the next/previous Line with a Match.
+func helpText(keymap []config.Entry) string {
+	keyOf := map[config.Action]string{}
+	for _, entry := range keymap {
+		keyOf[entry.Action] = entry.Key
+	}
+
+	return ui.Grey_Color + "Quick Help:\t\t" +
+		ui.Magenta_Color + keyOf[config.OpenHelp] + ui.Black_Color + ":Help  " +
+		ui.Magenta_Color + keyOf[config.ScrollDown] + "/" + keyOf[config.ScrollUp] +
+		ui.Black_Color + ":Scroll  " +
+		ui.Magenta_Color + keyOf[config.OpenSearch] + ui.Black_Color + ":Search  " +
+		ui.Magenta_Color + keyOf[config.OpenFilter] + ui.Black_Color + ":Filter  " +
+		ui.Magenta_Color + keyOf[config.NextMatch] + "/" + keyOf[config.PreviousMatch] +
+		ui.Black_Color + ":Match" +
+		ui.Reset_Color
+}
+
 func (t toolbar) updateView(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	size = ui.ModifySize(size, t.width, t.height)
 

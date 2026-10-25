@@ -80,6 +80,8 @@ func main() {
 	startDataPump(ptm, logWritter, console)
 }
 
+// ------------------------- Private
+
 // loadKeymap - the built-in Keymap, merged with the user's Keymap file at
 // ~/.config/logCtrl/keymap.json if it exists. Exits if that file is bad.
 func loadKeymap() []config.Entry {

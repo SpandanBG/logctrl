@@ -17,11 +17,6 @@ type filter struct {
 	regex *regexp.Regexp // nil while idle
 }
 
-// newFilter - an idle Filter.
-func newFilter() *filter {
-	return &filter{}
-}
-
 // Update - on FilterFor, filters for its regex, or goes idle if it is empty; a
 // regex that does not compile leaves the Filter idle and is returned as the
 // error.
@@ -52,4 +47,11 @@ func (f *filter) Run(lines []reader.Line) []reader.Line {
 		lines[i].Filter.Hide = !f.regex.MatchString(lines[i].Shown)
 	}
 	return lines
+}
+
+// ------------------------- Private
+
+// newFilter - an idle Filter.
+func newFilter() *filter {
+	return &filter{}
 }

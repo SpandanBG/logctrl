@@ -74,7 +74,7 @@ func (h *History) Lines(from, to int) ([]Line, bool) {
 	return lines, true
 }
 
-// ----------------------- PRIVATE
+// ------------------------- Private
 
 // chunk - the lines of Chunk `c`, loaded from the Log File if not held.
 // `false` if the Log File failed to read.

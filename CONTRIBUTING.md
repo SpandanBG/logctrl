@@ -18,6 +18,7 @@ make cover   # coverage across packages against COVER_MIN, as CI runs it (never 
 make hooks   # use the committed pre-commit hook
 go test -bench=. ./reader   # benchmarks
 scripts/prove-fails.sh <file> <old> <new> <go test args>   # break code, run tests, restore (TDD-4)
+scripts/check-dividers.sh [file.go...]                     # CC-9 Private divider (run by make test)
 ```
 
 ## Workflow

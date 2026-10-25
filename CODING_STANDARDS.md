@@ -67,7 +67,7 @@ Source tags:
 - **CC-6** Talk to your direct collaborators only (Law of Demeter). Don't walk `a.B().C().D()` through another module's insides. _(CC)_
 - **CC-7** The same logic shape isn't written twice in a change. But don't abstract before the second real use: duplication is a signal to consider, not a directive. _(CC, BECK)_
 - **CC-8** No speculative generality: no parameters, hooks, options or abstractions the current issue doesn't need. _(CC, BECK)_
-- **CC-9** Related code sits together, read top-down: callers above callees. _house_: in a file, the public code comes first and the private helpers last, after a `// ------------------------- Private` divider. _(CC)_
+- **CC-9** Related code sits together, read top-down: callers above callees. _house_: in a file, the public code comes first and the private helpers last, after a `// ------------------------- Private` divider (exported funcs and methods, `main` and `init` above it; checked by `scripts/check-dividers.sh` in `make test`). _(CC)_
 - **CC-10** Prefer a small type to a primitive standing in for a domain concept (`Bar` rather than an `int` or a string). _(CC)_
 - **CC-11** Leave the code cleaner than you found it, but in a refactoring step of its own, never mixed into making a test pass (see TDD-6). _(CC, BECK)_
 

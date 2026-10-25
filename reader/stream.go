@@ -53,24 +53,6 @@ func NewStream(logFeed *os.File) Stream {
 	return newStream(logFeed, DefaultCapacity, defaultChunkSize)
 }
 
-// newStream - NewStream holding `capacity` lines in memory and loading older
-// ones in Chunks of `chunkSize` lines.
-func newStream(logFeed *os.File, capacity, chunkSize int) Stream {
-	logFile, err := os.CreateTemp(logFileLocation, logFileName)
-	if err != nil {
-		log.Fatalf("unable to create temp log file - %v", err)
-	}
-
-	history := NewHistory(capacity, chunkSize, logFile)
-
-	return &stream{
-		logFile: logFile,
-		logFeed: logFeed,
-		history: history,
-		window:  NewWindow(history),
-	}
-}
-
 // Start - starts the stream. Takes `next` boolean channel which would be
 // notified when new logs has been fed into the stream from the producer.
 func (s *stream) Start(next chan bool) {
@@ -165,6 +147,33 @@ func (s *stream) PinCentredOn(number int) {
 	s.window.PinCentredOn(number)
 }
 
+// Close - closes all pipes and files
+func (s *stream) Close() {
+	s.logFeed.Close()
+	s.logFile.Close()
+	close(s.next)
+}
+
+// ------------------------- Private
+
+// newStream - NewStream holding `capacity` lines in memory and loading older
+// ones in Chunks of `chunkSize` lines.
+func newStream(logFeed *os.File, capacity, chunkSize int) Stream {
+	logFile, err := os.CreateTemp(logFileLocation, logFileName)
+	if err != nil {
+		log.Fatalf("unable to create temp log file - %v", err)
+	}
+
+	history := NewHistory(capacity, chunkSize, logFile)
+
+	return &stream{
+		logFile: logFile,
+		logFeed: logFeed,
+		history: history,
+		window:  NewWindow(history),
+	}
+}
+
 // scanRawLines - like bufio.ScanLines but keeps the terminator, so the History
 // can tell where each line starts in the log file.
 func scanRawLines(data []byte, atEOF bool) (int, []byte, error) {
@@ -175,11 +184,4 @@ func scanRawLines(data []byte, atEOF bool) (int, []byte, error) {
 		return len(data), data, nil
 	}
 	return 0, nil, nil
-}
-
-// Close - closes all pipes and files
-func (s *stream) Close() {
-	s.logFeed.Close()
-	s.logFile.Close()
-	close(s.next)
 }

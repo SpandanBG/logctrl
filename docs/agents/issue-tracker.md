@@ -20,7 +20,7 @@ Every decision about an issue's work is logged on that issue, so it outlives the
 
 - **After a grilling interview** (`/grill-with-docs`, `/grilling`) that started from an issue, once the user confirms shared understanding: a `## Decisions` list, one line per settled question.
 - **After a `/code-review`** for an issue, once the user has chosen what to do with the findings: a `## Review decisions` list, one line per finding the user fixed, skipped or deferred (with the new issue number when deferred). Skip it when the review found nothing to decide.
-- **Whenever the user changes a logged decision** later in the work: a comment naming the decision it replaces.
+- **Whenever the user changes a logged decision** later in the work: a comment naming the decision it replaces, and an update to every doc that states the old one: grep `docs/adr/`, `GLOSSARY.md` and `docs/architecture.md` for it.
 
 ## Pull requests as a triage surface
 

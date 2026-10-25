@@ -88,12 +88,42 @@ func (e *Executor) GetWindow() (shown, gutter string) {
 	return strings.Join(each, "\n"), strings.Join(cells, "\n")
 }
 
-// ------------------------- Private
-
 // maxTakenIn - the most Lines beyond the Window a read takes in to fill it
 // while the Filter hides Lines: as many as the Live Buffer holds, so a Filter
 // that rarely matches never reads the whole History on every render.
 const maxTakenIn = reader.DefaultCapacity
+
+// shownHistory - the History as the Passes before the Search leave it, given
+// to the Search; called from its Update, with mu held.
+type shownHistory struct {
+	e *Executor
+}
+
+func (h shownHistory) Window() []int {
+	lines := h.e.Stream.Lines()
+	numbers := make([]int, 0, len(lines))
+	for _, line := range lines {
+		numbers = append(numbers, line.Number)
+	}
+	return numbers
+}
+
+func (h shownHistory) Total() int { return h.e.Stream.Total() }
+
+func (h shownHistory) First() int { return h.e.Stream.First() }
+
+// Read - reads with mu released, so the UI can render and send messages
+// meanwhile.
+func (h shownHistory) Read(from, to int) []reader.Line {
+	h.e.mu.Unlock()
+	lines := h.e.Stream.Read(from, to)
+	h.e.mu.Lock()
+	return h.e.runOthers(lines)
+}
+
+func (h shownHistory) PinCentredOn(number int) { h.e.Stream.PinCentredOn(number) }
+
+// ------------------------- Private
 
 // takeIn - `lines` after every Pass but the Search and the Gutter, with as many
 // older Lines before them, then newer ones after them, run over by the same
@@ -167,33 +197,3 @@ func gutterCells(gutter [reader.GutterWidth]rune) string {
 	}
 	return cells.String()
 }
-
-// shownHistory - the History as the Passes before the Search leave it, given
-// to the Search; called from its Update, with mu held.
-type shownHistory struct {
-	e *Executor
-}
-
-func (h shownHistory) Window() []int {
-	lines := h.e.Stream.Lines()
-	numbers := make([]int, 0, len(lines))
-	for _, line := range lines {
-		numbers = append(numbers, line.Number)
-	}
-	return numbers
-}
-
-func (h shownHistory) Total() int { return h.e.Stream.Total() }
-
-func (h shownHistory) First() int { return h.e.Stream.First() }
-
-// Read - reads with mu released, so the UI can render and send messages
-// meanwhile.
-func (h shownHistory) Read(from, to int) []reader.Line {
-	h.e.mu.Unlock()
-	lines := h.e.Stream.Read(from, to)
-	h.e.mu.Lock()
-	return h.e.runOthers(lines)
-}
-
-func (h shownHistory) PinCentredOn(number int) { h.e.Stream.PinCentredOn(number) }

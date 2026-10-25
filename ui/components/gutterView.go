@@ -15,6 +15,20 @@ type gutterView struct {
 	style  lipgloss.Style
 }
 
+func (g gutterView) View() string {
+	blank := strings.Repeat(" ", reader.GutterWidth)
+	rows := make([]string, g.height)
+	for i := range rows {
+		rows[i] = blank
+		if i < len(g.cells) {
+			rows[i] = g.cells[i]
+		}
+	}
+	return g.style.Render(strings.Join(rows, "\n"))
+}
+
+// ------------------------- Private
+
 // newGutterView - an empty Gutter, styled by `renderer`.
 func newGutterView(renderer *lipgloss.Renderer) gutterView {
 	return gutterView{style: renderer.NewStyle().Background(lipgloss.Color("236"))}
@@ -27,16 +41,4 @@ func (g gutterView) setCells(cells string) gutterView {
 		g.cells = strings.Split(cells, "\n")
 	}
 	return g
-}
-
-func (g gutterView) View() string {
-	blank := strings.Repeat(" ", reader.GutterWidth)
-	rows := make([]string, g.height)
-	for i := range rows {
-		rows[i] = blank
-		if i < len(g.cells) {
-			rows[i] = g.cells[i]
-		}
-	}
-	return g.style.Render(strings.Join(rows, "\n"))
 }

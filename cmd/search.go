@@ -54,22 +54,6 @@ type search struct {
 	highlight lipgloss.Style // how each Match is shown
 }
 
-// newSearch - an idle Search, whose Matches are styled by `renderer`.
-func newSearch(renderer *lipgloss.Renderer) *search {
-	return &search{
-		current: -1,
-		dropped: -1,
-		highlight: renderer.NewStyle().
-			Foreground(lipgloss.Color("0")).
-			Background(lipgloss.Color("3")),
-	}
-}
-
-// attach - gives the Search the History to step through.
-func (s *search) attach(h history) {
-	s.history = h
-}
-
 // Update - steps on PreviousMatch and NextMatch, finding the Current Line
 // first if there is none, unless a scan is running, returning once its scan
 // ends. Any other message cancels any scan running and forgets the Lines with
@@ -128,6 +112,32 @@ func (s *search) Run(lines []reader.Line) []reader.Line {
 		lines[i].Shown = s.highlighted(lines[i])
 	}
 	return lines
+}
+
+// seen - the Lines with a Match found so far for the regex: every Line Number
+// in [from, to) has been scanned, and `lines` holds those with a Match, oldest
+// first.
+type seen struct {
+	from, to int
+	lines    []int
+}
+
+// ------------------------- Private
+
+// newSearch - an idle Search, whose Matches are styled by `renderer`.
+func newSearch(renderer *lipgloss.Renderer) *search {
+	return &search{
+		current: -1,
+		dropped: -1,
+		highlight: renderer.NewStyle().
+			Foreground(lipgloss.Color("0")).
+			Background(lipgloss.Color("3")),
+	}
+}
+
+// attach - gives the Search the History to step through.
+func (s *search) attach(h history) {
+	s.history = h
 }
 
 // matches - where the regex matches `shown`; empty matches are dropped.
@@ -306,14 +316,6 @@ func (s *search) withMatch(lines []reader.Line) []int {
 		}
 	}
 	return numbers
-}
-
-// seen - the Lines with a Match found so far for the regex: every Line Number
-// in [from, to) has been scanned, and `lines` holds those with a Match, oldest
-// first.
-type seen struct {
-	from, to int
-	lines    []int
 }
 
 // seenFrom - what has been found so far, if it reaches line `number`; else

@@ -84,7 +84,7 @@ func (w *Window) MoveToEnd() {
 	w.following = true
 }
 
-// ----------------------- PRIVATE
+// ------------------------- Private
 
 // reachable - the window start nearest `start` whose lines can be read.
 func (w *Window) reachable(start int) int {

@@ -6,11 +6,6 @@ import "github.com/SpandanBG/logctrl/reader"
 // Line from the context the other Passes leave on it (see docs/adr/0009).
 type gutter struct{}
 
-// newGutter - the Gutter Pass.
-func newGutter() *gutter {
-	return &gutter{}
-}
-
 // Update - ignores every message: the Gutter only reads each Line.
 func (g *gutter) Update(msg any) error {
 	return nil
@@ -25,4 +20,11 @@ func (g *gutter) Run(lines []reader.Line) []reader.Line {
 		}
 	}
 	return lines
+}
+
+// ------------------------- Private
+
+// newGutter - the Gutter Pass.
+func newGutter() *gutter {
+	return &gutter{}
 }

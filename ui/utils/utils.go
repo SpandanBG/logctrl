@@ -8,6 +8,8 @@ func ModifySize(size tea.WindowSizeMsg, w, h SizeI) tea.WindowSizeMsg {
 	return size
 }
 
+// ------------------------- Private
+
 func updateSize(x int, xm SizeI) int {
 	switch xm.Type() {
 	case Ratio:

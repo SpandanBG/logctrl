@@ -21,6 +21,7 @@ build:
 test:
 	@test -z "$$(gofmt -l .)" || (echo "not gofmt'ed (run gofmt -w):"; gofmt -l .; exit 1)
 	go vet ./...
+	scripts/check-dividers.sh
 	go test -race ./...
 
 # -count=1: a cached test result keeps the coverage of files since changed or

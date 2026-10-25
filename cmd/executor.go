@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/SpandanBG/logctrl/reader"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Stream - the Window as the UI sees it: after every Pass.
@@ -25,29 +26,32 @@ type Pass interface {
 	Update(msg any) error
 }
 
-// Executor - a reader.Stream whose Window has every Pass run over it on each
-// read, then the Search, then the Gutter (see docs/adr/0005, docs/adr/0009).
+// Executor - a reader.Stream whose Window has the Filter run over it on each
+// read, then every other Pass, then the Search, then the Gutter (see
+// docs/adr/0005, docs/adr/0009).
 // It gives the Search the History as the Passes before it leave it, to step
 // through (see docs/adr/0008).
 type Executor struct {
 	reader.Stream
 
 	mu     sync.Mutex // guards the Passes: updated in the UI's Update, run in a tea.Cmd
-	passes []Pass     // every Pass but the Search and the Gutter
-	search *Search
-	gutter *Gutter
+	passes []Pass     // every Pass but the Search and the Gutter: the Filter first, then the others in order
+	search *search    // run after `passes`, stepping through the History they leave
+	gutter *gutter    // run last, over each Line as every other Pass leaves it
 }
 
-// NewExecutor - an Executor over `stream` running `others` in order, then
-// `search`, then `gutter`.
-func NewExecutor(stream reader.Stream, search *Search, gutter *Gutter, others ...Pass) *Executor {
-	e := &Executor{Stream: stream, passes: others, search: search, gutter: gutter}
-	search.attach(shownHistory{e})
+// NewExecutor - an Executor over `stream` running the Filter, then `others` in
+// order, then the Search, whose Matches are styled by `renderer`, then the
+// Gutter.
+func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer, others ...Pass) *Executor {
+	passes := append([]Pass{newFilter()}, others...)
+	e := &Executor{Stream: stream, passes: passes, search: newSearch(renderer), gutter: newGutter()}
+	e.search.attach(shownHistory{e})
 	return e
 }
 
-// Update - hands `msg` to every Pass, then the Search, then the Gutter, and
-// returns their errors joined.
+// Update - hands `msg` to the Filter, then every other Pass, then the Search,
+// then the Gutter, and returns their errors joined.
 func (e *Executor) Update(msg any) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -69,7 +73,7 @@ func (e *Executor) Lines() []reader.Line {
 }
 
 // runOthers - copies of `lines` after every Pass but the Search and the
-// Gutter. Callers hold mu.
+// Gutter, the Filter first. Callers hold mu.
 func (e *Executor) runOthers(lines []reader.Line) []reader.Line {
 	for i := range lines {
 		lines[i].Shown = lines[i].Text

@@ -40,10 +40,10 @@ type history interface {
 	PinCentredOn(number int)         // Pins the Window centred on line `number`
 }
 
-// Search - the Pass marking where the Search regex matches each Line, and
+// search - the Pass marking where the Search regex matches each Line, and
 // highlighting each Match. It steps between Lines with a Match, scanning the
 // History (see docs/adr/0007).
-type Search struct {
+type search struct {
 	regex     *regexp.Regexp // nil while idle
 	current   int            // Line Number of the Current Line; -1 if none
 	seen      seen           // the Lines with a Match found so far
@@ -54,9 +54,9 @@ type Search struct {
 	highlight lipgloss.Style // how each Match is shown
 }
 
-// NewSearch - an idle Search, whose Matches are styled by `renderer`.
-func NewSearch(renderer *lipgloss.Renderer) *Search {
-	return &Search{
+// newSearch - an idle Search, whose Matches are styled by `renderer`.
+func newSearch(renderer *lipgloss.Renderer) *search {
+	return &search{
 		current: -1,
 		dropped: -1,
 		highlight: renderer.NewStyle().
@@ -66,7 +66,7 @@ func NewSearch(renderer *lipgloss.Renderer) *Search {
 }
 
 // attach - gives the Search the History to step through.
-func (s *Search) attach(h history) {
+func (s *search) attach(h history) {
 	s.history = h
 }
 
@@ -76,7 +76,7 @@ func (s *Search) attach(h history) {
 // a Match found so far (see docs/adr/0007). Follow drops the Current Line. On
 // SearchFor, searches for its regex, or goes idle if it is empty; a regex that
 // does not compile leaves the Search idle and is returned as the error.
-func (s *Search) Update(msg any) error {
+func (s *search) Update(msg any) error {
 	switch msg.(type) {
 	case PreviousMatch:
 		s.scan(s.stepOlder)
@@ -117,7 +117,7 @@ func (s *Search) Update(msg any) error {
 // Run - sets the Matches of each line in its shown text, then highlights them
 // there; empty matches are dropped. Marks the Current Line for the Gutter.
 // Leaves the lines as they are while idle.
-func (s *Search) Run(lines []reader.Line) []reader.Line {
+func (s *search) Run(lines []reader.Line) []reader.Line {
 	if s.regex == nil {
 		return lines
 	}
@@ -131,7 +131,7 @@ func (s *Search) Run(lines []reader.Line) []reader.Line {
 }
 
 // matches - where the regex matches `shown`; empty matches are dropped.
-func (s *Search) matches(shown string) []reader.Match {
+func (s *search) matches(shown string) []reader.Match {
 	var matches []reader.Match
 	for _, at := range s.regex.FindAllStringIndex(shown, -1) {
 		if at[0] < at[1] {
@@ -143,7 +143,7 @@ func (s *Search) matches(shown string) []reader.Match {
 
 // highlighted - the shown text of `line` with each of its Matches
 // highlighted.
-func (s *Search) highlighted(line reader.Line) string {
+func (s *search) highlighted(line reader.Line) string {
 	var text strings.Builder
 	from := 0
 	for _, match := range line.Matches {
@@ -156,7 +156,7 @@ func (s *Search) highlighted(line reader.Line) string {
 }
 
 // scan - runs `step` unless a scan is already running.
-func (s *Search) scan(step func(gen int)) {
+func (s *search) scan(step func(gen int)) {
 	if s.scanning {
 		return
 	}
@@ -170,7 +170,7 @@ func (s *Search) scan(step func(gen int)) {
 
 // read - the lines in [from, to); `false` if a message other than a step
 // reached the Search meanwhile.
-func (s *Search) read(gen, from, to int) ([]reader.Line, bool) {
+func (s *search) read(gen, from, to int) ([]reader.Line, bool) {
 	lines := s.history.Read(from, to)
 	return lines, gen == s.gen
 }
@@ -178,7 +178,7 @@ func (s *Search) read(gen, from, to int) ([]reader.Line, bool) {
 // findCurrentLine - while a Search has no Current Line, makes the newest Line
 // with a Match at or above the Window's bottom Line the Current Line, and
 // centres the Window on it.
-func (s *Search) findCurrentLine(gen int) {
+func (s *search) findCurrentLine(gen int) {
 	if !s.searching() || s.current >= 0 {
 		return
 	}
@@ -195,7 +195,7 @@ func (s *Search) findCurrentLine(gen int) {
 // stepOlder - makes the previous Line with a Match the Current Line and
 // centres the Window on it; does nothing at the oldest one. Finds the Current
 // Line if there is none.
-func (s *Search) stepOlder(gen int) {
+func (s *search) stepOlder(gen int) {
 	if s.dropUnreadCurrentLine() || s.current < 0 && s.dropped >= 0 {
 		return
 	}
@@ -212,7 +212,7 @@ func (s *Search) stepOlder(gen int) {
 // stepNewer - makes the next Line with a Match the Current Line and centres
 // the Window on it; does nothing at the newest one. Finds the Current Line if
 // there is none.
-func (s *Search) stepNewer(gen int) {
+func (s *search) stepNewer(gen int) {
 	if !s.searching() {
 		return
 	}
@@ -235,7 +235,7 @@ func (s *Search) stepNewer(gen int) {
 // found so far, if it can no longer be read (the Log File failed to read);
 // stepping newer then starts from the oldest line that can. `true` if it was
 // dropped.
-func (s *Search) dropUnreadCurrentLine() bool {
+func (s *search) dropUnreadCurrentLine() bool {
 	current := s.current
 	if current < 0 || current >= s.history.First() {
 		return false
@@ -250,7 +250,7 @@ func (s *Search) dropUnreadCurrentLine() bool {
 // `after`, up to the newest line: one the Search remembers, or else one found
 // by reading the History a batch at a time. `false` if there is none, or the
 // scan was cancelled.
-func (s *Search) findNewer(gen, after int) (int, bool) {
+func (s *search) findNewer(gen, after int) (int, bool) {
 	seen := s.seenFrom(after + 1)
 	if i, _ := slices.BinarySearch(seen.lines, after+1); i < len(seen.lines) {
 		return seen.lines[i], true
@@ -274,7 +274,7 @@ func (s *Search) findNewer(gen, after int) (int, bool) {
 // findOlder - the Line Number of the newest Line with a Match older than line
 // `before`: one the Search remembers, or else one found by reading the History
 // a batch at a time. `false` if there is none, or the scan was cancelled.
-func (s *Search) findOlder(gen, before int) (int, bool) {
+func (s *search) findOlder(gen, before int) (int, bool) {
 	seen := s.seenFrom(before)
 	if i, _ := slices.BinarySearch(seen.lines, before); i > 0 {
 		return seen.lines[i-1], true
@@ -298,7 +298,7 @@ func (s *Search) findOlder(gen, before int) (int, bool) {
 
 // withMatch - the Line Numbers of the Lines in `lines` with a Match that the
 // Filter does not hide.
-func (s *Search) withMatch(lines []reader.Line) []int {
+func (s *search) withMatch(lines []reader.Line) []int {
 	var numbers []int
 	for _, line := range lines {
 		if !line.Filter.Hide && len(s.matches(line.Shown)) > 0 {
@@ -318,7 +318,7 @@ type seen struct {
 
 // seenFrom - what has been found so far, if it reaches line `number`; else
 // forgets it and starts again there.
-func (s *Search) seenFrom(number int) *seen {
+func (s *search) seenFrom(number int) *seen {
 	if number < s.seen.from || number > s.seen.to {
 		s.seen = seen{from: number, to: number}
 	}
@@ -326,6 +326,6 @@ func (s *Search) seenFrom(number int) *seen {
 }
 
 // searching - whether a regex is being searched for.
-func (s *Search) searching() bool {
+func (s *search) searching() bool {
 	return s.regex != nil
 }

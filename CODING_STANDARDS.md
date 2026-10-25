@@ -7,7 +7,7 @@ The rules every change to logctrl is reviewed against. Each rule has an ID to ci
 - **Scope.** The rules apply to the code a change adds or touches. Existing code that breaks a rule is listed under [Known exceptions](#known-exceptions), and isn't flagged in a diff that doesn't touch it.
 - **House overrides upstream.** A rule tagged **house** is how this repo does it, even where the upstream guide says otherwise; the rule names the upstream rule it overrides, so a review doesn't flag it.
 - **Tooling first.** Anything `make test` already catches (`gofmt`, `go vet`) is not repeated here.
-- **Domain and design.** Names use the terms in [`GLOSSARY.md`](GLOSSARY.md); decisions in [`docs/adr/`](docs/adr/) bind, and are changed by a new ADR, not by a diff.
+- **Domain and design.** Names use the terms in [`GLOSSARY.md`](GLOSSARY.md); decisions in [`docs/adr/`](docs/adr/) bind. A diff may add an `Amended (#N):` paragraph or Consequence to an ADR when it refines the decision without reversing it, naming the issue that changed it; a decision reversed or replaced gets a new ADR that supersedes the old one.
 - **Workflow** (issues, commits, docs to update) is in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 Source tags:

@@ -92,7 +92,7 @@ func numbers(lines []reader.Line) string {
 
 func Test_ExecutorSearchForKeepsWindowFollowingWithNoCurrentLine(t *testing.T) {
 	stream, more := feed(t, 5, numbered(20, 12, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
@@ -114,7 +114,7 @@ func Test_ExecutorFirstStepCentresWindowOnNewestLineWithMatchAtOrAboveBottom(t *
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stream, more := feed(t, 5, numbered(20, 12, 16)...)
-			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+			exec := cmd.NewExecutor(stream, testutil.Colors())
 			if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 				t.Fatal(err)
 			}
@@ -133,7 +133,7 @@ func Test_ExecutorFirstStepCentresWindowOnNewestLineWithMatchAtOrAboveBottom(t *
 
 func Test_ExecutorFollowDropsCurrentLineKeepingMatches(t *testing.T) {
 	stream, more := feed(t, 5, numbered(20, 12, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err")
 	testutil.Equal(t, 16, currentLine(exec))
 
@@ -151,7 +151,7 @@ func Test_ExecutorFollowDropsCurrentLineKeepingMatches(t *testing.T) {
 
 func Test_ExecutorSearchCentresWindowOnNewestLineWithMatchInIt(t *testing.T) {
 	stream, more := feed(t, 5, numbered(20, 12, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	enter(t, exec, "err")
 	more("ok 20")
@@ -166,7 +166,7 @@ func Test_ExecutorSearchLooksBackForLineWithMatchWhenWindowHasNone(t *testing.T)
 	// 12,000 lines: the Live Buffer holds the newest 10,000; line 500 is only in
 	// the Log File
 	stream, _ := feed(t, 5, numbered(12_000, 300, 500)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	enter(t, exec, "err")
 
@@ -175,7 +175,7 @@ func Test_ExecutorSearchLooksBackForLineWithMatchWhenWindowHasNone(t *testing.T)
 
 func Test_ExecutorSearchKeepsWindowFollowingWhenNoLineMatches(t *testing.T) {
 	stream, more := feed(t, 3, numbered(10)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	enter(t, exec, "err")
 	more("ok 10")
@@ -197,7 +197,7 @@ func currentLine(exec *cmd.Executor) int {
 
 func Test_ExecutorPreviousMatchStepsToOlderLineWithMatch(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(30, 3, 10, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "r") // "err" has two Matches
 	testutil.Equal(t, 16, currentLine(exec))
 
@@ -219,7 +219,7 @@ func Test_ExecutorPreviousMatchStepsToOlderLineWithMatch(t *testing.T) {
 
 func Test_ExecutorNextMatchStepsToNewerLineWithMatchIncludingLinesArrivedSince(t *testing.T) {
 	stream, more := feed(t, 5, numbered(20, 3, 10)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err")
 	exec.Update(cmd.PreviousMatch{})
 	testutil.Equal(t, 3, currentLine(exec))
@@ -244,7 +244,7 @@ func Test_ExecutorNextMatchStepsToNewerLineWithMatchIncludingLinesArrivedSince(t
 
 func Test_ExecutorFirstStepFindsLineWithMatchArrivedSinceNoneMatched(t *testing.T) {
 	stream, more := feed(t, 3, numbered(10)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err")
 	more(numbered(20, 15)[10:]...)
 
@@ -264,7 +264,7 @@ func Test_ExecutorStepsNowhereWhileNoSearch(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stream, more := feed(t, 3, numbered(10, 2)...)
-			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+			exec := cmd.NewExecutor(stream, testutil.Colors())
 			for _, msg := range test.updates {
 				exec.Update(msg)
 			}
@@ -294,7 +294,7 @@ func (c *counted) Read(from, to int) []reader.Line {
 func Test_ExecutorRemembersLinesWithMatchFoundUntilPassesAreUpdated(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(3_000, 100, 2_900)...)
 	reads := &counted{Stream: stream}
-	exec := cmd.NewExecutor(reads, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(reads, testutil.Colors())
 	enter(t, exec, "err")
 	exec.Update(cmd.PreviousMatch{})
 	testutil.Equal(t, 100, currentLine(exec))
@@ -329,7 +329,7 @@ func (c *cutOff) First() int {
 func Test_ExecutorDropsCurrentLineOnceItCannotBeRead(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(3_000, 100, 200, 2_900)...)
 	unread := &cutOff{Stream: stream}
-	exec := cmd.NewExecutor(unread, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(unread, testutil.Colors())
 	enter(t, exec, "err")
 	exec.Update(cmd.PreviousMatch{})
 	exec.Update(cmd.PreviousMatch{})
@@ -382,7 +382,7 @@ func within(t *testing.T, what string, do func()) {
 func Test_ExecutorSearchForCancelsStepInFlight(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(3_000, 100, 2_900)...)
 	gate := newGated(stream)
-	exec := cmd.NewExecutor(gate, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(gate, testutil.Colors())
 	enter(t, exec, "err")
 
 	gate.armed.Store(true)
@@ -406,7 +406,7 @@ func Test_ExecutorSearchForCancelsStepInFlight(t *testing.T) {
 func Test_ExecutorIgnoresStepWhileScanRuns(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(3_000, 100, 2_900, 2_950)...)
 	gate := newGated(stream)
-	exec := cmd.NewExecutor(gate, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(gate, testutil.Colors())
 	enter(t, exec, "err")
 	exec.Update(cmd.PreviousMatch{}) // to 2900, remembered
 	testutil.Equal(t, 2_900, currentLine(exec))
@@ -430,7 +430,7 @@ func Test_ExecutorIgnoresStepWhileScanRuns(t *testing.T) {
 
 func Test_ExecutorNextMatchFindsFirstLineWhenSearchStartedBeforeAnyArrived(t *testing.T) {
 	stream, more := feed(t, 3)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err")
 	more("err 0", "ok 1")
 
@@ -442,7 +442,7 @@ func Test_ExecutorNextMatchFindsFirstLineWhenSearchStartedBeforeAnyArrived(t *te
 func Test_ExecutorShowsStreamWindowWhileNoSearch(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1\nok 2")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	testutil.Equal(t, "error 1\nok 2", shown(exec))
 	testutil.Equal(t, "[[] []]", matches(exec.Lines()))
@@ -451,7 +451,7 @@ func Test_ExecutorShowsStreamWindowWhileNoSearch(t *testing.T) {
 func Test_ExecutorSearchMarksMatchesInWindowKeepingText(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1\nok 2\n2 errors")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
@@ -483,7 +483,7 @@ func Test_ExecutorSearchMarksEachMatchOfRegex(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			stream := fakestream.New()
 			stream.SetWindow(test.text)
-			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+			exec := cmd.NewExecutor(stream, testutil.Colors())
 			if err := exec.Update(cmd.SearchFor{Regex: test.regex}); err != nil {
 				t.Fatalf("SearchFor(%q) - %v", test.regex, err)
 			}
@@ -496,7 +496,7 @@ func Test_ExecutorSearchMarksEachMatchOfRegex(t *testing.T) {
 func Test_ExecutorSearchMarksLinesThatComeIntoWindow(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("ok 1")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +509,7 @@ func Test_ExecutorSearchMarksLinesThatComeIntoWindow(t *testing.T) {
 func Test_ExecutorEmptyRegexEndsSearch(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +524,7 @@ func Test_ExecutorEmptyRegexEndsSearch(t *testing.T) {
 func Test_ExecutorMessageNoPassKnowsChangesNothing(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
 	}
@@ -539,7 +539,7 @@ func Test_ExecutorMessageNoPassKnowsChangesNothing(t *testing.T) {
 func Test_ExecutorBadRegexEndsSearchWithError(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error( 1")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +554,7 @@ func Test_ExecutorBadRegexEndsSearchWithError(t *testing.T) {
 func Test_ExecutorSearchWhileWindowIsRead(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	// the UI reads the Window in a tea.Cmd while Update starts a Search
 	var wg sync.WaitGroup
@@ -574,7 +574,7 @@ func Test_ExecutorSearchWhileWindowIsRead(t *testing.T) {
 func Test_ExecutorHighlightsEachMatchInWindow(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1, error 2\nok 3")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	if err := exec.Update(cmd.SearchFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
@@ -597,7 +597,7 @@ func hidden(lines []reader.Line) string {
 func Test_ExecutorFilterHidesLinesWithoutMatchKeepingThemInWindow(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1\nok 2\n2 errors")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 
 	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
@@ -621,7 +621,7 @@ func Test_ExecutorFilterShowsEachLineItsRegexMatchesAnywhere(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			stream := fakestream.New()
 			stream.SetWindow(test.text)
-			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+			exec := cmd.NewExecutor(stream, testutil.Colors())
 			if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
 				t.Fatal(err)
 			}
@@ -635,31 +635,28 @@ func Test_ExecutorFilterShowsEachLineItsRegexMatchesAnywhere(t *testing.T) {
 	}
 }
 
-// hideAll - a Pass hiding every Line, run before the Filter.
-type hideAll struct{}
+// masked - a Pass replacing the shown text of every Line.
+type masked struct{}
 
-func (hideAll) Update(msg any) error { return nil }
+func (masked) Update(msg any) error { return nil }
 
-func (hideAll) Run(lines []reader.Line) []reader.Line {
+func (masked) Run(lines []reader.Line) []reader.Line {
 	for i := range lines {
-		lines[i].Filter.Hide = true
+		lines[i].Shown = "***"
 	}
 	return lines
 }
 
-func Test_ExecutorEndedFilterLeavesLinesAsPassesBeforeItLeaveThem(t *testing.T) {
+func Test_ExecutorFilterMatchesEachLineAsItCameFromLogFeed(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error 1\nok 2")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), hideAll{}, cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors(), masked{})
+
 	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := exec.Update(cmd.FilterFor{}); err != nil {
-		t.Fatal(err)
-	}
-
-	testutil.Equal(t, "[true true]", hidden(exec.Lines()))
+	testutil.Equal(t, "[false true]", hidden(exec.Lines()))
 }
 
 func Test_ExecutorFilterKeepsWindowMode(t *testing.T) {
@@ -673,7 +670,7 @@ func Test_ExecutorFilterKeepsWindowMode(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stream, more := feed(t, 5, numbered(20, 12, 16)...)
-			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+			exec := cmd.NewExecutor(stream, testutil.Colors())
 			if test.pinned {
 				enter(t, exec, "err") // centred on line 16
 			}
@@ -693,7 +690,7 @@ func Test_ExecutorFilterKeepsWindowMode(t *testing.T) {
 func Test_ExecutorBadRegexEndsFilterWithError(t *testing.T) {
 	stream := fakestream.New()
 	stream.SetWindow("error( 1\nok 2")
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
 		t.Fatal(err)
 	}
@@ -707,7 +704,7 @@ func Test_ExecutorBadRegexEndsFilterWithError(t *testing.T) {
 
 func Test_ExecutorStepsPassOverLinesTheFilterHides(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(30, 3, 10, 16, 22)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	if err := exec.Update(cmd.FilterFor{Regex: "[^0-9](3|16)$"}); err != nil { // hides lines 10 and 22
 		t.Fatal(err)
 	}
@@ -732,7 +729,7 @@ func Test_ExecutorStepsPassOverLinesTheFilterHides(t *testing.T) {
 
 func Test_ExecutorKeepsCurrentLineTheFilterHides(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(20, 3, 10, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err")
 	testutil.Equal(t, 16, currentLine(exec))
 
@@ -750,7 +747,7 @@ func Test_ExecutorKeepsCurrentLineTheFilterHides(t *testing.T) {
 
 func Test_ExecutorStepsOnFromCurrentLineTheFilterHides(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(20, 3, 10, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err")
 	if err := exec.Update(cmd.FilterFor{Regex: "[^0-9](3|10)$"}); err != nil { // hides line 16
 		t.Fatal(err)
@@ -765,7 +762,7 @@ func Test_ExecutorStepsOnFromCurrentLineTheFilterHides(t *testing.T) {
 
 func Test_ExecutorWindowLeavesOutLinesTheFilterHides(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(20, 12, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	enter(t, exec, "err") // the Window is centred on line 16, the Current Line
 
 	if err := exec.Update(cmd.FilterFor{Regex: "1[45]"}); err != nil {
@@ -784,7 +781,7 @@ func gutter(exec *cmd.Executor) string {
 
 func Test_ExecutorGutterMarksCurrentLineAndMovesWithIt(t *testing.T) {
 	stream, _ := feed(t, 5, numbered(20, 12, 16)...)
-	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter())
+	exec := cmd.NewExecutor(stream, testutil.Colors())
 	testutil.Equal(t, "  \n  \n  \n  \n  ", gutter(exec)) // no Search, no mark
 
 	enter(t, exec, "err") // the Window is centred on line 16

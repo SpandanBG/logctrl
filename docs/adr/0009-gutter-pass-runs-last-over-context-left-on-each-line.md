@@ -10,9 +10,10 @@ Amended: context left on a Line is not only for the Gutter. Any Pass may read co
 
 ## Consequences
 
-- The Search no longer runs last: the Gutter Pass runs after it. The Executor holds both apart from the other Passes (`NewExecutor(stream, search, gutter, others...)`), and hands every message to the Gutter last.
+- The Search no longer runs last: the Gutter Pass runs after it. The Executor holds both apart from the other Passes, and hands every message to the Gutter last.
 - A Pass that wants a mark in the Gutter adds its own context to `GutterContext`, and the Gutter Pass decides which cell it goes in. For now `>` goes in cell 1, beside the text.
 - The Current Line is no longer shown bold; the `>` beside it marks it, and its Matches are highlighted like any other.
 - `cmd.Stream.GetWindow` returns two strings, not one.
-- A Pass that reads another Pass's context depends on running after it. The Filter runs first, before every other Pass, so it matches each Line's text as it came from the Log Feed; `main` passes it first among the Passes before the Search. The Executor doesn't enforce the order of those Passes yet.
+- A Pass that reads another Pass's context depends on running after it. The Filter runs first, before every other Pass, so it matches each Line's text as it came from the Log Feed.
+- Amended (#17): the Executor builds the Filter, the Search and the Gutter itself, since every Executor needs them, and fixes their order: the Filter, then the other Passes it is given (`NewExecutor(stream, renderer, others...)`, the renderer styling the Search's Matches) in order, then the Search, then the Gutter. The same order holds for every message it hands on and for the Lines the Search's port reads.
 - With Lines left out, the Log View can show fewer Lines than its height until the Window grows by the number of hidden Lines (Filter Phase-3).

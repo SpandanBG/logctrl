@@ -82,7 +82,7 @@ Showing only the Lines that match a regex the user types; the other Lines are hi
 _Avoid_: grep, search, hide rule
 
 **Pass**:
-Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes. The Search runs over each Line as the formatting Passes leave it, and the marks in the Gutter are worked out last, from each Line as every other Pass leaves it.
+Processing run over each Line in the Window before it is shown, such as formatting it or a Search; every Pass runs again whenever the Window changes. The Filter runs first, matching each Line as it came from the Log Feed; the Search runs over each Line as the formatting Passes leave it, and the marks in the Gutter are worked out last, from each Line as every other Pass leaves it.
 _Avoid_: command, stage, step
 
 **Log View**:

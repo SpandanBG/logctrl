@@ -11,21 +11,21 @@ type FilterFor struct {
 	Regex string
 }
 
-// Filter - the Pass hiding each Line whose shown text the Filter regex does
+// filter - the Pass hiding each Line whose shown text the Filter regex does
 // not match.
-type Filter struct {
+type filter struct {
 	regex *regexp.Regexp // nil while idle
 }
 
-// NewFilter - an idle Filter.
-func NewFilter() *Filter {
-	return &Filter{}
+// newFilter - an idle Filter.
+func newFilter() *filter {
+	return &filter{}
 }
 
 // Update - on FilterFor, filters for its regex, or goes idle if it is empty; a
 // regex that does not compile leaves the Filter idle and is returned as the
 // error.
-func (f *Filter) Update(msg any) error {
+func (f *filter) Update(msg any) error {
 	filterFor, ok := msg.(FilterFor)
 	if !ok {
 		return nil
@@ -44,7 +44,7 @@ func (f *Filter) Update(msg any) error {
 
 // Run - hides each line whose shown text the regex does not match. Leaves the
 // lines as they are while idle.
-func (f *Filter) Run(lines []reader.Line) []reader.Line {
+func (f *filter) Run(lines []reader.Line) []reader.Line {
 	if f.regex == nil {
 		return lines
 	}

@@ -3,7 +3,7 @@ package components
 import (
 	"strings"
 
-	"github.com/SpandanBG/logctrl/reader"
+	"github.com/SpandanBG/logctrl/headless"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -16,7 +16,7 @@ type gutterView struct {
 }
 
 func (g gutterView) View() string {
-	blank := strings.Repeat(" ", reader.GutterWidth)
+	blank := strings.Repeat(" ", headless.GutterWidth)
 	rows := make([]string, g.height)
 	for i := range rows {
 		rows[i] = blank

@@ -12,6 +12,7 @@ import (
 
 	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
+	"github.com/SpandanBG/logctrl/headless"
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/SpandanBG/logctrl/ui"
 	"github.com/SpandanBG/logctrl/utils"
@@ -110,8 +111,8 @@ func startChildProcess(keymap []config.Entry) {
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
 	renderer := lipgloss.DefaultRenderer()
-	stream := cmd.NewExecutor(reader.NewStream(logFeed), renderer)
-	app, exit := ui.NewUI(stream, keymap, renderer)
+	logs := headless.New(cmd.NewExecutor(reader.NewStream(logFeed), renderer))
+	app, exit := ui.NewUI(logs, keymap, renderer)
 	defer exit()
 
 	if _, err := app.Run(); err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
+	"github.com/SpandanBG/logctrl/headless"
 	"github.com/SpandanBG/logctrl/internal/logfeed"
 	"github.com/SpandanBG/logctrl/internal/logview"
 	"github.com/SpandanBG/logctrl/internal/testutil"
@@ -79,7 +80,7 @@ func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Mo
 		t.Fatal(err)
 	}
 
-	model := tea.Model(newModel(cmd.NewExecutor(stream, testutil.Colors()), keymap, testutil.Colors()))
+	model := tea.Model(newModel(headless.New(cmd.NewExecutor(stream, testutil.Colors())), keymap, testutil.Colors()))
 	runtime.Run(model.Init())
 
 	return runtime.Settle(model), feed, runtime

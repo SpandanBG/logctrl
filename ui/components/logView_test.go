@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/SpandanBG/logctrl/cmd"
+	"github.com/SpandanBG/logctrl/headless"
 	"github.com/SpandanBG/logctrl/internal/logfeed"
 	"github.com/SpandanBG/logctrl/internal/logview"
 	"github.com/SpandanBG/logctrl/internal/testutil"
@@ -17,16 +18,16 @@ import (
 
 // startLogView - a Log View under a toolbar on an 80x30 terminal over the
 // real Executor, started the way the tea runtime starts it.
-func startLogView(t *testing.T) (tea.Model, *cmd.Executor, *logfeed.Feed, *testutil.Runtime) {
+func startLogView(t *testing.T) (tea.Model, *headless.Logs, *logfeed.Feed, *testutil.Runtime) {
 	t.Helper()
 	stream, feed := logfeed.New(t)
-	exec := cmd.NewExecutor(stream, testutil.Colors())
+	logs := headless.New(cmd.NewExecutor(stream, testutil.Colors()))
 	runtime := testutil.NewRuntime(80, 30)
 
-	logView := components.NewLogView(ui.SizeRatio(1), ui.SizeModifier(-1), exec, testutil.Colors())
+	logView := components.NewLogView(ui.SizeRatio(1), ui.SizeModifier(-1), logs, testutil.Colors())
 	runtime.Run(logView.Init())
 
-	return runtime.Settle(logView), exec, feed, runtime
+	return runtime.Settle(logView), logs, feed, runtime
 }
 
 // arrive - writes `lines` to the Log Feed and settles `model` until they have
@@ -50,6 +51,15 @@ func numbered(n int) []string {
 func update(model tea.Model, runtime *testutil.Runtime, msg tea.Msg) tea.Model {
 	model, cmd := model.Update(msg)
 	runtime.Run(cmd)
+	return runtime.Settle(model)
+}
+
+// change - hands `msg` to `logs`, as the layout does, and settles `model`.
+func change(t *testing.T, model tea.Model, runtime *testutil.Runtime, logs *headless.Logs, msg any) tea.Model {
+	t.Helper()
+	if err := logs.Update(msg); err != nil {
+		t.Fatal(err)
+	}
 	return runtime.Settle(model)
 }
 
@@ -94,30 +104,22 @@ func Test_LogViewResizesWindowWhenItsSizeChanges(t *testing.T) {
 	testutil.Equal(t, fmt.Sprint(numbered(41)[30:]), fmt.Sprint(logview.ShownLines(logView.View())))
 }
 
-func Test_LogViewScrollMovesWindowByItsLines(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		scrolls  []components.TeaScroll
-		expected string // the bottom Line shown
-	}{
-		{name: "up", scrolls: []components.TeaScroll{-1}, expected: "ok 38"},
-		{name: "down", scrolls: []components.TeaScroll{-3, 1}, expected: "ok 37"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			logView, _, feed, runtime := startLogView(t)
-			logView = arrive(t, logView, runtime, feed, numbered(40)...)
+func Test_LogViewShowsShrunkWindowWithoutWaitingForNewLines(t *testing.T) {
+	logView, _, feed, runtime := startLogView(t)
+	logView = arrive(t, logView, runtime, feed, numbered(40)...)
 
-			for _, scroll := range test.scrolls {
-				logView = update(logView, runtime, scroll)
-			}
+	logView = update(logView, runtime, components.TeaLogSizeUpdate{
+		Width:  ui.SizeRatio(1),
+		Height: ui.SizeModifier(-17),
+	})
 
-			testutil.Equal(t, test.expected, logview.Bottom(logView.View()))
-		})
-	}
+	// 30 rows - 17 (toolbar + prompt) - 2 border rows
+	testutil.Equal(t, 11, len(logview.Rows(logView.View())))
+	testutil.Equal(t, fmt.Sprint(numbered(40)[29:]), fmt.Sprint(logview.ShownLines(logView.View())))
 }
 
 func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
-	logView, _, feed, runtime := startLogView(t)
+	logView, logs, feed, runtime := startLogView(t)
 	logView = arrive(t, logView, runtime, feed, "older line")
 	logView = update(logView, runtime, components.TeaLogSizeUpdate{
 		Width:  ui.SizeRatio(1),
@@ -125,38 +127,35 @@ func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
 	})
 	logView = arrive(t, logView, runtime, feed, "newest line")
 
-	logView = update(logView, runtime, components.TeaScroll(-1))
+	logView = change(t, logView, runtime, logs, cmd.Scroll{N: -1})
 
 	testutil.Equal(t, "[older line]", fmt.Sprint(logview.ShownLines(logView.View())))
 }
 
 func Test_LogViewFollowShowsNewestLinesWithoutWaitingForNewLines(t *testing.T) {
-	logView, _, feed, runtime := startLogView(t)
+	logView, logs, feed, runtime := startLogView(t)
 	logView = arrive(t, logView, runtime, feed, numbered(40)...)
-	logView = update(logView, runtime, components.TeaScroll(-1))
+	logView = change(t, logView, runtime, logs, cmd.Scroll{N: -1})
+	testutil.Equal(t, "ok 38", logview.Bottom(logView.View()))
 
-	logView = update(logView, runtime, components.TeaFollow{})
+	logView = change(t, logView, runtime, logs, cmd.Follow{})
 
 	testutil.Equal(t, "ok 39", logview.Bottom(logView.View()))
 }
 
 // stepTo - makes the Line matching `regex` the Current Line, as stepping to
-// it does, and redraws the Log View.
-func stepTo(t *testing.T, model tea.Model, runtime *testutil.Runtime, exec *cmd.Executor, regex string) tea.Model {
+// it does.
+func stepTo(t *testing.T, model tea.Model, runtime *testutil.Runtime, logs *headless.Logs, regex string) tea.Model {
 	t.Helper()
-	for _, msg := range []any{cmd.SearchFor{Regex: regex}, cmd.PreviousMatch{}} {
-		if err := exec.Update(msg); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return update(model, runtime, components.TeaLogRefresh{})
+	model = change(t, model, runtime, logs, cmd.SearchFor{Regex: regex})
+	return change(t, model, runtime, logs, cmd.PreviousMatch{})
 }
 
 func Test_LogViewShowsEachLinesGutterBesideIt(t *testing.T) {
-	logView, exec, feed, runtime := startLogView(t)
+	logView, logs, feed, runtime := startLogView(t)
 	logView = arrive(t, logView, runtime, feed, numbered(40)...) // fills the Window, Pinned or not
 
-	logView = stepTo(t, logView, runtime, exec, "39")
+	logView = stepTo(t, logView, runtime, logs, "39")
 
 	rows := strings.Split(ansi.Strip(logView.View()), "\n")
 	testutil.Equal(t, 30-1, len(rows))

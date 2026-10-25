@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SpandanBG/logctrl/reader"
+	"github.com/SpandanBG/logctrl/headless"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -27,8 +27,8 @@ func ShownLines(view string) []string {
 	var lines []string
 	for _, row := range Rows(view) {
 		cells := []rune(row)
-		if len(cells) > reader.GutterWidth {
-			lines = append(lines, string(cells[reader.GutterWidth:]))
+		if len(cells) > headless.GutterWidth {
+			lines = append(lines, string(cells[headless.GutterWidth:]))
 		}
 	}
 	return lines
@@ -49,8 +49,8 @@ func Bottom(view string) string {
 func Marked(view string) string {
 	for _, row := range Rows(view) {
 		cells := []rune(row)
-		if len(cells) >= reader.GutterWidth && strings.ContainsRune(string(cells[:reader.GutterWidth]), '>') {
-			return string(cells[reader.GutterWidth:])
+		if len(cells) >= headless.GutterWidth && strings.ContainsRune(string(cells[:headless.GutterWidth]), '>') {
+			return string(cells[headless.GutterWidth:])
 		}
 	}
 	return ""

@@ -27,7 +27,7 @@ Full rules: `CODING_STANDARDS.md` (Go, clean code, tests and TDD, CLI; each rule
 
 ## Architecture
 
-`logctrl` is a terminal UI log viewer: a parent process puts `/dev/tty` in raw mode and re-execs itself as a child, which reads the log stream from stdin and runs the BubbleTea UI. Read [`docs/architecture.md`](docs/architecture.md) before changing a package's role, a key interface (`reader.Stream`, `cmd.Stream`) or a key binding; it holds the data flow, each package's role, the interfaces and the built-in keys, and is updated with them.
+`logctrl` is a terminal UI log viewer: a parent process puts `/dev/tty` in raw mode and re-execs itself as a child, which reads the log stream from stdin and runs the BubbleTea UI. Read [`docs/architecture.md`](docs/architecture.md) before changing a package's role, a key interface (`reader.Stream`, `cmd.Stream`, `headless.Logs`) or a key binding; it holds the data flow, each package's role, the interfaces and the built-in keys, and is updated with them.
 
 Keys are dispatched by Action from the Keymap (ADR 0003): to bind a key in the UI, add an Action to `config/keymap.json`.
 

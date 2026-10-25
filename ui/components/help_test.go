@@ -54,14 +54,14 @@ func Test_HelpShowsEveryKeyWithItsDescriptionThenTheReservedQuitKeys(t *testing.
 func Test_HelpScrollMovesRowsWithinBoundsTableDriven(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		scrolls  []components.TeaScroll
+		scrolls  []components.TeaHelpScroll
 		expected []string
 	}{
 		{name: "starts at the top", scrolls: nil, expected: []string{"h Open the Help", "q Quit logctrl"}},
-		{name: "down", scrolls: []components.TeaScroll{1}, expected: []string{"q Quit logctrl", "k Scroll the Log View up"}},
-		{name: "down stops at the bottom", scrolls: []components.TeaScroll{1, 1, 1}, expected: []string{"k Scroll the Log View up", "ctrl+c/ctrl+d Quit logctrl"}},
-		{name: "up", scrolls: []components.TeaScroll{1, -1}, expected: []string{"h Open the Help", "q Quit logctrl"}},
-		{name: "up stops at the top", scrolls: []components.TeaScroll{-1}, expected: []string{"h Open the Help", "q Quit logctrl"}},
+		{name: "down", scrolls: []components.TeaHelpScroll{1}, expected: []string{"q Quit logctrl", "k Scroll the Log View up"}},
+		{name: "down stops at the bottom", scrolls: []components.TeaHelpScroll{1, 1, 1}, expected: []string{"k Scroll the Log View up", "ctrl+c/ctrl+d Quit logctrl"}},
+		{name: "up", scrolls: []components.TeaHelpScroll{1, -1}, expected: []string{"h Open the Help", "q Quit logctrl"}},
+		{name: "up stops at the top", scrolls: []components.TeaHelpScroll{-1}, expected: []string{"h Open the Help", "q Quit logctrl"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 of 4 rows
@@ -78,7 +78,7 @@ func Test_HelpScrollMovesRowsWithinBoundsTableDriven(t *testing.T) {
 
 func Test_HelpStartsAtTheTopWhenOpened(t *testing.T) {
 	help := newSizedHelp(keymap, 80, 5)
-	help, _ = help.Update(components.TeaScroll(1))
+	help, _ = help.Update(components.TeaHelpScroll(1))
 
 	help, _ = help.Update(components.TeaHelpOpen{})
 

@@ -14,6 +14,10 @@ import (
 // ----- Public tea.Msg
 type TeaHelpOpen struct{}
 
+// TeaHelpScroll - scroll the Help by this many rows: negative is up, positive is
+// down.
+type TeaHelpScroll int
+
 // TeaHelpSizeUpdate - gives the Help a new height modifier.
 type TeaHelpSizeUpdate struct {
 	Height ui.SizeI
@@ -56,7 +60,7 @@ func (h help) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TeaHelpOpen:
 		h.view.GotoTop()
 		return h, nil
-	case TeaScroll:
+	case TeaHelpScroll:
 		return h.scroll(int(msg))
 	case TeaHelpSizeUpdate:
 		h.height = msg.Height

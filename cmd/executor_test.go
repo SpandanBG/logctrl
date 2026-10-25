@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -48,10 +47,16 @@ func enter(t *testing.T, exec *cmd.Executor, regex string) {
 	}
 }
 
-// shown - the shown text of the Window, as the UI reads it.
+// shown - the shown text of each Line in the Window the Filter does not
+// hide, joined by newlines.
 func shown(exec *cmd.Executor) string {
-	shown, _ := exec.GetWindow()
-	return shown
+	var each []string
+	for _, line := range exec.Lines() {
+		if !line.Filter.Hide {
+			each = append(each, line.Shown)
+		}
+	}
+	return strings.Join(each, "\n")
 }
 
 // numbers - the Line Number of each Line.
@@ -517,25 +522,6 @@ func Test_ExecutorBadRegexEndsSearchWithError(t *testing.T) {
 	testutil.Equal(t, "[[]]", matches(exec.Lines()))
 }
 
-func Test_ExecutorSearchWhileWindowIsRead(t *testing.T) {
-	stream, _ := logfeed.Started(t, 1, "error 1")
-	exec := cmd.NewExecutor(stream, testutil.Colors())
-
-	// the UI reads the Window in a tea.Cmd while Update starts a Search
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for range 100 {
-			exec.GetWindow()
-		}
-	}()
-	for i := range 100 {
-		exec.Update(cmd.SearchFor{Regex: fmt.Sprint("err", i%2)})
-	}
-	wg.Wait()
-}
-
 func Test_ExecutorHighlightsEachMatchInWindow(t *testing.T) {
 	stream, _ := logfeed.Started(t, 2, "error 1, error 2", "ok 3")
 	exec := cmd.NewExecutor(stream, testutil.Colors())
@@ -720,23 +706,14 @@ func Test_ExecutorStepsOnFromCurrentLineTheFilterHides(t *testing.T) {
 	testutil.Equal(t, 10, currentLine(exec))
 }
 
-func Test_ExecutorWindowLeavesOutLinesTheFilterHides(t *testing.T) {
-	stream, _ := logfeed.Started(t, 5, numbered(20, 12, 16)...)
-	exec := cmd.NewExecutor(stream, testutil.Colors())
-	enter(t, exec, "err") // the Window is centred on line 16, the Current Line
-
-	if err := exec.Update(cmd.FilterFor{Regex: "1[45]"}); err != nil {
-		t.Fatal(err)
-	}
-
-	testutil.Equal(t, "ok 14\nok 15", shown(exec))
-	testutil.Equal(t, "  \n  ", gutter(exec)) // the hidden Current Line's mark goes with it
-}
-
-// gutter - the Gutter cells of the Window, as the UI reads them.
+// gutter - the Gutter cells of each Line in the Window, an empty cell as a
+// space, joined by newlines.
 func gutter(exec *cmd.Executor) string {
-	_, gutter := exec.GetWindow()
-	return gutter
+	var each []string
+	for _, line := range exec.Lines() {
+		each = append(each, strings.ReplaceAll(string(line.Gutter[:]), "\x00", " "))
+	}
+	return strings.Join(each, "\n")
 }
 
 func Test_ExecutorGutterMarksCurrentLineAndMovesWithIt(t *testing.T) {
@@ -835,7 +812,7 @@ func Test_ExecutorWindowStopsTakingInLinesOnceNoneCanBeRead(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			within(t, "GetWindow", func() { testutil.Equal(t, "", shown(exec)) })
+			within(t, "Lines", func() { testutil.Equal(t, "", shown(exec)) })
 		})
 	}
 }

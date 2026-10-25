@@ -2,21 +2,31 @@ package cmd
 
 import (
 	"errors"
-	"strings"
 	"sync"
 
 	"github.com/SpandanBG/logctrl/reader"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Stream - the Window as the UI sees it: after every Pass.
+// Stream - the Window after every Pass: its Lines() have every Pass run over
+// them and, while the Filter hides Lines, take in others to fill its height.
 type Stream interface {
 	reader.Stream
-	GetWindow() (shown, gutter string) // shown text and Gutter cells of the lines in the Window the Filter does not hide, after every Pass, each joined by newlines; while the Filter hides Lines, the Window takes in others to fill its height
-	Update(msg any) error              // hands `msg` to every Pass, such as SearchFor
+	Update(msg any) error // hands `msg` to every Pass, such as SearchFor
 }
 
 var _ Stream = (*Executor)(nil)
+
+// Scroll - the message Scrolling the Window N Lines: negative is up (older),
+// positive is down (newer).
+type Scroll struct {
+	N int
+}
+
+// Resize - the message making the Window Height Lines tall.
+type Resize struct {
+	Height int
+}
 
 // Pass - processing run over each Line in the Window before it is shown,
 // formatting its shown text. Update changes its state on a message of its own
@@ -70,22 +80,6 @@ func (e *Executor) Lines() []reader.Line {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.gutter.Run(e.search.Run(e.takeIn(e.runOthers(lines))))
-}
-
-// GetWindow - the shown text and the Gutter cells of the lines in the Window
-// the Filter does not hide, after every Pass, each joined by newlines.
-func (e *Executor) GetWindow() (shown, gutter string) {
-	lines := e.Lines()
-	each := make([]string, 0, len(lines))
-	cells := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if line.Filter.Hide {
-			continue
-		}
-		each = append(each, line.Shown)
-		cells = append(cells, gutterCells(line.Gutter))
-	}
-	return strings.Join(each, "\n"), strings.Join(cells, "\n")
 }
 
 // maxTakenIn - the most Lines beyond the Window a read takes in to fill it
@@ -184,16 +178,4 @@ func (e *Executor) runOthers(lines []reader.Line) []reader.Line {
 		lines = pass.Run(lines)
 	}
 	return lines
-}
-
-// gutterCells - the cells of a Gutter, an empty cell shown as a space.
-func gutterCells(gutter [reader.GutterWidth]rune) string {
-	var cells strings.Builder
-	for _, cell := range gutter {
-		if cell == 0 {
-			cell = ' '
-		}
-		cells.WriteRune(cell)
-	}
-	return cells.String()
 }

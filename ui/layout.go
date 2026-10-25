@@ -6,6 +6,7 @@ import (
 
 	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
+	"github.com/SpandanBG/logctrl/headless"
 	"github.com/SpandanBG/logctrl/ui/components"
 	ui "github.com/SpandanBG/logctrl/ui/utils"
 	tea "github.com/charmbracelet/bubbletea"
@@ -39,7 +40,7 @@ var barOrder = []components.Bar{components.FilterBar, components.SearchBar}
 // uiModel - the app: the Toolbar over the Log View (or the Help), then the
 // regex bars and the Prompt while they are shown.
 type uiModel struct {
-	stream       cmd.Stream
+	logs         *headless.Logs // the Window the Log View shows, and the Passes run over it
 	toolbar      tea.Model
 	logView      tea.Model
 	prompt       tea.Model
@@ -52,19 +53,19 @@ type uiModel struct {
 	filter       string // the regex being filtered for; "" if none
 }
 
-// NewUI - the app over `stream`, keyed by `keymap`, styled by `renderer`.
-func NewUI(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer) (
+// NewUI - the app over `logs`, keyed by `keymap`, styled by `renderer`.
+func NewUI(logs *headless.Logs, keymap []config.Entry, renderer *lipgloss.Renderer) (
 	app *tea.Program,
 	exit func(),
 ) {
 	app = tea.NewProgram(
-		newModel(stream, keymap, renderer),
+		newModel(logs, keymap, renderer),
 		tea.WithAltScreen(),
 	)
 
 	exit = func() {
 		app.Quit()
-		defer stream.Close()
+		defer logs.Close()
 	}
 
 	return
@@ -107,22 +108,22 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return u, nil
 			}
 			u.filter = msg.Regex
-			if err := u.stream.Update(cmd.FilterFor{Regex: msg.Regex}); err != nil {
+			if err := u.logs.Update(cmd.FilterFor{Regex: msg.Regex}); err != nil {
 				u.filter = ""
 				u, _ = u.updateBar(components.FilterBar, components.TeaRegexFailed{Err: err})
 			}
-			u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
 			return u, nil
 		}
 		if msg.Regex == u.regex {
 			return u, nil
 		}
 		u.regex = msg.Regex
-		if err := u.stream.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
+		if err := u.logs.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
 			u.regex = ""
 			u, _ = u.updateBar(components.SearchBar, components.TeaRegexFailed{Err: err})
 		}
-		return u.followLogView()
+		u.follow()
+		return u, nil
 	}
 
 	return u.batchUpdate(msg)
@@ -134,14 +135,16 @@ func (u uiModel) View() string {
 
 // ------------------------- Private
 
-func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Renderer) uiModel {
+// newModel - the app's model over `logs`, keyed by `keymap`, styled by
+// `renderer`, with the Help, the Prompt and the regex bars closed.
+func newModel(logs *headless.Logs, keymap []config.Entry, renderer *lipgloss.Renderer) uiModel {
 	actionOf := map[string]config.Action{}
 	for _, entry := range keymap {
 		actionOf[entry.Key] = entry.Action
 	}
 
 	return uiModel{
-		stream:   stream,
+		logs:     logs,
 		actionOf: actionOf,
 		toolbar: components.NewToolbar(
 			ui.SizeRatio(1),
@@ -151,7 +154,7 @@ func newModel(stream cmd.Stream, keymap []config.Entry, renderer *lipgloss.Rende
 		logView: components.NewLogView(
 			ui.SizeRatio(1),
 			ui.SizeModifier(-toolbarSize),
-			stream,
+			logs,
 			renderer,
 		),
 		prompt: components.NewPrompt(
@@ -179,12 +182,11 @@ func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case config.OpenPrompt:
 		return u.togglePrompt()
 	case config.ScrollUp:
-		return u.scrollLogView(-1)
+		u.scroll(-1)
 	case config.ScrollDown:
-		return u.scrollLogView(1)
+		u.scroll(1)
 	case config.Follow:
-		u.stream.Update(cmd.Follow{}) // before Following, so no scan Pins the Window after it
-		return u.followLogView()
+		u.follow()
 	case config.OpenSearch:
 		return u.openBar(components.SearchBar)
 	case config.OpenFilter:
@@ -207,29 +209,27 @@ func (u uiModel) step(msg any) (tea.Model, tea.Cmd) {
 	if !u.bars[components.SearchBar].Entered() {
 		return u, nil
 	}
-	return u.updateStream(msg)
+	return u.updateLogs(msg)
 }
 
-// updateStream - hands `msg` to the Stream in the background, as it may scan
-// the History, then redraws the Log View.
-func (u uiModel) updateStream(msg any) (tea.Model, tea.Cmd) {
-	stream := u.stream
+// updateLogs - hands `msg` to the Logs in the background, as it may scan
+// the History; the Log View redraws on the notice that follows.
+func (u uiModel) updateLogs(msg any) (tea.Model, tea.Cmd) {
+	logs := u.logs
 	return u, func() tea.Msg {
-		stream.Update(msg)
-		return components.TeaLogRefresh{}
+		logs.Update(msg) // stepping never fails
+		return nil
 	}
 }
 
-func (u uiModel) followLogView() (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	u.logView, cmd = u.logView.Update(components.TeaFollow{})
-	return u, cmd
+// follow - makes the Window Following, dropping the Current Line.
+func (u uiModel) follow() {
+	u.logs.Update(cmd.Follow{}) // Following never fails
 }
 
-func (u uiModel) scrollLogView(n int) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	u.logView, cmd = u.logView.Update(components.TeaScroll(n))
-	return u, cmd
+// scroll - Scrolls the Window `n` Lines.
+func (u uiModel) scroll(n int) {
+	u.logs.Update(cmd.Scroll{N: n}) // Scrolling never fails
 }
 
 func (u uiModel) receivePrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -257,7 +257,7 @@ func (u uiModel) receiveHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (u uiModel) scrollHelp(n int) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	u.help, cmd = u.help.Update(components.TeaScroll(n))
+	u.help, cmd = u.help.Update(components.TeaHelpScroll(n))
 	return u, cmd
 }
 
@@ -366,8 +366,7 @@ func (u uiModel) closeBar(which components.Bar) (tea.Model, tea.Cmd) {
 		u = u.endSearch()
 	case components.FilterBar:
 		u.filter = ""
-		u.stream.Update(cmd.FilterFor{}) // ending a Filter never fails
-		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+		u.logs.Update(cmd.FilterFor{}) // ending a Filter never fails
 	}
 	u, _ = u.updateBar(which, components.TeaRegexClose{})
 	return u.resizePanels()
@@ -384,14 +383,12 @@ func (u uiModel) cancelBar(which components.Bar) (tea.Model, tea.Cmd) {
 }
 
 // endSearch - ends the Search: once a regex has been entered, the Window
-// Follows; until then, the Log View redraws as it was.
+// Follows; until then, it keeps its mode.
 func (u uiModel) endSearch() uiModel {
 	u.regex = ""
-	u.stream.Update(cmd.SearchFor{}) // ending a Search never fails; before Following, so no scan Pins the Window after it
+	u.logs.Update(cmd.SearchFor{}) // ending a Search never fails
 	if u.bars[components.SearchBar].Entered() {
-		u.logView, _ = u.logView.Update(components.TeaFollow{})
-	} else {
-		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+		u.follow()
 	}
 	return u
 }

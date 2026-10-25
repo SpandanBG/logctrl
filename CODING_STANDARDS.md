@@ -50,7 +50,7 @@ Source tags:
 
 ### Types, interfaces and concurrency
 
-- **GO-15** An interface is defined in the package that uses it, holds only the methods that package calls, and appears once a second adapter exists (as `cmd.Stream` has the `Executor` and `fakestream.Stream`). Functions accept interfaces and return concrete types. _(CRC, GSG)_
+- **GO-15** An interface is defined in the package that uses it, holds only the methods that package calls, and appears once a second adapter exists (as `cmd.Pass`, used by the `Executor`, has the Filter and the Executor tests' `masked`). Functions accept interfaces and return concrete types. _(CRC, GSG)_
 - **GO-16** Choose value or pointer receivers deliberately: pointer when a method mutates the receiver or the type holds a lock; value for small immutable types and for `tea.Model`s, which bubbletea copies (house). Don't pass pointers just to save bytes. _(CRC, EG)_
 - **GO-17** Every goroutine has a clear exit: what stops it, and when. Prefer channels to coordinate; a mutex around shared state is fine where it's simpler. _(CRC, EG)_
 - **GO-18** A `defer` that releases a resource sits right after the line that acquires it. _(EG)_
@@ -88,7 +88,7 @@ Source tags:
 - **TDD-8** When cases vary only by data, the test is table-driven: named struct fields, one `t.Run` subtest per case. _(GSG; house in CLAUDE.md)_
 - **TDD-9** A failure message says what was being done, what came back and what was expected, so it can be read without opening the test. _(CRC "Useful Test Failures", GSG)_
 - **TDD-10** Test helpers call `t.Helper()`. Prefer `t.Error`, so one run shows every failure; use `t.Fatal` only when the checks after it would be meaningless. _(GSG)_
-- **TDD-11** _house_ Assert with the shared helpers in `internal/`: `testutil.Equal(t, expected, actual)` (expected first), `testutil.Runtime` to drive a `tea.Model`, `testutil.Colors` to compare styled output against literals, and `fakestream.Stream` in place of a real Stream. This overrides GSG's "no assertion libraries" and its got-before-want order.
+- **TDD-11** _house_ Assert with the shared helpers in `internal/`: `testutil.Equal(t, expected, actual)` (expected first), `testutil.Runtime` to drive a `tea.Model`, `testutil.Colors` to compare styled output against literals, `logfeed` for a real `reader.Stream` fed over a pipe (tests check what is shown, never which calls were made), and `logview` to read the Log View out of a rendered view. This overrides GSG's "no assertion libraries" and its got-before-want order.
 - **TDD-12** _house_ Test functions are named `Test_<Subject><Behaviour>` in the terms of `GLOSSARY.md`, as in `Test_StreamPinCentredOnLine`. GSG allows underscores in test names.
 - **TDD-13** Tests are fast, independent and repeatable, and pass under `-race`. They never touch the real `~/.config`, the network, or wall-clock timing beyond `testutil.Runtime`'s settle wait. _(CC; house)_
 - **TDD-14** Coverage, counted across packages by `make cover`, never drops below `COVER_MIN` in the `Makefile`. Raise `COVER_MIN` as coverage grows; never lower it to make a change pass. _(house)_
@@ -117,7 +117,8 @@ Existing code that breaks a rule above. Don't flag these in a diff that doesn't 
 | Rule | Where | What |
 |---|---|---|
 | GO-3 | `utils/`, `ui/utils/` | package names say nothing about what they hold |
-| GO-6 | `cmd.Stream.GetWindow` (and `Executor`, `fakestream.Stream`) | `Get` prefix |
+| GO-6 | `cmd.Stream.GetWindow` (and `Executor`) | `Get` prefix |
+| GO-15 | `cmd.Stream` | one adapter, the `Executor`, since #7 deleted `fakestream`; defined in `cmd`, not in `ui`, which uses it |
 | GO-8 | `main.go` (`ChildEnvVar`, `resizePty`, `startDataPump`) | missing or non-house doc comments |
 | CLI-9 | `main.go` `ChildEnvVar = "logctrl_child"` | lower-case environment variable ([#14](https://github.com/SpandanBG/logctrl/issues/14)) |
 | CLI-10 | `main.go` | no `-h` / `--help`; with nothing piped in, it waits on stdin ([#13](https://github.com/SpandanBG/logctrl/issues/13)) |

@@ -21,7 +21,7 @@ Full rules: `CODING_STANDARDS.md` (Go, clean code, tests and TDD, CLI; each rule
 - **Every behaviour change goes through `/tdd`**: no production change without a failing test first, one vertical slice at a time.
 - Test at seams (a package's public interface), not per file. Files with no behaviour of their own (constants, empty stubs, `main.go`) get no tests.
 - When a test is added for code that already exists, prove it can fail: `scripts/prove-fails.sh <file> <old> <new> <go test args>` breaks the code, runs the tests and restores it (exit 0 = caught).
-- Shared helpers live in `internal/`: `testutil.Equal`, `testutil.Runtime` (drives a `tea.Model` the way the tea runtime does, answering `tea.WindowSize()`), `testutil.Colors` (a lipgloss renderer that always outputs ANSI colors, so styled output can be compared against literals), and `fakestream.Stream` (an in-memory `cmd.Stream` for UI and Executor tests).
+- Shared helpers live in `internal/`: `testutil.Equal`, `testutil.Runtime` (drives a `tea.Model` the way the tea runtime does, answering `tea.WindowSize()`), `testutil.Colors` (a lipgloss renderer that always outputs ANSI colors, so styled output can be compared against literals), `logfeed` (a real `reader.Stream` fed over a pipe, for UI and Executor tests) and `logview` (reads the Log View's rows out of a rendered view).
 - Tests are table-driven where cases vary only by data; names use the terms in `GLOSSARY.md`.
 - CI (`.github/workflows/test.yml`) runs `make test` and `make cover`. Raise `COVER_MIN` in the `Makefile` as coverage grows; never lower it to make a change pass.
 

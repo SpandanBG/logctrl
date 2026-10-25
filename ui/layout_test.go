@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -11,7 +12,8 @@ import (
 
 	"github.com/SpandanBG/logctrl/cmd"
 	"github.com/SpandanBG/logctrl/config"
-	"github.com/SpandanBG/logctrl/internal/fakestream"
+	"github.com/SpandanBG/logctrl/internal/logfeed"
+	"github.com/SpandanBG/logctrl/internal/logview"
 	"github.com/SpandanBG/logctrl/internal/testutil"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -33,16 +35,16 @@ func keys(text string) tea.KeyMsg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(text)}
 }
 
-// startUI - the UI on an 80x30 terminal, started the way the tea runtime
-// starts it.
-func startUI(t *testing.T) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
+// startUI - the UI on an 80x30 terminal over the real Executor, started the
+// way the tea runtime starts it.
+func startUI(t *testing.T) (tea.Model, *logfeed.Feed, *testutil.Runtime) {
 	t.Helper()
 	return startSizedUI(t, 80, 30)
 }
 
-// startSizedUI - the UI on a `width` x `height` terminal, started the way the
-// tea runtime starts it.
-func startSizedUI(t *testing.T, width, height int) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
+// startSizedUI - the UI on a `width` x `height` terminal over the real
+// Executor, started the way the tea runtime starts it.
+func startSizedUI(t *testing.T, width, height int) (tea.Model, *logfeed.Feed, *testutil.Runtime) {
 	t.Helper()
 	return startRemappedUI(t, width, height, "[]")
 }
@@ -61,10 +63,11 @@ const remapped = `[
 ]`
 
 // startRemappedUI - the UI on a `width` x `height` terminal with `userKeymap`
-// as the user's Keymap file, started the way the tea runtime starts it.
-func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Model, *fakestream.Stream, *testutil.Runtime) {
+// as the user's Keymap file, over the real Executor, started the way the tea
+// runtime starts it.
+func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Model, *logfeed.Feed, *testutil.Runtime) {
 	t.Helper()
-	stream := fakestream.New()
+	stream, feed := logfeed.New(t)
 	runtime := testutil.NewRuntime(width, height)
 
 	path := filepath.Join(t.TempDir(), "keymap.json")
@@ -76,10 +79,47 @@ func startRemappedUI(t *testing.T, width, height int, userKeymap string) (tea.Mo
 		t.Fatal(err)
 	}
 
-	model := tea.Model(newModel(stream, keymap, testutil.Colors()))
+	model := tea.Model(newModel(cmd.NewExecutor(stream, testutil.Colors()), keymap, testutil.Colors()))
 	runtime.Run(model.Init())
 
-	return runtime.Settle(model), stream, runtime
+	return runtime.Settle(model), feed, runtime
+}
+
+// typeKeys - presses each key in `text` in turn, as the user types it.
+// Returns whether any of them quit the UI.
+func typeKeys(model tea.Model, runtime *testutil.Runtime, text string) (tea.Model, bool) {
+	quit := false
+	for _, key := range text {
+		var quits bool
+		model, quits = press(model, runtime, keys(string(key)))
+		quit = quit || quits
+	}
+	return model, quit
+}
+
+// arrive - writes `lines` to the Log Feed and settles `model` until they have
+// all arrived.
+func arrive(t *testing.T, model tea.Model, runtime *testutil.Runtime, feed *logfeed.Feed, lines ...string) tea.Model {
+	t.Helper()
+	feed.Write(lines...)
+	return runtime.SettleUntil(t, model, feed.Arrived)
+}
+
+// numbered - lines "ok 0".."ok n-1", but "err i" for each i in `errs`.
+func numbered(n int, errs ...int) []string {
+	lines := make([]string, n)
+	for i := range lines {
+		lines[i] = fmt.Sprint("ok ", i)
+		if slices.Contains(errs, i) {
+			lines[i] = fmt.Sprint("err ", i)
+		}
+	}
+	return lines
+}
+
+// logRows - how many rows tall the Log View is.
+func logRows(model tea.Model) int {
+	return len(logview.Rows(model.View()))
 }
 
 // press - sends `key` to the UI and settles it. Returns whether the UI quit.
@@ -155,21 +195,21 @@ func Test_UIQuitsOnQuitKeys(t *testing.T) {
 }
 
 func Test_UIFillsTerminalWithToolbarAndLogView(t *testing.T) {
-	model, stream, _ := startUI(t)
+	model, _, _ := startUI(t)
 
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
 	// 30 rows - 1 toolbar row - 2 border rows
-	testutil.Equal(t, 27, stream.Height())
+	testutil.Equal(t, 27, logRows(model))
 }
 
 func Test_UITabOpensPromptAndShrinksLogView(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, _, runtime := startUI(t)
 
 	model, _ = press(model, runtime, tab)
 
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
 	// 30 rows - 1 toolbar row - 16 prompt rows - 2 border rows
-	testutil.Equal(t, 11, stream.Height())
+	testutil.Equal(t, 11, logRows(model))
 }
 
 func Test_UISendsKeysToOpenPrompt(t *testing.T) {
@@ -184,7 +224,7 @@ func Test_UISendsKeysToOpenPrompt(t *testing.T) {
 }
 
 func Test_UIEscClosesPromptAndRestoresLogView(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, _, runtime := startUI(t)
 
 	model, _ = press(model, runtime, tab)
 	model, _ = press(model, runtime, keys("typed"))
@@ -192,42 +232,46 @@ func Test_UIEscClosesPromptAndRestoresLogView(t *testing.T) {
 
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "typed"))
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
-	testutil.Equal(t, 27, stream.Height())
+	testutil.Equal(t, 27, logRows(model))
 }
 
 func Test_UIScrollKeysScrollLogViewWhilePromptClosed(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, keys("k"))
 	model, _ = press(model, runtime, keys("k"))
-	press(model, runtime, keys("j"))
+	model, _ = press(model, runtime, keys("k"))
+	model, _ = press(model, runtime, keys("j"))
 
-	testutil.Equal(t, fmt.Sprint([]int{-1, -1, 1}), fmt.Sprint(stream.Scrolls()))
+	testutil.Equal(t, "ok 37", logview.Bottom(model.View()))
 }
 
 func Test_UIFollowKeyMakesLogViewFollowingWhilePromptClosed(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, keys("k"))
-	press(model, runtime, keys("G"))
+	model, _ = press(model, runtime, keys("G"))
 
-	testutil.Equal(t, 1, stream.Follows())
+	testutil.Equal(t, "ok 39", logview.Bottom(model.View()))
 }
 
 func Test_UIScrollKeysAreTypedWhilePromptOpen(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, tab)
-	model, _ = press(model, runtime, keys("jk"))
+	before := logview.Bottom(model.View())
+	model, _ = typeKeys(model, runtime, "jk")
 
-	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, before, logview.Bottom(model.View())) // the Window has not moved
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "jk"))
 }
 
 func Test_UIHelpKeyOpensHelpInPlaceOfLogView(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	stream.Notify(t, "a log line")
-	model = runtime.Settle(model)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, "a log line")
 
 	model, _ = press(model, runtime, keys("h"))
 
@@ -238,9 +282,8 @@ func Test_UIHelpKeyOpensHelpInPlaceOfLogView(t *testing.T) {
 }
 
 func Test_UIEscClosesHelpAndRestoresLogView(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	stream.Notify(t, "a log line")
-	model = runtime.Settle(model)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, "a log line")
 
 	model, _ = press(model, runtime, keys("h"))
 	model, _ = press(model, runtime, esc)
@@ -253,18 +296,20 @@ func Test_UIEscClosesHelpAndRestoresLogView(t *testing.T) {
 
 func Test_UIScrollKeysScrollHelpNotLogViewWhileHelpOpen(t *testing.T) {
 	// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 Help rows
-	model, stream, runtime := startSizedUI(t, 80, 5)
+	model, feed, runtime := startSizedUI(t, 80, 5)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, keys("h"))
 	model, _ = press(model, runtime, keys("j"))
 	model, _ = press(model, runtime, keys("j"))
 	model, _ = press(model, runtime, keys("k"))
-
 	view := ansi.Strip(model.View())
-	testutil.Equal(t, 0, len(stream.Scrolls()))
+	model, _ = press(model, runtime, esc)
+
 	testutil.Equal(t, false, strings.Contains(view, "Open the Help"))
 	testutil.Equal(t, true, strings.Contains(view, "Quit logctrl"))
 	testutil.Equal(t, true, strings.Contains(view, "Open the Prompt"))
+	testutil.Equal(t, "ok 39", logview.Bottom(model.View())) // the Log View did not scroll
 }
 
 func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
@@ -276,16 +321,19 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 		keys("/"),
 	} {
 		t.Run(key.String(), func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model, _ = press(model, runtime, keys("k"))
 			model, _ = press(model, runtime, keys("h"))
+			helpView := model.View()
 
 			model, quit := press(model, runtime, key)
+			view := model.View()
+			model, _ = press(model, runtime, esc)
 
 			testutil.Equal(t, false, quit)
-			testutil.Equal(t, 0, stream.Follows())
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "Scroll the Log View or the Help down"))
-			// the Prompt stayed closed: 30 rows - 1 toolbar row - 2 border rows
-			testutil.Equal(t, 27, stream.Height())
+			testutil.Equal(t, helpView, view)                        // no panel opened, nothing typed
+			testutil.Equal(t, "ok 38", logview.Bottom(model.View())) // the Window did not Follow
 		})
 	}
 }
@@ -352,16 +400,16 @@ func Test_UIOpensHelpOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
 }
 
 func Test_UIOpensAndClosesPromptOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
-	model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+	model, _, runtime := startRemappedUI(t, 80, 30, remapped)
 
 	model, _ = press(model, runtime, tab)
-	openedOnBuiltIn := stream.Height() != 27
+	openedOnBuiltIn := logRows(model) != 27
 	model, _ = press(model, runtime, keys("p"))
-	openedOnRemapped := stream.Height() != 27
+	openedOnRemapped := logRows(model) != 27
 	model, _ = press(model, runtime, esc)
-	closedOnBuiltIn := stream.Height() == 27
-	press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlX})
-	closedOnRemapped := stream.Height() == 27
+	closedOnBuiltIn := logRows(model) == 27
+	model, _ = press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlX})
+	closedOnRemapped := logRows(model) == 27
 
 	testutil.Equal(t, false, openedOnBuiltIn)
 	testutil.Equal(t, true, openedOnRemapped)
@@ -383,31 +431,36 @@ func Test_UIClosesHelpOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
 }
 
 func Test_UIScrollsLogViewOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
-	model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+	model, feed, runtime := startRemappedUI(t, 80, 30, remapped)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
+	model, _ = press(model, runtime, keys("u"))
+	model, _ = press(model, runtime, keys("u"))
+	model, _ = press(model, runtime, keys("u"))
 	model, _ = press(model, runtime, keys("k"))
+	model, _ = press(model, runtime, keys("n"))
 	model, _ = press(model, runtime, keys("j"))
-	model, _ = press(model, runtime, keys("u"))
-	model, _ = press(model, runtime, keys("u"))
-	press(model, runtime, keys("n"))
 
-	testutil.Equal(t, fmt.Sprint([]int{-1, -1, 1}), fmt.Sprint(stream.Scrolls()))
+	testutil.Equal(t, "ok 37", logview.Bottom(model.View()))
 }
 
 func Test_UIFollowsOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
-	model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+	model, feed, runtime := startRemappedUI(t, 80, 30, remapped)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model, _ = press(model, runtime, keys("u"))
 
 	model, _ = press(model, runtime, keys("G"))
-	followedOnBuiltIn := stream.Follows()
-	press(model, runtime, tea.KeyMsg{Type: tea.KeyEnd})
+	afterBuiltIn := logview.Bottom(model.View())
+	model, _ = press(model, runtime, tea.KeyMsg{Type: tea.KeyEnd})
 
-	testutil.Equal(t, 0, followedOnBuiltIn)
-	testutil.Equal(t, 1, stream.Follows())
+	testutil.Equal(t, "ok 38", afterBuiltIn)
+	testutil.Equal(t, "ok 39", logview.Bottom(model.View()))
 }
 
 func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 	// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 Help rows
-	model, stream, runtime := startRemappedUI(t, 80, 5, remapped)
+	model, feed, runtime := startRemappedUI(t, 80, 5, remapped)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 	model, _ = press(model, runtime, keys("?"))
 
 	model, _ = press(model, runtime, keys("j"))
@@ -415,42 +468,47 @@ func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 	model, _ = press(model, runtime, keys("n"))
 	model, _ = press(model, runtime, keys("n"))
 	model, _ = press(model, runtime, keys("u"))
-
 	view := ansi.Strip(model.View())
+	model, _ = press(model, runtime, tea.KeyMsg{Type: tea.KeyCtrlX})
+
 	testutil.Equal(t, false, scrolledOnBuiltIn)
-	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, "ok 39", logview.Bottom(model.View())) // the Log View did not scroll
 	testutil.Equal(t, false, strings.Contains(view, "Open the Help"))
 	testutil.Equal(t, true, strings.Contains(view, "Quit logctrl"))
 	testutil.Equal(t, true, strings.Contains(view, "Open the Prompt"))
 }
 
 func Test_UISearchKeyOpensSearchBarAndShrinksLogView(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, keys("/"))
-	model, quit := press(model, runtime, keys("q.*jk"))
+	before := logview.Bottom(model.View())
+	model, quit := typeKeys(model, runtime, "q.*jk")
 
 	testutil.Equal(t, false, quit)
-	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, before, logview.Bottom(model.View())) // the Window has not moved
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
 	// 30 rows - 1 toolbar row - 2 Search Bar rows - 2 border rows
-	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, 25, logRows(model))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: q.*jk"))
 }
 
 func Test_UIEnterMakesSearchBarReadOnly(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("err"))
 	model, _ = press(model, runtime, enter)
 	model, _ = press(model, runtime, keys("k"))
+	scrolled := logview.Bottom(model.View())
 	model, _ = press(model, runtime, keys("x"))
 	model, _ = press(model, runtime, keys("G"))
 
-	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-	testutil.Equal(t, 2, stream.Follows()) // on enter, then G
-	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, "ok 38", scrolled)
+	testutil.Equal(t, "ok 39", logview.Bottom(model.View()))
+	testutil.Equal(t, 25, logRows(model))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 	testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "errk"))
 }
@@ -464,7 +522,8 @@ func Test_UICloseSearchKeyClosesSearchBarAndRestoresLogView(t *testing.T) {
 		{name: "while read-only", typed: []tea.KeyMsg{keys("err"), enter}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40)...)
 			model, _ = press(model, runtime, keys("/"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -476,8 +535,8 @@ func Test_UICloseSearchKeyClosesSearchBarAndRestoresLogView(t *testing.T) {
 
 			testutil.Equal(t, false, strings.Contains(closedView, "/: err"))
 			testutil.Equal(t, 30, lipgloss.Height(model.View()))
-			testutil.Equal(t, 27, stream.Height())
-			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+			testutil.Equal(t, 27, logRows(model))
+			testutil.Equal(t, "ok 38", logview.Bottom(model.View()))
 
 			model, _ = press(model, runtime, keys("/"))
 			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "/: err"))
@@ -498,7 +557,8 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 		{name: "re-edit after a bad regex shows its error again", typed: []tea.KeyMsg{keys("err("), enter, keys("/"), keys(")")}, gone: "/: err()", height: 25, expected: "/: error parsing regexp: missing closing ): `err(`"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40)...)
 			model, _ = press(model, runtime, keys("/"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -510,59 +570,69 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 
 			testutil.Equal(t, false, strings.Contains(view, test.gone))
 			testutil.Equal(t, true, strings.Contains(view, test.expected))
-			testutil.Equal(t, test.height, stream.Height())
-			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+			testutil.Equal(t, test.height, logRows(model))
+			testutil.Equal(t, "ok 38", logview.Bottom(model.View()))
 		})
 	}
 }
 
+// withMatches - 40 Lines, two of them with a Match for "err" and one for
+// "error", all in the Log View.
+func withMatches() []string {
+	lines := numbered(40, 30)
+	lines[35] = "error 35"
+	return lines
+}
+
 func Test_UISearchStartsWhenRegexIsEntered(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, withMatches()...)
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("err"))
 
-	testutil.Equal(t, "[]", updates(stream))
+	testutil.Equal(t, "[]", logview.Highlighted(model.View()))
 
 	model, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[SearchFor{err}]", updates(stream))
+	testutil.Equal(t, "[err err]", logview.Highlighted(model.View()))
 
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("or"))
-	_, _ = press(model, runtime, enter)
-	testutil.Equal(t, "[SearchFor{err} SearchFor{error}]", updates(stream))
+	model, _ = press(model, runtime, enter)
+	testutil.Equal(t, "[error]", logview.Highlighted(model.View()))
 }
 
 func Test_UICloseSearchKeyEndsSearch(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, withMatches()...)
 	model = enterSearch(model, runtime, "err")
 
-	_, _ = press(model, runtime, ctrlL)
+	model, _ = press(model, runtime, ctrlL)
 
-	testutil.Equal(t, "[SearchFor{err} SearchFor{}]", updates(stream))
+	testutil.Equal(t, "[]", logview.Highlighted(model.View()))
 }
 
 func Test_UICloseSearchKeyFollowsOnceRegexIsEntered(t *testing.T) {
 	for _, test := range []struct {
 		name  string
 		regex string
-		typed []tea.KeyMsg // after entering the regex, before closing the Search Bar
+		typed []tea.KeyMsg // after entering the regex and scrolling, before closing the Search Bar
 	}{
 		{name: "while read-only", regex: "err"},
 		{name: "while editing", regex: "err", typed: []tea.KeyMsg{keys("/"), keys("or")}},
 		{name: "after a bad regex", regex: "err("},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40)...)
 			model = enterSearch(model, runtime, test.regex)
+			model, _ = press(model, runtime, keys("k"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
 			}
-			model, _ = press(model, runtime, keys("k"))
-			follows := stream.Follows()
 
-			_, _ = press(model, runtime, ctrlL)
+			model, _ = press(model, runtime, ctrlL)
 
-			testutil.Equal(t, follows+1, stream.Follows())
+			testutil.Equal(t, "ok 39", logview.Bottom(model.View()))
 		})
 	}
 }
@@ -576,65 +646,66 @@ func Test_UIClosingSearchBarBeforeRegexIsEnteredKeepsWindow(t *testing.T) {
 		{name: "esc", close: esc},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40)...)
 			model, _ = press(model, runtime, keys("k"))
 			model, _ = press(model, runtime, keys("/"))
 			model, _ = press(model, runtime, keys("err"))
 
-			_, _ = press(model, runtime, test.close)
+			model, _ = press(model, runtime, test.close)
 
-			testutil.Equal(t, 0, stream.Follows())
+			testutil.Equal(t, "ok 38", logview.Bottom(model.View()))
 		})
 	}
 }
 
 func Test_UIEscKeepsEnteredSearch(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, withMatches()...)
 	model = enterSearch(model, runtime, "err")
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("or"))
 
-	_, _ = press(model, runtime, esc)
+	model, _ = press(model, runtime, esc)
 
-	testutil.Equal(t, "[SearchFor{err}]", updates(stream))
+	testutil.Equal(t, "[err err]", logview.Highlighted(model.View()))
 }
 
 func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model = enterSearch(model, runtime, "err(")
 	model, _ = press(model, runtime, keys("k"))
 
-	testutil.Equal(t, "[SearchFor{err(}]", updates(stream))
 	testutil.Equal(t, true, strings.Contains(model.View(),
 		"\x1b[31merror parsing regexp: missing closing ): `err(`\x1b[0m"))
-	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+	testutil.Equal(t, "ok 38", logview.Bottom(model.View()))
 }
 
 func Test_UILogViewRedrawsWhenSearchStartsOrEnds(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		regex   string
-		closing bool // close the Search Bar after entering `regex`
+		name     string
+		regexes  []string // entered in turn
+		closing  bool     // close the Search Bar after entering `regexes`
+		expected string   // the Matches highlighted
 	}{
-		{name: "Search starts", regex: "err"},
-		{name: "bad regex ends the Search", regex: "err("},
-		{name: "Search Bar closes", regex: "err", closing: true},
+		{name: "Search starts", regexes: []string{"err"}, expected: "[err err]"},
+		{name: "bad regex ends the Search", regexes: []string{"err", "err("}, expected: "[]"},
+		{name: "Search Bar closes", regexes: []string{"err"}, closing: true, expected: "[]"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
-			if test.closing {
-				model = enterSearch(model, runtime, test.regex)
-			}
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, withMatches()...)
 
-			stream.SetWindow("error 1") // as the Executor would show it after the change
+			for _, regex := range test.regexes {
+				model = enterSearch(model, runtime, regex)
+			}
 			if test.closing {
 				model, _ = press(model, runtime, ctrlL)
-			} else {
-				model = enterSearch(model, runtime, test.regex)
 			}
 
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "error 1"))
+			testutil.Equal(t, test.expected, logview.Highlighted(model.View()))
 		})
 	}
 }
@@ -662,20 +733,20 @@ func Test_UIHelpOpensAboveReadOnlySearchBar(t *testing.T) {
 }
 
 func Test_UIPromptOpensBelowReadOnlySearchBar(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, _, runtime := startUI(t)
 	model = enterSearch(model, runtime, "err")
 
 	model, _ = press(model, runtime, tab)
 	model, _ = press(model, runtime, keys("cmd"))
 	promptView := ansi.Strip(model.View())
-	promptHeight := stream.Height()
+	promptHeight := logRows(model)
 	model, _ = press(model, runtime, esc)
 
 	testutil.Equal(t, 30, lipgloss.Height(promptView))
 	// 30 rows - 1 toolbar row - 2 Search Bar rows - 16 prompt rows - 2 border rows
 	testutil.Equal(t, 9, promptHeight)
 	testutil.Equal(t, true, strings.Index(promptView, "/: err") < strings.Index(promptView, "cmd"))
-	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, 25, logRows(model))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 }
 
@@ -698,7 +769,7 @@ func Test_UIReservedKeysQuitWhileTypingInSearchBarOrFilterBar(t *testing.T) {
 }
 
 func Test_UISearchKeyIsTypedWhilePromptOpen(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, _, runtime := startUI(t)
 
 	model, _ = press(model, runtime, tab)
 	for _, key := range []string{"a", "/", "b"} {
@@ -707,7 +778,7 @@ func Test_UISearchKeyIsTypedWhilePromptOpen(t *testing.T) {
 
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "a/b"))
 	// the Search Bar stayed closed: 30 rows - 1 toolbar row - 16 prompt rows - 2 border rows
-	testutil.Equal(t, 11, stream.Height())
+	testutil.Equal(t, 11, logRows(model))
 }
 
 func Test_UIOpensAndClosesSearchBarOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
@@ -720,17 +791,17 @@ func Test_UIOpensAndClosesSearchBarOnRemappedKeysNotTheBuiltInOnes(t *testing.T)
 		{name: "close", builtIn: esc, remapped: tea.KeyMsg{Type: tea.KeyCtrlX}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startRemappedUI(t, 80, 30, remapped)
+			model, _, runtime := startRemappedUI(t, 80, 30, remapped)
 
 			model, _ = press(model, runtime, keys("/"))
-			openedOnBuiltIn := stream.Height() != 27
+			openedOnBuiltIn := logRows(model) != 27
 			model, _ = press(model, runtime, keys("s"))
-			openedOnRemapped := stream.Height() != 27
+			openedOnRemapped := logRows(model) != 27
 			model, _ = press(model, runtime, keys("err"))
 			model, _ = press(model, runtime, test.builtIn)
-			closedOnBuiltIn := stream.Height() == 27
-			press(model, runtime, test.remapped)
-			closedOnRemapped := stream.Height() == 27
+			closedOnBuiltIn := logRows(model) == 27
+			model, _ = press(model, runtime, test.remapped)
+			closedOnRemapped := logRows(model) == 27
 
 			testutil.Equal(t, false, openedOnBuiltIn)
 			testutil.Equal(t, true, openedOnRemapped)
@@ -741,49 +812,54 @@ func Test_UIOpensAndClosesSearchBarOnRemappedKeysNotTheBuiltInOnes(t *testing.T)
 }
 
 func Test_UIFilterKeyOpensFilterBarAndShrinksLogView(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40)...)
 
 	model, _ = press(model, runtime, keys("f"))
-	model, quit := press(model, runtime, keys("q.*jk/"))
+	before := logview.Bottom(model.View())
+	model, quit := typeKeys(model, runtime, "q.*jk/")
 
 	testutil.Equal(t, false, quit)
-	testutil.Equal(t, 0, len(stream.Scrolls()))
+	testutil.Equal(t, before, logview.Bottom(model.View())) // the Window has not moved
 	testutil.Equal(t, 30, lipgloss.Height(model.View()))
 	// 30 rows - 1 toolbar row - 2 Filter Bar rows - 2 border rows
-	testutil.Equal(t, 25, stream.Height())
+	testutil.Equal(t, 25, logRows(model))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "f: q.*jk/"))
 }
 
 func Test_UIEnterMakesFilterBarReadOnlyAndFiltersWithoutSearching(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40, 20, 30)...)
+	model, _ = press(model, runtime, keys("k")) // Pins the Window
 
 	model, _ = press(model, runtime, keys("f"))
-	model, _ = press(model, runtime, keys("err"))
+	model, _ = press(model, runtime, keys("ok"))
 	model, _ = press(model, runtime, enter)
 	model, _ = press(model, runtime, keys("k"))
 	model, _ = press(model, runtime, keys("x"))
 
 	view := ansi.Strip(model.View())
-	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-	testutil.Equal(t, "[FilterFor{err}]", updates(stream))
-	testutil.Equal(t, 0, stream.Follows())
-	testutil.Equal(t, 25, stream.Height())
-	testutil.Equal(t, true, strings.Contains(view, "f: err"))
-	testutil.Equal(t, false, strings.Contains(view, "errk"))
-	testutil.Equal(t, false, strings.Contains(view, "/: err"))
+	testutil.Equal(t, false, strings.Contains(fmt.Sprint(logview.ShownLines(model.View())), "err"))
+	testutil.Equal(t, "[]", logview.Highlighted(model.View()))
+	testutil.Equal(t, "ok 35", logview.Bottom(model.View())) // scrolled, never Following
+	testutil.Equal(t, 25, logRows(model))
+	testutil.Equal(t, true, strings.Contains(view, "f: ok"))
+	testutil.Equal(t, false, strings.Contains(view, "okk"))
+	testutil.Equal(t, false, strings.Contains(view, "/: ok"))
 }
 
 func Test_UICloseFilterKeyClosesFilterBarEndingFilterAndRestoresLogView(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		typed   []tea.KeyMsg // after opening the Filter Bar, before closing it
-		updates string
+		name  string
+		typed []tea.KeyMsg // after opening the Filter Bar, before closing it
 	}{
-		{name: "while typing", typed: []tea.KeyMsg{keys("err")}, updates: "[FilterFor{}]"},
-		{name: "while read-only", typed: []tea.KeyMsg{keys("err"), enter}, updates: "[FilterFor{err} FilterFor{}]"},
+		{name: "while typing", typed: []tea.KeyMsg{keys("ok")}},
+		{name: "while read-only", typed: []tea.KeyMsg{keys("ok"), enter}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40, 20, 30)...)
+			model, _ = press(model, runtime, keys("k")) // Pins the Window
 			model, _ = press(model, runtime, keys("f"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -793,55 +869,52 @@ func Test_UICloseFilterKeyClosesFilterBarEndingFilterAndRestoresLogView(t *testi
 			closedView := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(closedView, "f: err"))
+			testutil.Equal(t, false, strings.Contains(closedView, "f: ok"))
 			testutil.Equal(t, 30, lipgloss.Height(model.View()))
-			testutil.Equal(t, 27, stream.Height())
-			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-			testutil.Equal(t, test.updates, updates(stream))
-			testutil.Equal(t, 0, stream.Follows())
+			testutil.Equal(t, 27, logRows(model))
+			testutil.Equal(t, true, slices.Contains(logview.ShownLines(model.View()), "err 30")) // the Filter ended
+			testutil.Equal(t, "ok 37", logview.Bottom(model.View()))                             // scrolled, never Following
 
 			model, _ = press(model, runtime, keys("f"))
-			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "f: err"))
+			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "f: ok"))
 		})
 	}
 }
 
 func Test_UIBadRegexShowsItsErrorInRedInFilterBar(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, _, runtime := startUI(t)
 
 	model, _ = press(model, runtime, keys("f"))
 	model, _ = press(model, runtime, keys("err("))
 	model, _ = press(model, runtime, enter)
 
-	testutil.Equal(t, "[FilterFor{err(}]", updates(stream))
 	testutil.Equal(t, true, strings.Contains(model.View(),
 		"\x1b[31merror parsing regexp: missing closing ): `err(`\x1b[0m"))
 }
 
 func Test_UILogViewRedrawsWhenFilterStartsOrEnds(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		regex   string
-		closing bool // close the Filter Bar after entering `regex`
+		name     string
+		regexes  []string // entered in turn
+		closing  bool     // close the Filter Bar after entering `regexes`
+		expected string   // the bottom Line shown
 	}{
-		{name: "Filter starts", regex: "err"},
-		{name: "bad regex ends the Filter", regex: "err("},
-		{name: "Filter Bar closes", regex: "err", closing: true},
+		{name: "Filter starts", regexes: []string{"err"}, expected: "err 30"},
+		{name: "bad regex ends the Filter", regexes: []string{"err", "err("}, expected: "ok 39"},
+		{name: "Filter Bar closes", regexes: []string{"err"}, closing: true, expected: "ok 39"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
-			if test.closing {
-				model = enterFilter(model, runtime, test.regex)
-			}
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40, 30)...)
 
-			stream.SetWindow("error 1") // as the Executor would show it after the change
+			for _, regex := range test.regexes {
+				model = enterFilter(model, runtime, regex)
+			}
 			if test.closing {
 				model, _ = press(model, runtime, ctrlF)
-			} else {
-				model = enterFilter(model, runtime, test.regex)
 			}
 
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "error 1"))
+			testutil.Equal(t, test.expected, logview.Bottom(model.View()))
 		})
 	}
 }
@@ -854,16 +927,6 @@ func enterFilter(model tea.Model, runtime *testutil.Runtime, regex string) tea.M
 	return model
 }
 
-func Test_UIEnterWithSameFilterRegexChangesNothing(t *testing.T) {
-	model, stream, runtime := startUI(t)
-	model = enterFilter(model, runtime, "err")
-
-	model, _ = press(model, runtime, keys("f")) // edits the entered "err"
-	_, _ = press(model, runtime, enter)
-
-	testutil.Equal(t, "[FilterFor{err}]", updates(stream))
-}
-
 func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {
 	for _, test := range []struct {
 		name     string
@@ -871,11 +934,12 @@ func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {
 		height   int
 		expected string // in the view after Esc, if anything
 	}{
-		{name: "first edit closes the Filter Bar", typed: []tea.KeyMsg{keys("err")}, height: 27},
-		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("err"), enter, keys("f"), keys("or")}, height: 25, expected: "f: err"},
+		{name: "first edit closes the Filter Bar", typed: []tea.KeyMsg{keys("ok")}, height: 27},
+		{name: "re-edit restores the entered regex", typed: []tea.KeyMsg{keys("ok"), enter, keys("f"), keys("ay")}, height: 25, expected: "f: ok"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40)...)
 			model, _ = press(model, runtime, keys("f"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -885,28 +949,29 @@ func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {
 			view := ansi.Strip(model.View())
 			model, _ = press(model, runtime, keys("k"))
 
-			testutil.Equal(t, false, strings.Contains(view, "f: erro"))
-			testutil.Equal(t, test.expected != "", strings.Contains(view, "f: err"))
-			testutil.Equal(t, test.height, stream.Height())
-			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
+			testutil.Equal(t, false, strings.Contains(view, "f: okay"))
+			testutil.Equal(t, test.expected != "", strings.Contains(view, "f: ok"))
+			testutil.Equal(t, test.height, logRows(model))
+			testutil.Equal(t, "ok 38", logview.Bottom(model.View()))
 		})
 	}
 }
 
 func Test_UIFilterBarSitsAboveSearchBar(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, _, runtime := startUI(t)
 	model = enterSearch(model, runtime, "err")
 	model, _ = press(model, runtime, keys("f"))
 	model, _ = press(model, runtime, keys("warn"))
 	model, _ = press(model, runtime, enter)
 
 	view := ansi.Strip(model.View())
+	rows := logRows(model)
 	model, _ = press(model, runtime, keys("h"))
 	helpView := ansi.Strip(model.View())
 
 	testutil.Equal(t, 30, lipgloss.Height(view))
 	// 30 rows - 1 toolbar row - 2 Filter Bar rows - 2 Search Bar rows - 2 border rows
-	testutil.Equal(t, 23, stream.Height())
+	testutil.Equal(t, 23, rows)
 	testutil.Equal(t, fmt.Sprint([]string{topLine, "f: warn", topLine, "/: err"}), fmt.Sprint(lastRows(view, 4)))
 	testutil.Equal(t, 30, lipgloss.Height(helpView))
 	testutil.Equal(t, fmt.Sprint([]string{topLine, "f: warn", topLine, "/: err"}), fmt.Sprint(lastRows(helpView, 4)))
@@ -934,7 +999,7 @@ func Test_UITypingInOneRegexBarNeverClosesTheOther(t *testing.T) {
 		{name: "typing in Search Bar", open: keys("/"), other: "fwarn", key: ctrlF, expected: []string{topLine, "f: warn", topLine, "/: afb"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, _, runtime := startUI(t)
 			model, _ = press(model, runtime, keys(test.other[:1]))
 			model, _ = press(model, runtime, keys(test.other[1:]))
 			model, _ = press(model, runtime, enter)
@@ -946,7 +1011,7 @@ func Test_UITypingInOneRegexBarNeverClosesTheOther(t *testing.T) {
 			model, _ = press(model, runtime, keys("b"))
 
 			testutil.Equal(t, fmt.Sprint(test.expected), fmt.Sprint(lastRows(ansi.Strip(model.View()), 4)))
-			testutil.Equal(t, 23, stream.Height())
+			testutil.Equal(t, 23, logRows(model))
 		})
 	}
 }
@@ -972,35 +1037,22 @@ var (
 	down = tea.KeyMsg{Type: tea.KeyDown}
 )
 
-// steps - the steps between Lines with a Match the UI asked for, in order.
-func steps(stream *fakestream.Stream) string {
-	var each []string
-	for _, msg := range stream.Updates() {
-		switch msg.(type) {
-		case cmd.PreviousMatch:
-			each = append(each, "previous")
-		case cmd.NextMatch:
-			each = append(each, "next")
-		}
-	}
-	return fmt.Sprint(each)
-}
-
 func Test_UIStepKeysStepBetweenLinesWithMatchOnlyWhileRegexEnteredAndReadOnly(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		before   []tea.KeyMsg // pressed after entering a Search, unless `noSearch`
+		before   []tea.KeyMsg // pressed after entering a Search, unless `noSearch`; closed by esc
 		noSearch bool
-		expected string
+		expected string // the Current Line after the steps
 	}{
-		{name: "regex entered", expected: "[previous next]"},
-		{name: "no Search", noSearch: true, expected: "[]"},
-		{name: "typing in the Search Bar", before: []tea.KeyMsg{keys("/")}, expected: "[]"},
-		{name: "Help open", before: []tea.KeyMsg{keys("h")}, expected: "[]"},
-		{name: "Prompt open", before: []tea.KeyMsg{tab}, expected: "[]"},
+		{name: "regex entered", expected: "err 20"},
+		{name: "no Search", noSearch: true},
+		{name: "typing in the Search Bar", before: []tea.KeyMsg{keys("/")}},
+		{name: "Help open", before: []tea.KeyMsg{keys("h")}},
+		{name: "Prompt open", before: []tea.KeyMsg{tab}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40, 10, 20, 30)...)
 			if !test.noSearch {
 				model = enterSearch(model, runtime, "err")
 			}
@@ -1008,10 +1060,14 @@ func Test_UIStepKeysStepBetweenLinesWithMatchOnlyWhileRegexEnteredAndReadOnly(t 
 				model, _ = press(model, runtime, key)
 			}
 
-			model, _ = press(model, runtime, up)
-			_, _ = press(model, runtime, down)
+			for _, key := range []tea.KeyMsg{up, up, down, up} { // to err 30, 20, 30, then 20
+				model, _ = press(model, runtime, key)
+			}
+			if len(test.before) > 0 {
+				model, _ = press(model, runtime, esc)
+			}
 
-			testutil.Equal(t, test.expected, steps(stream))
+			testutil.Equal(t, test.expected, logview.Marked(model.View()))
 		})
 	}
 }
@@ -1019,70 +1075,55 @@ func Test_UIStepKeysStepBetweenLinesWithMatchOnlyWhileRegexEnteredAndReadOnly(t 
 func Test_UILogViewRedrawsAfterStep(t *testing.T) {
 	for _, key := range []tea.KeyMsg{up, down} {
 		t.Run(key.String(), func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40, 30)...)
 			model = enterSearch(model, runtime, "err")
 
-			stream.SetWindow("err 5") // as the Executor would show it after the step
 			model, _ = press(model, runtime, key)
 
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "err 5"))
+			testutil.Equal(t, "err 30", logview.Marked(model.View()))
 		})
 	}
 }
 
-// updates - every message the UI handed to the Passes, each with its type.
-func updates(stream *fakestream.Stream) string {
-	var each []string
-	for _, msg := range stream.Updates() {
-		each = append(each, strings.TrimPrefix(fmt.Sprintf("%T%v", msg, msg), "cmd."))
-	}
-	return fmt.Sprint(each)
-}
-
 func Test_UIEnterWithNewRegexMakesWindowFollowing(t *testing.T) {
-	for _, test := range []struct {
-		regex    string
-		expected string
-	}{
-		{regex: "err", expected: "[SearchFor{err}]"},
-		{regex: "err(", expected: "[SearchFor{err(}]"},
-	} {
-		t.Run(test.regex, func(t *testing.T) {
-			model, stream, runtime := startUI(t)
+	for _, regex := range []string{"err", "err("} {
+		t.Run(regex, func(t *testing.T) {
+			model, feed, runtime := startUI(t)
+			model = arrive(t, model, runtime, feed, numbered(40, 30)...)
 			model, _ = press(model, runtime, keys("k"))
-			model, _ = press(model, runtime, keys("/"))
-			model, _ = press(model, runtime, keys(test.regex))
 
-			stream.SetWindow("err 5") // as the Executor would show it
-			model, _ = press(model, runtime, enter)
+			model = enterSearch(model, runtime, regex)
 
-			testutil.Equal(t, test.expected, updates(stream))
-			testutil.Equal(t, 1, stream.Follows())
-			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "err 5"))
+			testutil.Equal(t, "ok 39", logview.Bottom(model.View()))
 		})
 	}
 }
 
 func Test_UIEnterWithSameRegexChangesNothing(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40, 10, 20)...)
 	model = enterSearch(model, runtime, "err")
 	model, _ = press(model, runtime, up) // Pins the Window on the Current Line
+	pinned := logview.Bottom(model.View())
 
 	model, _ = press(model, runtime, keys("/"))
-	_, _ = press(model, runtime, enter)
+	model, _ = press(model, runtime, enter)
 
-	testutil.Equal(t, "[SearchFor{err} PreviousMatch{}]", updates(stream))
-	testutil.Equal(t, 1, stream.Follows()) // only on the first enter
+	testutil.Equal(t, "err 20", logview.Marked(model.View()))
+	testutil.Equal(t, pinned, logview.Bottom(model.View()))
 }
 
 func Test_UIFollowKeyDropsCurrentLineKeepingSearch(t *testing.T) {
-	model, stream, runtime := startUI(t)
+	model, feed, runtime := startUI(t)
+	model = arrive(t, model, runtime, feed, numbered(40, 10, 20)...)
 	model = enterSearch(model, runtime, "err")
 	model, _ = press(model, runtime, up)
 
 	model, _ = press(model, runtime, keys("G"))
 
-	testutil.Equal(t, "[SearchFor{err} PreviousMatch{} Follow{}]", updates(stream))
-	testutil.Equal(t, 2, stream.Follows()) // on enter, then G
+	testutil.Equal(t, "", logview.Marked(model.View()))
+	testutil.Equal(t, "[err]", logview.Highlighted(model.View()))
+	testutil.Equal(t, "ok 39", logview.Bottom(model.View()))
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "/: err"))
 }

@@ -26,7 +26,7 @@ PTY master ──→ stdout (rendered UI)
 | `config/` | The Keymap: `keymap.json` embedded at build, merged by Action with `~/.config/logCtrl/keymap.json` (see ADR 0003). `LoadKeymap` errors on a bad user file (unknown Action or key name, duplicate or Reserved key, printable `close`, `close_search` or `close_filter`); `main` exits on it |
 | `ui/utils/` | Responsive sizing system (`Ratio`, `Fixed`, `Modifier` types) and ANSI color constants |
 | `utils/` | `SIGWINCH` handler with callback pattern |
-| `internal/` | Test-only helpers (`testutil`, `fakestream`) |
+| `internal/` | Test-only helpers (`testutil`, `logfeed`, `logview`) |
 
 Domain terms are defined in `GLOSSARY.md`; design decisions in `docs/adr/`.
 

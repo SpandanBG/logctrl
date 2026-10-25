@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"reflect"
+	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -63,4 +64,19 @@ func (r *Runtime) Settle(model tea.Model) tea.Model {
 			return model
 		}
 	}
+}
+
+// SettleUntil - settles `model` again and again until `done`, such as until
+// the Lines written to a Log Feed have arrived, then once more, for the
+// messages `done` turning true sends; fails the test after a second.
+func (r *Runtime) SettleUntil(t *testing.T, model tea.Model, done func() bool) tea.Model {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for !done() {
+		if time.Now().After(deadline) {
+			t.Fatal("still not done after a second")
+		}
+		model = r.Settle(model)
+	}
+	return r.Settle(model)
 }

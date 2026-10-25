@@ -12,7 +12,7 @@ import (
 // Stream - the Window as the UI sees it: after every Pass.
 type Stream interface {
 	reader.Stream
-	GetWindow() (shown, gutter string) // shown text and Gutter cells of the lines in the Window the Filter does not hide, after every Pass, each joined by newlines
+	GetWindow() (shown, gutter string) // shown text and Gutter cells of the lines in the Window the Filter does not hide, after every Pass, each joined by newlines; while the Filter hides Lines, the Window takes in others to fill its height
 	Update(msg any) error              // hands `msg` to every Pass, such as SearchFor
 }
 
@@ -69,19 +69,7 @@ func (e *Executor) Lines() []reader.Line {
 	lines := e.Stream.Lines()
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.gutter.Run(e.search.Run(e.runOthers(lines)))
-}
-
-// runOthers - copies of `lines` after every Pass but the Search and the
-// Gutter, the Filter first. Callers hold mu.
-func (e *Executor) runOthers(lines []reader.Line) []reader.Line {
-	for i := range lines {
-		lines[i].Shown = lines[i].Text
-	}
-	for _, pass := range e.passes {
-		lines = pass.Run(lines)
-	}
-	return lines
+	return e.gutter.Run(e.search.Run(e.takeIn(e.runOthers(lines))))
 }
 
 // GetWindow - the shown text and the Gutter cells of the lines in the Window
@@ -98,6 +86,74 @@ func (e *Executor) GetWindow() (shown, gutter string) {
 		cells = append(cells, gutterCells(line.Gutter))
 	}
 	return strings.Join(each, "\n"), strings.Join(cells, "\n")
+}
+
+// ------------------------- Private
+
+// maxTakenIn - the most Lines beyond the Window a read takes in to fill it
+// while the Filter hides Lines: as many as the Live Buffer holds, so a Filter
+// that rarely matches never reads the whole History on every render.
+const maxTakenIn = reader.DefaultCapacity
+
+// takeIn - `lines` after every Pass but the Search and the Gutter, with as many
+// older Lines before them, then newer ones after them, run over by the same
+// Passes, as it takes to show as many Lines as the Window's height; it stops
+// at the first and the newest Line, once a read finds nothing, and after
+// maxTakenIn Lines. Callers hold mu.
+func (e *Executor) takeIn(lines []reader.Line) []reader.Line {
+	first, total, height := e.Stream.First(), e.Stream.Total(), e.Stream.Height()
+	budget := maxTakenIn
+	for _, older := range []bool{true, false} {
+		for {
+			missing := min(height-shownCount(lines), budget) // reads no more Lines than it may show
+			if missing <= 0 || len(lines) == 0 {
+				return lines
+			}
+			from, to := lines[0].Number-missing, lines[0].Number
+			if !older {
+				from = lines[len(lines)-1].Number + 1
+				to = from + missing
+			}
+			from, to = max(from, first), min(to, total)
+			if from >= to { // at the first, or the newest, Line
+				break
+			}
+			read := e.runOthers(e.Stream.Read(from, to))
+			if len(read) == 0 { // the Log File has failed to read
+				break
+			}
+			budget -= len(read)
+			if older {
+				lines = append(read, lines...)
+			} else {
+				lines = append(lines, read...)
+			}
+		}
+	}
+	return lines
+}
+
+// shownCount - how many of `lines` the Filter does not hide.
+func shownCount(lines []reader.Line) int {
+	count := 0
+	for _, line := range lines {
+		if !line.Filter.Hide {
+			count++
+		}
+	}
+	return count
+}
+
+// runOthers - copies of `lines` after every Pass but the Search and the
+// Gutter, the Filter first. Callers hold mu.
+func (e *Executor) runOthers(lines []reader.Line) []reader.Line {
+	for i := range lines {
+		lines[i].Shown = lines[i].Text
+	}
+	for _, pass := range e.passes {
+		lines = pass.Run(lines)
+	}
+	return lines
 }
 
 // gutterCells - the cells of a Gutter, an empty cell shown as a space.

@@ -24,6 +24,11 @@ func (w *Window) SetHeight(height int) {
 	w.height = height
 }
 
+// Height - how many lines the window shows.
+func (w *Window) Height() int {
+	return w.height
+}
+
 // Following - `true` if the window is glued to the newest lines.
 func (w *Window) Following() bool {
 	return w.following

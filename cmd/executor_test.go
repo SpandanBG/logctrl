@@ -790,3 +790,92 @@ func Test_ExecutorGutterMarksCurrentLineAndMovesWithIt(t *testing.T) {
 	exec.MoveBy(-1)
 	testutil.Equal(t, "  \n  \n  \n >\n  ", gutter(exec))
 }
+
+func Test_ExecutorWindowTakesInOlderLinesWhileFilterHidesLines(t *testing.T) {
+	stream, _ := feed(t, 3, numbered(20, 11, 13, 15, 17, 19)...)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
+
+	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Equal(t, "err 15\nerr 17\nerr 19", shown(exec))
+	testutil.Equal(t, "[15 16 17 18 19]", numbers(exec.Lines()))
+
+	if err := exec.Update(cmd.FilterFor{}); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Equal(t, "err 17\nok 18\nerr 19", shown(exec)) // the Window as it was
+}
+
+func Test_ExecutorWindowTakesInNewerLinesOnceAtFirstLineWhileFilterHidesLines(t *testing.T) {
+	stream, _ := feed(t, 3, numbered(20, 1, 5, 9, 13)...)
+	exec := cmd.NewExecutor(stream, testutil.Colors())
+	exec.MoveBy(-20) // Pinned on the first Lines, 0 to 2
+
+	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+		t.Fatal(err)
+	}
+
+	testutil.Equal(t, "err 1\nerr 5\nerr 9", shown(exec))
+	testutil.Equal(t, "[0 1 2 3 4 5 6 7 8 9]", numbers(exec.Lines()))
+}
+
+func Test_ExecutorWindowTakesInAtMostCapacityLinesBeyondIt(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		scroll int // from Following on Lines Capacity+1 to Capacity+3
+		err    int // the Line Number of the only Line the Filter shows
+		shown  string
+	}{
+		{name: "the Capacity-th older Line is taken in", err: 1, shown: "err 1"},
+		{name: "an older Line further back is not", err: 0, shown: ""},
+		{name: "the Capacity-th newer Line is taken in", scroll: -reader.DefaultCapacity - 4, err: reader.DefaultCapacity + 2, shown: fmt.Sprint("err ", reader.DefaultCapacity+2)},
+		{name: "a newer Line further on is not", scroll: -reader.DefaultCapacity - 4, err: reader.DefaultCapacity + 3, shown: ""},
+		// Pinned on Lines 5 to 7, the 5 older Lines leave Capacity-5 newer ones
+		{name: "both ways, the last newer Line in the Capacity is taken in", scroll: -reader.DefaultCapacity + 4, err: reader.DefaultCapacity + 2, shown: fmt.Sprint("err ", reader.DefaultCapacity+2)},
+		{name: "both ways, a newer Line past the Capacity is not", scroll: -reader.DefaultCapacity + 4, err: reader.DefaultCapacity + 3, shown: ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream, _ := feed(t, 3, numbered(reader.DefaultCapacity+4, test.err)...)
+			exec := cmd.NewExecutor(stream, testutil.Colors())
+			exec.MoveBy(test.scroll)
+
+			if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+				t.Fatal(err)
+			}
+
+			testutil.Equal(t, test.shown, shown(exec))
+		})
+	}
+}
+
+// unreadable - a reader.Stream whose reads outside the Window find nothing, as
+// when the Log File fails to read before First has moved up.
+type unreadable struct {
+	reader.Stream
+}
+
+func (unreadable) Read(from, to int) []reader.Line {
+	return nil
+}
+
+func Test_ExecutorWindowStopsTakingInLinesOnceNoneCanBeRead(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		scroll int
+	}{
+		{name: "older Lines, while Following", scroll: 0},
+		{name: "newer Lines, Pinned on the first Lines", scroll: -20},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream, _ := feed(t, 3, numbered(20, 10)...)
+			exec := cmd.NewExecutor(unreadable{stream}, testutil.Colors())
+			exec.MoveBy(test.scroll)
+			if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+				t.Fatal(err)
+			}
+
+			within(t, "GetWindow", func() { testutil.Equal(t, "", shown(exec)) })
+		})
+	}
+}

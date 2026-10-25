@@ -12,7 +12,7 @@ import (
 // notification channel; both are cleaned up when the test ends.
 func startStream(t *testing.T, height int) (Stream, *os.File, chan bool) {
 	t.Helper()
-	return startSmallStream(t, height, defaultCapacity, defaultChunkSize)
+	return startSmallStream(t, height, DefaultCapacity, defaultChunkSize)
 }
 
 // startSmallStream - startStream holding `capacity` lines in memory and

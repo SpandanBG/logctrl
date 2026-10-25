@@ -50,7 +50,7 @@ _Avoid_: buffer size, scrollback size
 The Line Number of the oldest line still in the Live Buffer.
 
 **Window**:
-The contiguous range of Line Numbers currently shown to the user, as tall as the log view.
+The contiguous range of Line Numbers currently shown to the user, as tall as the Log View, counting only the Lines the Filter does not hide.
 _Avoid_: RAB, random access buffer, viewport, page
 
 **Following**:

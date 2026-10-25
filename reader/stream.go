@@ -13,8 +13,8 @@ const (
 	logFileLocation = ""
 	logFileName     = "logCtrl_logFile.txt"
 
-	// defaultCapacity - max lines held in the live buffer (see docs/adr/0001)
-	defaultCapacity = 10_000
+	// DefaultCapacity - max lines held in the live buffer (see docs/adr/0001)
+	DefaultCapacity = 10_000
 
 	// defaultChunkSize - lines per Chunk loaded from the log file (see docs/adr/0004)
 	defaultChunkSize = 1_000
@@ -23,6 +23,7 @@ const (
 type Stream interface {
 	Start(chan bool)
 	SetBufferSize(int)
+	Height() int
 	Lines() []Line
 	Total() int
 	First() int
@@ -49,7 +50,7 @@ type stream struct {
 
 // NewStream - Creates a new stream object from the `logFeed` provided.
 func NewStream(logFeed *os.File) Stream {
-	return newStream(logFeed, defaultCapacity, defaultChunkSize)
+	return newStream(logFeed, DefaultCapacity, defaultChunkSize)
 }
 
 // newStream - NewStream holding `capacity` lines in memory and loading older
@@ -94,6 +95,13 @@ func (s *stream) SetBufferSize(size int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.window.SetHeight(size)
+}
+
+// Height - the height of the window, as set by SetBufferSize.
+func (s *stream) Height() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.window.Height()
 }
 
 // Lines - returns the lines currently in the window.

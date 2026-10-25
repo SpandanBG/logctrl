@@ -585,6 +585,197 @@ func Test_ExecutorHighlightsEachMatchInWindow(t *testing.T) {
 		shown(exec))
 }
 
+// hidden - whether the Filter hides each Line, one Line per entry.
+func hidden(lines []reader.Line) string {
+	each := make([]bool, 0, len(lines))
+	for _, line := range lines {
+		each = append(each, line.Filter.Hide)
+	}
+	return fmt.Sprint(each)
+}
+
+func Test_ExecutorFilterHidesLinesWithoutMatchKeepingThemInWindow(t *testing.T) {
+	stream := fakestream.New()
+	stream.SetWindow("error 1\nok 2\n2 errors")
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+
+	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+		t.Fatal(err)
+	}
+
+	testutil.Equal(t, "[false true false]", hidden(exec.Lines()))
+}
+
+func Test_ExecutorFilterShowsEachLineItsRegexMatchesAnywhere(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		regex  string
+		text   string
+		hidden string
+	}{
+		{name: "case-sensitive as typed", regex: "ERR", text: "error\nERROR", hidden: "[true false]"},
+		{name: "case-insensitive when asked", regex: "(?i)ERR", text: "error\nok", hidden: "[false true]"},
+		{name: "an empty match counts", regex: "^", text: "error\nok", hidden: "[false false]"},
+		{name: "empty regex ends the Filter", regex: "", text: "error\nok", hidden: "[false false]"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream := fakestream.New()
+			stream.SetWindow(test.text)
+			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+			if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := exec.Update(cmd.FilterFor{Regex: test.regex}); err != nil {
+				t.Fatalf("FilterFor(%q) - %v", test.regex, err)
+			}
+
+			testutil.Equal(t, test.hidden, hidden(exec.Lines()))
+		})
+	}
+}
+
+// hideAll - a Pass hiding every Line, run before the Filter.
+type hideAll struct{}
+
+func (hideAll) Update(msg any) error { return nil }
+
+func (hideAll) Run(lines []reader.Line) []reader.Line {
+	for i := range lines {
+		lines[i].Filter.Hide = true
+	}
+	return lines
+}
+
+func Test_ExecutorEndedFilterLeavesLinesAsPassesBeforeItLeaveThem(t *testing.T) {
+	stream := fakestream.New()
+	stream.SetWindow("error 1\nok 2")
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), hideAll{}, cmd.NewFilter())
+	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := exec.Update(cmd.FilterFor{}); err != nil {
+		t.Fatal(err)
+	}
+
+	testutil.Equal(t, "[true true]", hidden(exec.Lines()))
+}
+
+func Test_ExecutorFilterKeepsWindowMode(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		pinned bool // Pin the Window by stepping to a Current Line first
+		window string
+	}{
+		{name: "Following stays Following", window: "[17 18 19 20 21]"},
+		{name: "Pinned stays on its Line Numbers", pinned: true, window: "[14 15 16 17 18]"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stream, more := feed(t, 5, numbered(20, 12, 16)...)
+			exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+			if test.pinned {
+				enter(t, exec, "err") // centred on line 16
+			}
+
+			for _, regex := range []string{"ok", ""} { // entering, then ending, a Filter
+				if err := exec.Update(cmd.FilterFor{Regex: regex}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			more("ok 20", "ok 21")
+
+			testutil.Equal(t, test.window, numbers(exec.Lines()))
+		})
+	}
+}
+
+func Test_ExecutorBadRegexEndsFilterWithError(t *testing.T) {
+	stream := fakestream.New()
+	stream.SetWindow("error( 1\nok 2")
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	if err := exec.Update(cmd.FilterFor{Regex: "err"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := exec.Update(cmd.FilterFor{Regex: "error("}); err == nil {
+		t.Fatal("expected an error for a regex that does not compile")
+	}
+
+	testutil.Equal(t, "[false false]", hidden(exec.Lines()))
+}
+
+func Test_ExecutorStepsPassOverLinesTheFilterHides(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(30, 3, 10, 16, 22)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	if err := exec.Update(cmd.FilterFor{Regex: "[^0-9](3|16)$"}); err != nil { // hides lines 10 and 22
+		t.Fatal(err)
+	}
+
+	enter(t, exec, "err") // passes over line 22
+	testutil.Equal(t, 16, currentLine(exec))
+
+	for _, expected := range []struct {
+		step    any
+		current int
+	}{
+		{step: cmd.PreviousMatch{}, current: 3}, // passes over line 10
+		{step: cmd.NextMatch{}, current: 16},
+		{step: cmd.NextMatch{}, current: 16}, // line 22 is hidden: nothing to step to
+	} {
+		if err := exec.Update(expected.step); err != nil {
+			t.Fatal(err)
+		}
+		testutil.Equal(t, expected.current, currentLine(exec))
+	}
+}
+
+func Test_ExecutorKeepsCurrentLineTheFilterHides(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(20, 3, 10, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	enter(t, exec, "err")
+	testutil.Equal(t, 16, currentLine(exec))
+
+	if err := exec.Update(cmd.FilterFor{Regex: "1[47]"}); err != nil { // hides line 16
+		t.Fatal(err)
+	}
+	testutil.Equal(t, 16, currentLine(exec))
+	testutil.Equal(t, "ok 14\nok 17", shown(exec))
+
+	if err := exec.Update(cmd.FilterFor{}); err != nil {
+		t.Fatal(err)
+	}
+	testutil.Equal(t, "ok 14\nok 15\n\x1b[30;43merr\x1b[0m 16\nok 17\nok 18", shown(exec))
+}
+
+func Test_ExecutorStepsOnFromCurrentLineTheFilterHides(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(20, 3, 10, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	enter(t, exec, "err")
+	if err := exec.Update(cmd.FilterFor{Regex: "[^0-9](3|10)$"}); err != nil { // hides line 16
+		t.Fatal(err)
+	}
+
+	if err := exec.Update(cmd.PreviousMatch{}); err != nil {
+		t.Fatal(err)
+	}
+
+	testutil.Equal(t, 10, currentLine(exec))
+}
+
+func Test_ExecutorWindowLeavesOutLinesTheFilterHides(t *testing.T) {
+	stream, _ := feed(t, 5, numbered(20, 12, 16)...)
+	exec := cmd.NewExecutor(stream, cmd.NewSearch(testutil.Colors()), cmd.NewGutter(), cmd.NewFilter())
+	enter(t, exec, "err") // the Window is centred on line 16, the Current Line
+
+	if err := exec.Update(cmd.FilterFor{Regex: "1[45]"}); err != nil {
+		t.Fatal(err)
+	}
+
+	testutil.Equal(t, "ok 14\nok 15", shown(exec))
+	testutil.Equal(t, "  \n  ", gutter(exec)) // the hidden Current Line's mark goes with it
+}
+
 // gutter - the Gutter cells of the Window, as the UI reads them.
 func gutter(exec *cmd.Executor) string {
 	_, gutter := exec.GetWindow()

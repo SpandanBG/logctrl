@@ -9,6 +9,7 @@ type Line struct {
 	Text          string            // without its terminator
 	Shown         string            // Text as formatted by the Passes, for display; empty as held
 	Matches       []Match           // where the Search regex matches Shown; nil if nowhere
+	Filter        FilterContext     // what the Filter works out about the Line; zero as held
 	GutterContext GutterContext     // what the Passes leave for the Gutter Pass; zero as held
 	Gutter        [GutterWidth]rune // its Gutter cells, set by the Gutter Pass; 0 is an empty cell
 }
@@ -18,6 +19,11 @@ type Line struct {
 type Match struct {
 	Start int
 	End   int
+}
+
+// FilterContext - what the Filter works out about a Line.
+type FilterContext struct {
+	Hide bool // the Line is hidden from the Log View
 }
 
 // GutterContext - what the Passes have worked out about a Line that the

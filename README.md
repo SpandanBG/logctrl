@@ -53,8 +53,12 @@ Press `h` at any time to open the Help, which lists every key.
 | `ctrl+l` | `close_search` | Close the Search Bar, ending the Search and following the newest lines |
 | `up` | `previous_match` | Step to the previous (older) Line with a Match |
 | `down` | `next_match` | Step to the next (newer) Line with a Match |
+| `f` | `open_filter` | Open the Filter Bar, or edit the regex in it |
+| `ctrl+f` | `close_filter` | Close the Filter Bar, ending the Filter |
 
 In the Search Bar, type a regex and press `enter`: the regex stays on show, read-only, every Match is highlighted, and the Log View keeps following. Press `up` or `down` to step to the previous or next Line with a Match. The Log View stops following, centres on that Line and marks it with `>`. The first press finds the newest Line with a Match, searching up from the bottom of the Log View. `G` follows again and drops the `>`, but keeps the highlights. A bad regex shows its error in red. Press `/` to edit the regex, `esc` to cancel an edit, and `ctrl+l` to close the Search Bar, end the Search and follow the live logs again.
+
+In the Filter Bar, type a regex and press `enter`: only the Lines it matches are shown, and stepping between Lines with a Match passes over the hidden ones. A bad regex shows its error in red. Press `f` to edit the regex and `ctrl+f` to close the Filter Bar and show every Line again.
 
 `ctrl+c` and `ctrl+d` always quit, except while the Prompt is open, and can't be remapped.
 
@@ -79,7 +83,7 @@ If the file has a mistake, `logctrl` won't start, and it prints an error naming 
 - a key isn't a single character or a known key name (e.g. `Tab`, `ctrl-x`)
 - two Actions end up on the same key
 - an Action is put on `ctrl+c` or `ctrl+d`
-- `close` or `close_search` is put on a single printable character (it would be typed into the Prompt or the Search Bar instead)
+- `close`, `close_search` or `close_filter` is put on a single printable character (it would be typed into the Prompt, the Search Bar or the Filter Bar instead)
 
 ## Roadmap
 

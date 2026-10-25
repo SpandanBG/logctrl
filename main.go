@@ -108,7 +108,7 @@ func startChildProcess(keymap []config.Entry) {
 	logFeed := os.NewFile(uintptr(childFd), "logFeed")
 
 	renderer := lipgloss.DefaultRenderer()
-	stream := cmd.NewExecutor(reader.NewStream(logFeed), cmd.NewSearch(renderer), cmd.NewGutter())
+	stream := cmd.NewExecutor(reader.NewStream(logFeed), cmd.NewSearch(renderer), cmd.NewGutter(), cmd.NewFilter())
 	app, exit := ui.NewUI(stream, keymap, renderer)
 	defer exit()
 

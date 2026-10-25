@@ -296,11 +296,12 @@ func (s *Search) findOlder(gen, before int) (int, bool) {
 	return 0, false
 }
 
-// withMatch - the Line Numbers of the Lines in `lines` with a Match.
+// withMatch - the Line Numbers of the Lines in `lines` with a Match that the
+// Filter does not hide.
 func (s *Search) withMatch(lines []reader.Line) []int {
 	var numbers []int
 	for _, line := range lines {
-		if len(s.matches(line.Shown)) > 0 {
+		if !line.Filter.Hide && len(s.matches(line.Shown)) > 0 {
 			numbers = append(numbers, line.Number)
 		}
 	}

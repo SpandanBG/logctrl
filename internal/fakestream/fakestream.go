@@ -94,14 +94,18 @@ func (s *Stream) MoveBy(n int) int {
 	return n
 }
 
-// Update - records `msg`; returns the error if it is a SearchFor whose regex
-// does not compile.
+// Update - records `msg`; returns the error if it is a SearchFor or a
+// FilterFor whose regex does not compile.
 func (s *Stream) Update(msg any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.updates = append(s.updates, msg)
-	if searchFor, ok := msg.(cmd.SearchFor); ok {
-		_, err := regexp.Compile(searchFor.Regex)
+	switch msg := msg.(type) {
+	case cmd.SearchFor:
+		_, err := regexp.Compile(msg.Regex)
+		return err
+	case cmd.FilterFor:
+		_, err := regexp.Compile(msg.Regex)
 		return err
 	}
 	return nil

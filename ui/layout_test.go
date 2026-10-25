@@ -754,7 +754,7 @@ func Test_UIFilterKeyOpensFilterBarAndShrinksLogView(t *testing.T) {
 	testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "f: q.*jk/"))
 }
 
-func Test_UIEnterMakesFilterBarReadOnlyWithoutSearching(t *testing.T) {
+func Test_UIEnterMakesFilterBarReadOnlyAndFiltersWithoutSearching(t *testing.T) {
 	model, stream, runtime := startUI(t)
 
 	model, _ = press(model, runtime, keys("f"))
@@ -765,7 +765,7 @@ func Test_UIEnterMakesFilterBarReadOnlyWithoutSearching(t *testing.T) {
 
 	view := ansi.Strip(model.View())
 	testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-	testutil.Equal(t, "[]", updates(stream))
+	testutil.Equal(t, "[FilterFor{err}]", updates(stream))
 	testutil.Equal(t, 0, stream.Follows())
 	testutil.Equal(t, 25, stream.Height())
 	testutil.Equal(t, true, strings.Contains(view, "f: err"))
@@ -773,13 +773,14 @@ func Test_UIEnterMakesFilterBarReadOnlyWithoutSearching(t *testing.T) {
 	testutil.Equal(t, false, strings.Contains(view, "/: err"))
 }
 
-func Test_UICloseFilterKeyClosesFilterBarAndRestoresLogView(t *testing.T) {
+func Test_UICloseFilterKeyClosesFilterBarEndingFilterAndRestoresLogView(t *testing.T) {
 	for _, test := range []struct {
-		name  string
-		typed []tea.KeyMsg // after opening the Filter Bar, before closing it
+		name    string
+		typed   []tea.KeyMsg // after opening the Filter Bar, before closing it
+		updates string
 	}{
-		{name: "while typing", typed: []tea.KeyMsg{keys("err")}},
-		{name: "while read-only", typed: []tea.KeyMsg{keys("err"), enter}},
+		{name: "while typing", typed: []tea.KeyMsg{keys("err")}, updates: "[FilterFor{}]"},
+		{name: "while read-only", typed: []tea.KeyMsg{keys("err"), enter}, updates: "[FilterFor{err} FilterFor{}]"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, stream, runtime := startUI(t)
@@ -796,13 +797,71 @@ func Test_UICloseFilterKeyClosesFilterBarAndRestoresLogView(t *testing.T) {
 			testutil.Equal(t, 30, lipgloss.Height(model.View()))
 			testutil.Equal(t, 27, stream.Height())
 			testutil.Equal(t, fmt.Sprint([]int{-1}), fmt.Sprint(stream.Scrolls()))
-			testutil.Equal(t, "[]", updates(stream))
+			testutil.Equal(t, test.updates, updates(stream))
 			testutil.Equal(t, 0, stream.Follows())
 
 			model, _ = press(model, runtime, keys("f"))
 			testutil.Equal(t, false, strings.Contains(ansi.Strip(model.View()), "f: err"))
 		})
 	}
+}
+
+func Test_UIBadRegexShowsItsErrorInRedInFilterBar(t *testing.T) {
+	model, stream, runtime := startUI(t)
+
+	model, _ = press(model, runtime, keys("f"))
+	model, _ = press(model, runtime, keys("err("))
+	model, _ = press(model, runtime, enter)
+
+	testutil.Equal(t, "[FilterFor{err(}]", updates(stream))
+	testutil.Equal(t, true, strings.Contains(model.View(),
+		"\x1b[31merror parsing regexp: missing closing ): `err(`\x1b[0m"))
+}
+
+func Test_UILogViewRedrawsWhenFilterStartsOrEnds(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		regex   string
+		closing bool // close the Filter Bar after entering `regex`
+	}{
+		{name: "Filter starts", regex: "err"},
+		{name: "bad regex ends the Filter", regex: "err("},
+		{name: "Filter Bar closes", regex: "err", closing: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			model, stream, runtime := startUI(t)
+			if test.closing {
+				model = enterFilter(model, runtime, test.regex)
+			}
+
+			stream.SetWindow("error 1") // as the Executor would show it after the change
+			if test.closing {
+				model, _ = press(model, runtime, ctrlF)
+			} else {
+				model = enterFilter(model, runtime, test.regex)
+			}
+
+			testutil.Equal(t, true, strings.Contains(ansi.Strip(model.View()), "error 1"))
+		})
+	}
+}
+
+// enterFilter - opens the Filter Bar and enters `regex` in it.
+func enterFilter(model tea.Model, runtime *testutil.Runtime, regex string) tea.Model {
+	model, _ = press(model, runtime, keys("f"))
+	model, _ = press(model, runtime, keys(regex))
+	model, _ = press(model, runtime, enter)
+	return model
+}
+
+func Test_UIEnterWithSameFilterRegexChangesNothing(t *testing.T) {
+	model, stream, runtime := startUI(t)
+	model = enterFilter(model, runtime, "err")
+
+	model, _ = press(model, runtime, keys("f")) // edits the entered "err"
+	_, _ = press(model, runtime, enter)
+
+	testutil.Equal(t, "[FilterFor{err}]", updates(stream))
 }
 
 func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {

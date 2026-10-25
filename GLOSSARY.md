@@ -74,7 +74,7 @@ A section of a Line's text that the Search regex matches; a Line may have severa
 _Avoid_: matched span, hit, result
 
 **Current Line**:
-The Line with a Match that the user has stepped to during a Search, marked out from the other Lines and kept in the middle of the Window; the user steps from it to the previous (older) or next (newer) Line with a Match. There is at most one: none until the user first steps during a Search, none while no Line matches, and none again once the user returns the Window to Following with its key.
+The Line with a Match that the user has stepped to during a Search, marked out from the other Lines and kept in the middle of the Window; the user steps from it to the previous (older) or next (newer) Line with a Match, passing over any Line the Filter hides. There is at most one: none until the user first steps during a Search, none while no Line matches, and none again once the user returns the Window to Following with its key.
 _Avoid_: result, hit, cursor, selection, Current Match
 
 **Filter**:

@@ -11,7 +11,7 @@ import (
 // Stream - the Window as the UI sees it: after every Pass.
 type Stream interface {
 	reader.Stream
-	GetWindow() (shown, gutter string) // shown text and Gutter cells of the lines in the Window, after every Pass, each joined by newlines
+	GetWindow() (shown, gutter string) // shown text and Gutter cells of the lines in the Window the Filter does not hide, after every Pass, each joined by newlines
 	Update(msg any) error              // hands `msg` to every Pass, such as SearchFor
 }
 
@@ -80,13 +80,16 @@ func (e *Executor) runOthers(lines []reader.Line) []reader.Line {
 	return lines
 }
 
-// GetWindow - the shown text and the Gutter cells of the lines in the Window,
-// after every Pass, each joined by newlines.
+// GetWindow - the shown text and the Gutter cells of the lines in the Window
+// the Filter does not hide, after every Pass, each joined by newlines.
 func (e *Executor) GetWindow() (shown, gutter string) {
 	lines := e.Lines()
 	each := make([]string, 0, len(lines))
 	cells := make([]string, 0, len(lines))
 	for _, line := range lines {
+		if line.Filter.Hide {
+			continue
+		}
 		each = append(each, line.Shown)
 		cells = append(cells, gutterCells(line.Gutter))
 	}

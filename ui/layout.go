@@ -49,6 +49,7 @@ type uiModel struct {
 	promptActive bool
 	helpActive   bool
 	regex        string // the regex being searched for; "" if none
+	filter       string // the regex being filtered for; "" if none
 }
 
 // NewUI - the app over `stream`, keyed by `keymap`, styled by `renderer`.
@@ -137,7 +138,19 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return u.executeKeystroke(msg)
 	case components.TeaRegexEntered:
-		if msg.Bar == components.FilterBar || msg.Regex == u.regex {
+		if msg.Bar == components.FilterBar {
+			if msg.Regex == u.filter {
+				return u, nil
+			}
+			u.filter = msg.Regex
+			if err := u.stream.Update(cmd.FilterFor{Regex: msg.Regex}); err != nil {
+				u.filter = ""
+				u, _ = u.updateBar(components.FilterBar, components.TeaRegexFailed{Err: err})
+			}
+			u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
+			return u, nil
+		}
+		if msg.Regex == u.regex {
 			return u, nil
 		}
 		u.regex = msg.Regex
@@ -344,10 +357,16 @@ func (u uiModel) receiveBar(which components.Bar, msg tea.KeyMsg) (tea.Model, te
 }
 
 // closeBar - removes `which`, emptied, giving its rows back to the Log View;
-// closing the Search Bar ends the Search.
+// closing the Search Bar ends the Search, and closing the Filter Bar the
+// Filter.
 func (u uiModel) closeBar(which components.Bar) (tea.Model, tea.Cmd) {
-	if which == components.SearchBar {
+	switch which {
+	case components.SearchBar:
 		u = u.endSearch()
+	case components.FilterBar:
+		u.filter = ""
+		u.stream.Update(cmd.FilterFor{}) // ending a Filter never fails
+		u.logView, _ = u.logView.Update(components.TeaLogRefresh{})
 	}
 	u, _ = u.updateBar(which, components.TeaRegexClose{})
 	return u.resizePanels()

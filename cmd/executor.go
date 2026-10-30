@@ -11,8 +11,10 @@ import (
 // Stream - the Window after every Pass: its Lines() have every Pass run over
 // them and, while the Filter hides Lines, take in others to fill its height.
 type Stream interface {
-	reader.Stream
-	Update(msg any) error // hands `msg` to every Pass, such as SearchFor
+	Start(next chan bool) // starts reading the Log Feed, notifying `next` as each Line arrives
+	Lines() []reader.Line // the Lines in the Window, after every Pass
+	Update(msg any) error // moves the Window (Scroll, Resize, Follow) and hands `msg` to every Pass, such as SearchFor
+	Close()               // stops reading the Log Feed
 }
 
 var _ Stream = (*Executor)(nil)
@@ -36,15 +38,16 @@ type Pass interface {
 	Update(msg any) error
 }
 
-// Executor - a reader.Stream whose Window has the Filter run over it on each
-// read, then every other Pass, then the Search, then the Gutter (see
-// docs/adr/0005, docs/adr/0009).
+// Executor - the Window over the History of a reader.Stream, with the Filter
+// run over it on each read, then every other Pass, then the Search, then the
+// Gutter (see docs/adr/0005, docs/adr/0009, docs/adr/0011).
 // It gives the Search the History as the Passes before it leave it, to step
 // through (see docs/adr/0008).
 type Executor struct {
-	reader.Stream
+	stream reader.Stream // the History of the Log Feed
 
-	mu     sync.Mutex // guards the Passes: updated in the UI's Update, run in a tea.Cmd
+	mu     sync.Mutex // guards the Window and the Passes: updated in the UI's Update, read in a tea.Cmd
+	window *window    // the Lines shown, before the Filter takes in others
 	passes []Pass     // every Pass but the Search and the Gutter: the Filter first, then the others in order
 	search *search    // run after `passes`, stepping through the History they leave
 	gutter *gutter    // run last, over each Line as every other Pass leaves it
@@ -55,16 +58,28 @@ type Executor struct {
 // Gutter.
 func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer, others ...Pass) *Executor {
 	passes := append([]Pass{newFilter()}, others...)
-	e := &Executor{Stream: stream, passes: passes, search: newSearch(renderer), gutter: newGutter()}
+	e := &Executor{stream: stream, window: newWindow(stream), passes: passes, search: newSearch(renderer), gutter: newGutter()}
 	e.search.attach(shownHistory{e})
 	return e
 }
 
 // Update - hands `msg` to the Filter, then every other Pass, then the Search,
-// then the Gutter, and returns their errors joined.
+// then the Gutter, and returns their errors joined. Resize only resizes the
+// Window, never reaching the Passes, so it cancels no step. Scroll and Follow
+// then move the Window, under the same lock as the Passes, so no step still
+// scanning can Pin the Window after a Follow.
 func (e *Executor) Update(msg any) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	switch msg := msg.(type) {
+	case Resize:
+		e.window.resize(msg.Height)
+		return nil
+	case Scroll:
+		defer e.window.moveBy(msg.N)
+	case Follow:
+		defer e.window.follow()
+	}
 
 	var errs []error
 	for _, pass := range e.passes {
@@ -74,12 +89,21 @@ func (e *Executor) Update(msg any) error {
 	return errors.Join(errs...)
 }
 
+// Start - starts reading the Log Feed, notifying `next` as each Line arrives.
+func (e *Executor) Start(next chan bool) {
+	e.stream.Start(next)
+}
+
+// Close - stops reading the Log Feed.
+func (e *Executor) Close() {
+	e.stream.Close()
+}
+
 // Lines - the lines in the Window, after every Pass.
 func (e *Executor) Lines() []reader.Line {
-	lines := e.Stream.Lines()
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.gutter.Run(e.search.Run(e.takeIn(e.runOthers(lines))))
+	return e.gutter.Run(e.search.Run(e.takeIn(e.runOthers(e.window.lines()))))
 }
 
 // maxTakenIn - the most Lines beyond the Window a read takes in to fill it
@@ -94,7 +118,7 @@ type shownHistory struct {
 }
 
 func (h shownHistory) Window() []int {
-	lines := h.e.Stream.Lines()
+	lines := h.e.window.lines()
 	numbers := make([]int, 0, len(lines))
 	for _, line := range lines {
 		numbers = append(numbers, line.Number)
@@ -102,20 +126,20 @@ func (h shownHistory) Window() []int {
 	return numbers
 }
 
-func (h shownHistory) Total() int { return h.e.Stream.Total() }
+func (h shownHistory) Total() int { return h.e.stream.Total() }
 
-func (h shownHistory) First() int { return h.e.Stream.First() }
+func (h shownHistory) First() int { return h.e.stream.First() }
 
 // Read - reads with mu released, so the UI can render and send messages
 // meanwhile.
 func (h shownHistory) Read(from, to int) []reader.Line {
 	h.e.mu.Unlock()
-	lines := h.e.Stream.Read(from, to)
+	lines := h.e.stream.Read(from, to)
 	h.e.mu.Lock()
 	return h.e.runOthers(lines)
 }
 
-func (h shownHistory) PinCentredOn(number int) { h.e.Stream.PinCentredOn(number) }
+func (h shownHistory) PinCentredOn(number int) { h.e.window.pinCentredOn(number) }
 
 // ------------------------- Private
 
@@ -125,7 +149,7 @@ func (h shownHistory) PinCentredOn(number int) { h.e.Stream.PinCentredOn(number)
 // at the first and the newest Line, once a read finds nothing, and after
 // maxTakenIn Lines. Callers hold mu.
 func (e *Executor) takeIn(lines []reader.Line) []reader.Line {
-	first, total, height := e.Stream.First(), e.Stream.Total(), e.Stream.Height()
+	first, total, height := e.stream.First(), e.stream.Total(), e.window.height
 	budget := maxTakenIn
 	for _, older := range []bool{true, false} {
 		for {
@@ -142,7 +166,7 @@ func (e *Executor) takeIn(lines []reader.Line) []reader.Line {
 			if from >= to { // at the first, or the newest, Line
 				break
 			}
-			read := e.runOthers(e.Stream.Read(from, to))
+			read := e.runOthers(e.stream.Read(from, to))
 			if len(read) == 0 { // the Log File has failed to read
 				break
 			}

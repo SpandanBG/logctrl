@@ -10,3 +10,5 @@ The original requirement was a goroutine that slides the Window forward as lines
 
 - Dedicated tracker goroutine — rejected for the staleness gap and extra lifecycle.
 - Advance the Window inside the existing ingest goroutine — correct, but does work on every line even when nobody is reading.
+
+Amended (#24): the Window, and its Following flag, now live in `cmd`, held by the Executor (see ADR 0011); Following is still derived on read.

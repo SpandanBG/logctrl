@@ -58,7 +58,7 @@ The Window mode in which it always shows the newest lines; the user can return t
 _Avoid_: live mode, tailing, auto-scroll
 
 **Pinned**:
-The Window mode in which it keeps showing the same Line Numbers while new lines arrive, even after they leave the Live Buffer.
+The Window mode in which its top Line stays the same while new Lines arrive, even after they leave the Live Buffer.
 _Avoid_: frozen, paused, locked
 
 **Scroll**:

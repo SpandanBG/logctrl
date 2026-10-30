@@ -14,3 +14,4 @@ A Search, and the formatting that will follow it, adds context to each Line, suc
 - The Search matches the shown text as it stands, so a Log Feed, or a Pass run before the Search, that brings its own ANSI color codes can have a Match split or overlap an escape code and garble its color when highlighted. This is a known limitation, left for a later phase.
 - `GetWindow` runs inside a `tea.Cmd`, on a different goroutine from `Update`, where the UI updates the Passes. So the Executor guards its Passes with a mutex.
 - Amended (#23): `GetWindow` is gone. The UI reads the Window through `headless.Logs.Window()`, which takes the Executor's `Lines()` and gives their shown text and Gutter cells as slices (see ADR 0010); it still reads them in a `tea.Cmd`, so the mutex stays.
+- Amended (#24): `reader.Stream` no longer has `Lines()`. The Window is in `cmd`, held by the Executor and guarded by the same mutex, and reads the History through `Read` (see ADR 0011).

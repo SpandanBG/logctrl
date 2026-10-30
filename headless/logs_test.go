@@ -3,7 +3,6 @@ package headless_test
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -47,17 +46,8 @@ func arrive(t *testing.T, feed *logfeed.Feed, lines ...string) {
 	waitFor(t, feed.Arrived)
 }
 
-// numbered - lines "ok 0".."ok n-1".
-func numbered(n int) []string {
-	lines := make([]string, n)
-	for i := range lines {
-		lines[i] = fmt.Sprint("ok ", i)
-	}
-	return lines
-}
-
 func Test_LogsWindowGivesShownTextAndGutterOfEachLine(t *testing.T) {
-	logs, _ := start(t, 3, numbered(5)...)
+	logs, _ := start(t, 3, logfeed.Numbered(5)...)
 
 	shown, gutter := logs.Window()
 
@@ -140,7 +130,7 @@ func Test_LogsScrollMovesWindowByItsLines(t *testing.T) {
 		{name: "down", scrolls: []int{-3, 1}, expected: "[ok 5 ok 6 ok 7]"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			logs, _ := start(t, 3, numbered(10)...)
+			logs, _ := start(t, 3, logfeed.Numbered(10)...)
 
 			for _, n := range test.scrolls {
 				update(t, logs, cmd.Scroll{N: n})
@@ -165,7 +155,7 @@ func Test_LogsNotifiesAfterEveryUpdate(t *testing.T) {
 		{name: "Follow", msg: cmd.Follow{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			logs, _ := start(t, 3, numbered(10)...)
+			logs, _ := start(t, 3, logfeed.Numbered(10)...)
 			drain(logs)
 
 			update(t, logs, test.msg)
@@ -176,7 +166,7 @@ func Test_LogsNotifiesAfterEveryUpdate(t *testing.T) {
 }
 
 func Test_LogsResizeMakesWindowThatTall(t *testing.T) {
-	logs, _ := start(t, 3, numbered(10)...)
+	logs, _ := start(t, 3, logfeed.Numbered(10)...)
 
 	update(t, logs, cmd.Resize{Height: 2})
 
@@ -185,7 +175,7 @@ func Test_LogsResizeMakesWindowThatTall(t *testing.T) {
 }
 
 func Test_LogsFollowDropsCurrentLineAndShowsNewestLines(t *testing.T) {
-	logs, _ := start(t, 3, numbered(10)...)
+	logs, _ := start(t, 3, logfeed.Numbered(10)...)
 	update(t, logs, cmd.SearchFor{Regex: "ok 2"})
 	update(t, logs, cmd.PreviousMatch{}) // Pins the Window on ok 2, the Current Line
 
@@ -210,7 +200,7 @@ func Test_LogsCollapsesNoticesNotYetTaken(t *testing.T) {
 func Test_LogsKeepsReadingLogFeedWhileNoticesAreNotTaken(t *testing.T) {
 	logs, feed := start(t, 3)
 
-	arrive(t, feed, numbered(100)...) // fails unless every Line arrives
+	arrive(t, feed, logfeed.Numbered(100)...) // fails unless every Line arrives
 
 	shown, _ := logs.Window()
 	testutil.Equal(t, "[ok 97 ok 98 ok 99]", fmt.Sprint(shown))
@@ -249,40 +239,20 @@ func Test_LogsWindowLeavesOutTheMarkOfCurrentLineTheFilterHides(t *testing.T) {
 	testutil.Equal(t, `["  " "  " "  "]`, fmt.Sprintf("%q", gutter))
 }
 
-// gated - a reader.Stream whose reads outside the Window, once armed, wait
-// until released, so a test can act while a step's scan is running.
-type gated struct {
-	reader.Stream
-	armed   atomic.Bool
-	reading chan struct{} // receives once per read while armed
-	release chan struct{} // closed to let reads finish
-}
-
-func (g *gated) Read(from, to int) []reader.Line {
-	if g.armed.Load() {
-		g.reading <- struct{}{}
-		<-g.release
-	}
-	return g.Stream.Read(from, to)
-}
-
 func Test_LogsResizeLeavesStepRunning(t *testing.T) {
-	gate := &gated{reading: make(chan struct{}, 100), release: make(chan struct{})}
-	lines := numbered(3_000)
-	lines[100] = "err 100"
+	var gate *logfeed.Gated
 	logs, _ := startOver(t, func(stream reader.Stream) reader.Stream {
-		gate.Stream = stream
+		gate = logfeed.NewGated(stream, 5)
 		return gate
-	}, 5, lines...)
+	}, 5, logfeed.Numbered(3_000, 100)...)
 	update(t, logs, cmd.SearchFor{Regex: "err"})
 
-	gate.armed.Store(true)
+	gate.Arm()
 	stepped := make(chan error)
 	go func() { stepped <- logs.Update(cmd.PreviousMatch{}) }() // scans back to err 100
-	<-gate.reading
+	<-gate.Reading
 	update(t, logs, cmd.Resize{Height: 3}) // as when a bar opens
-	gate.armed.Store(false)
-	close(gate.release)
+	gate.Release()
 	if err := <-stepped; err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +263,7 @@ func Test_LogsResizeLeavesStepRunning(t *testing.T) {
 }
 
 func Test_LogsChangedClosesOnceClosed(t *testing.T) {
-	logs, _ := start(t, 3, numbered(3)...)
+	logs, _ := start(t, 3, logfeed.Numbered(3)...)
 
 	logs.Close()
 
@@ -306,4 +276,15 @@ func Test_LogsChangedClosesOnceClosed(t *testing.T) {
 		}
 	})
 	update(t, logs, cmd.Scroll{N: -1}) // still safe to update, and to Close again
+}
+
+func Test_LogsWindowIsOneLineTallUntilFirstResize(t *testing.T) {
+	stream, feed := logfeed.New(t)
+	logs := headless.New(cmd.NewExecutor(stream, testutil.Colors()))
+	t.Cleanup(logs.Close)
+
+	arrive(t, feed, logfeed.Numbered(3)...)
+
+	shown, _ := logs.Window()
+	testutil.Equal(t, "[ok 2]", fmt.Sprint(shown))
 }

@@ -20,17 +20,12 @@ const (
 	defaultChunkSize = 1_000
 )
 
+// Stream - the History of a Log Feed, read by Line Number as it arrives.
 type Stream interface {
 	Start(chan bool)
-	SetBufferSize(int)
-	Height() int
-	Lines() []Line
 	Total() int
 	First() int
 	Read(from, to int) []Line
-	MoveToEnd()
-	MoveBy(int) int
-	PinCentredOn(int)
 	Close()
 }
 
@@ -39,10 +34,9 @@ type stream struct {
 	logFile *os.File
 	logFeed *os.File
 
-	// display state; `mu` guards both
+	// every Line received; `mu` guards it
 	mu      sync.Mutex
 	history *History
-	window  *Window
 
 	// notification channel
 	next chan bool
@@ -72,27 +66,6 @@ func (s *stream) Start(next chan bool) {
 	}()
 }
 
-// SetBufferSize - sets the height of the window. Held lines are kept.
-func (s *stream) SetBufferSize(size int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.window.SetHeight(size)
-}
-
-// Height - the height of the window, as set by SetBufferSize.
-func (s *stream) Height() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.window.Height()
-}
-
-// Lines - returns the lines currently in the window.
-func (s *stream) Lines() []Line {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.window.Lines()
-}
-
 // Total - the number of lines received so far.
 func (s *stream) Total() int {
 	s.mu.Lock()
@@ -108,8 +81,8 @@ func (s *stream) First() int {
 	return s.history.First()
 }
 
-// Read - the lines with line numbers in [from, to), wherever the window is,
-// leaving out any the History can no longer show.
+// Read - the lines with line numbers in [from, to), leaving out any the
+// History can no longer show.
 func (s *stream) Read(from, to int) []Line {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -122,29 +95,6 @@ func (s *stream) Read(from, to int) []Line {
 			return lines
 		}
 	}
-}
-
-// MoveToEnd - makes the window follow the newest lines.
-func (s *stream) MoveToEnd() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.window.MoveToEnd()
-}
-
-// MoveBy - scrolls the window by `n` lines (negative is up / older, positive
-// is down / newer) and returns the number of lines actually moved.
-func (s *stream) MoveBy(n int) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.window.MoveBy(n)
-}
-
-// PinCentredOn - pins the window with line `number` in its middle, stopping at
-// the first and newest lines.
-func (s *stream) PinCentredOn(number int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.window.PinCentredOn(number)
 }
 
 // Close - closes all pipes and files
@@ -164,13 +114,10 @@ func newStream(logFeed *os.File, capacity, chunkSize int) Stream {
 		log.Fatalf("unable to create temp log file - %v", err)
 	}
 
-	history := NewHistory(capacity, chunkSize, logFile)
-
 	return &stream{
 		logFile: logFile,
 		logFeed: logFeed,
-		history: history,
-		window:  NewWindow(history),
+		history: NewHistory(capacity, chunkSize, logFile),
 	}
 }
 

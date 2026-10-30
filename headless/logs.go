@@ -28,7 +28,7 @@ type Logs struct {
 func New(stream cmd.Stream) *Logs {
 	l := &Logs{stream: stream, changed: make(chan struct{}, 1)}
 	next := make(chan bool)
-	stream.SetBufferSize(1)
+	stream.Update(cmd.Resize{Height: 1}) // resizing never fails
 	stream.Start(next)
 	go func() { // ends once the stream closes `next`, closing changed
 		for range next {
@@ -62,24 +62,11 @@ func (l *Logs) Window() (shown, gutter []string) {
 	return shown, gutter
 }
 
-// Update - acts on `msg` if it moves the Window (cmd.Scroll, cmd.Resize,
-// cmd.Follow) and hands it to every Pass, but for cmd.Resize, so resizing
-// never cancels a step; returns their errors joined, then notifies. On
-// cmd.Follow the Window Follows only once the Passes have it, so no step
-// still scanning can Pin the Window after it.
+// Update - hands `msg` to the stream, which moves the Window on cmd.Scroll,
+// cmd.Resize and cmd.Follow and hands it to every Pass but for cmd.Resize;
+// returns its error, then notifies.
 func (l *Logs) Update(msg any) error {
 	defer l.notify()
-	switch msg := msg.(type) {
-	case cmd.Resize:
-		l.stream.SetBufferSize(msg.Height)
-		return nil
-	case cmd.Scroll:
-		l.stream.MoveBy(msg.N)
-	case cmd.Follow:
-		err := l.stream.Update(msg)
-		l.stream.MoveToEnd()
-		return err
-	}
 	return l.stream.Update(msg)
 }
 

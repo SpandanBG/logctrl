@@ -89,7 +89,7 @@ Source tags:
 - **TDD-9** A failure message says what was being done, what came back and what was expected, so it can be read without opening the test. _(CRC "Useful Test Failures", GSG)_
 - **TDD-10** Test helpers call `t.Helper()`. Prefer `t.Error`, so one run shows every failure; use `t.Fatal` only when the checks after it would be meaningless. _(GSG)_
 - **TDD-11** _house_ Assert with the shared helpers in `internal/`: `testutil.Equal(t, expected, actual)` (expected first), `testutil.Runtime` to drive a `tea.Model`, `testutil.Colors` to compare styled output against literals, `logfeed` for a real `reader.Stream` fed over a pipe (tests check what is shown, never which calls were made), and `logview` to read the Log View out of a rendered view. This overrides GSG's "no assertion libraries" and its got-before-want order.
-- **TDD-12** _house_ Test functions are named `Test_<Subject><Behaviour>` in the terms of `GLOSSARY.md`, as in `Test_StreamPinCentredOnLine`. GSG allows underscores in test names.
+- **TDD-12** _house_ Test functions are named `Test_<Subject><Behaviour>` in the terms of `GLOSSARY.md`, as in `Test_ExecutorWindowCentresOnCurrentLine`. GSG allows underscores in test names.
 - **TDD-13** Tests are fast, independent and repeatable, and pass under `-race`. They never touch the real `~/.config`, the network, or wall-clock timing beyond `testutil.Runtime`'s settle wait. _(CC; house)_
 - **TDD-14** Coverage, counted across packages by `make cover`, never drops below `COVER_MIN` in the `Makefile`. Raise `COVER_MIN` as coverage grows; never lower it to make a change pass. _(house)_
 

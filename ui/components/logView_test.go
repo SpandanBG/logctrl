@@ -38,15 +38,6 @@ func arrive(t *testing.T, model tea.Model, runtime *testutil.Runtime, feed *logf
 	return runtime.SettleUntil(t, model, feed.Arrived)
 }
 
-// numbered - lines "ok 0".."ok n-1".
-func numbered(n int) []string {
-	lines := make([]string, n)
-	for i := range lines {
-		lines[i] = fmt.Sprint("ok ", i)
-	}
-	return lines
-}
-
 // update - hands `msg` to `model` and settles it.
 func update(model tea.Model, runtime *testutil.Runtime, msg tea.Msg) tea.Model {
 	model, cmd := model.Update(msg)
@@ -66,10 +57,10 @@ func change(t *testing.T, model tea.Model, runtime *testutil.Runtime, logs *head
 func Test_LogViewSetsWindowHeightToItsInnerHeight(t *testing.T) {
 	logView, _, feed, runtime := startLogView(t)
 
-	logView = arrive(t, logView, runtime, feed, numbered(40)...)
+	logView = arrive(t, logView, runtime, feed, logfeed.Numbered(40)...)
 
 	// 30 rows - 1 toolbar row - 2 border rows
-	testutil.Equal(t, fmt.Sprint(numbered(40)[13:]), fmt.Sprint(logview.ShownLines(logView.View())))
+	testutil.Equal(t, fmt.Sprint(logfeed.Numbered(40)[13:]), fmt.Sprint(logview.ShownLines(logView.View())))
 }
 
 func Test_LogViewShowsWindowWhenNewLinesArrive(t *testing.T) {
@@ -91,7 +82,7 @@ func Test_LogViewKeepsShowingWindowAsMoreLinesArrive(t *testing.T) {
 
 func Test_LogViewResizesWindowWhenItsSizeChanges(t *testing.T) {
 	logView, _, feed, runtime := startLogView(t)
-	logView = arrive(t, logView, runtime, feed, numbered(40)...)
+	logView = arrive(t, logView, runtime, feed, logfeed.Numbered(40)...)
 
 	logView = update(logView, runtime, components.TeaLogSizeUpdate{
 		Width:  ui.SizeRatio(1),
@@ -101,12 +92,12 @@ func Test_LogViewResizesWindowWhenItsSizeChanges(t *testing.T) {
 
 	// 30 rows - 17 (toolbar + prompt) - 2 border rows
 	testutil.Equal(t, 11, len(logview.Rows(logView.View())))
-	testutil.Equal(t, fmt.Sprint(numbered(41)[30:]), fmt.Sprint(logview.ShownLines(logView.View())))
+	testutil.Equal(t, fmt.Sprint(logfeed.Numbered(41)[30:]), fmt.Sprint(logview.ShownLines(logView.View())))
 }
 
 func Test_LogViewShowsShrunkWindowWithoutWaitingForNewLines(t *testing.T) {
 	logView, _, feed, runtime := startLogView(t)
-	logView = arrive(t, logView, runtime, feed, numbered(40)...)
+	logView = arrive(t, logView, runtime, feed, logfeed.Numbered(40)...)
 
 	logView = update(logView, runtime, components.TeaLogSizeUpdate{
 		Width:  ui.SizeRatio(1),
@@ -115,7 +106,7 @@ func Test_LogViewShowsShrunkWindowWithoutWaitingForNewLines(t *testing.T) {
 
 	// 30 rows - 17 (toolbar + prompt) - 2 border rows
 	testutil.Equal(t, 11, len(logview.Rows(logView.View())))
-	testutil.Equal(t, fmt.Sprint(numbered(40)[29:]), fmt.Sprint(logview.ShownLines(logView.View())))
+	testutil.Equal(t, fmt.Sprint(logfeed.Numbered(40)[29:]), fmt.Sprint(logview.ShownLines(logView.View())))
 }
 
 func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
@@ -134,7 +125,7 @@ func Test_LogViewShowsScrolledWindowWithoutWaitingForNewLines(t *testing.T) {
 
 func Test_LogViewFollowShowsNewestLinesWithoutWaitingForNewLines(t *testing.T) {
 	logView, logs, feed, runtime := startLogView(t)
-	logView = arrive(t, logView, runtime, feed, numbered(40)...)
+	logView = arrive(t, logView, runtime, feed, logfeed.Numbered(40)...)
 	logView = change(t, logView, runtime, logs, cmd.Scroll{N: -1})
 	testutil.Equal(t, "ok 38", logview.Bottom(logView.View()))
 
@@ -153,7 +144,7 @@ func stepTo(t *testing.T, model tea.Model, runtime *testutil.Runtime, logs *head
 
 func Test_LogViewShowsEachLinesGutterBesideIt(t *testing.T) {
 	logView, logs, feed, runtime := startLogView(t)
-	logView = arrive(t, logView, runtime, feed, numbered(40)...) // fills the Window, Pinned or not
+	logView = arrive(t, logView, runtime, feed, logfeed.Numbered(40)...) // fills the Window, Pinned or not
 
 	logView = stepTo(t, logView, runtime, logs, "39")
 

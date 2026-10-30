@@ -1,10 +1,11 @@
 // Package logfeed provides a real reader.Stream fed over a pipe, for UI and
-// Executor tests.
+// Executor tests, and the test doubles and Lines they share.
 package logfeed
 
 import (
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -20,8 +21,8 @@ type Feed struct {
 	written int           // Lines written so far
 }
 
-// New - a real reader.Stream over a pipe, not yet started: the UI sets its
-// height and starts it. Returns it with the Feed writing to it.
+// New - a real reader.Stream over a pipe, not yet started: the UI starts it.
+// Returns it with the Feed writing to it.
 func New(t *testing.T) (reader.Stream, *Feed) {
 	t.Helper()
 	r, w, err := os.Pipe()
@@ -35,13 +36,12 @@ func New(t *testing.T) (reader.Stream, *Feed) {
 	return stream, &Feed{t: t, stream: stream, w: w}
 }
 
-// Started - a real reader.Stream over a pipe, `height` lines tall, started and
-// fed `lines`. Returns it with the Feed writing to it.
-func Started(t *testing.T, height int, lines ...string) (reader.Stream, *Feed) {
+// Started - a real reader.Stream over a pipe, started and fed `lines`. Returns
+// it with the Feed writing to it.
+func Started(t *testing.T, lines ...string) (reader.Stream, *Feed) {
 	t.Helper()
 	stream, feed := New(t)
 	feed.next = make(chan bool)
-	stream.SetBufferSize(height)
 	stream.Start(feed.next)
 	t.Cleanup(stream.Close)
 
@@ -75,4 +75,16 @@ func (f *Feed) Write(lines ...string) {
 // Arrived - whether every Line written has arrived in the stream.
 func (f *Feed) Arrived() bool {
 	return f.stream.Total() >= f.written
+}
+
+// Numbered - Lines "ok 0".."ok n-1", but "err i" for each i in `errs`.
+func Numbered(n int, errs ...int) []string {
+	lines := make([]string, n)
+	for i := range lines {
+		lines[i] = fmt.Sprint("ok ", i)
+		if slices.Contains(errs, i) {
+			lines[i] = fmt.Sprint("err ", i)
+		}
+	}
+	return lines
 }

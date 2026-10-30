@@ -12,7 +12,7 @@ The user steps from the Current Line to the previous (older) or next (newer) Lin
 
 ## Consequences
 
-- A `Line` carries its Line Number, and the reader Stream can read Lines by Line Number (`Read`, one call per batch, so its lock is released between them), say which is the first it can still read (`First`), and Pin the Window centred on a Line Number (`PinCentredOn`), stopping at Line Number 0 and the newest Line.
+- A `Line` carries its Line Number, and the reader Stream can read Lines by Line Number (`Read`, one call per batch, so its lock is released between them), say which is the first it can still read (`First`), and Pin the Window centred on a Line Number (`PinCentredOn`), stopping at Line Number 0 and the newest Line. Amended (#24): the Window, and Pinning it, moved into the Executor (see ADR 0011); `reader.Stream` keeps `Read` and `First`.
 - A step at the oldest or newest Line with a Match does nothing: there is no wrap and no message. A step down looks through every Line up to Total, including Lines that arrived after enter.
 - The Line Numbers remembered aren't bounded, at 8 bytes per Line with a Match. A sorted index of every Line with a Match is deferred until scanning proves slow.
 - A scan loads Chunks the Window doesn't show, so it can drop the Chunks the Window does show (ADR 0004), and they are read again on the next render.

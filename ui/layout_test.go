@@ -106,18 +106,6 @@ func arrive(t *testing.T, model tea.Model, runtime *testutil.Runtime, feed *logf
 	return runtime.SettleUntil(t, model, feed.Arrived)
 }
 
-// numbered - lines "ok 0".."ok n-1", but "err i" for each i in `errs`.
-func numbered(n int, errs ...int) []string {
-	lines := make([]string, n)
-	for i := range lines {
-		lines[i] = fmt.Sprint("ok ", i)
-		if slices.Contains(errs, i) {
-			lines[i] = fmt.Sprint("err ", i)
-		}
-	}
-	return lines
-}
-
 // logRows - how many rows tall the Log View is.
 func logRows(model tea.Model) int {
 	return len(logview.Rows(model.View()))
@@ -238,7 +226,7 @@ func Test_UIEscClosesPromptAndRestoresLogView(t *testing.T) {
 
 func Test_UIScrollKeysScrollLogViewWhilePromptClosed(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("k"))
 	model, _ = press(model, runtime, keys("k"))
@@ -250,7 +238,7 @@ func Test_UIScrollKeysScrollLogViewWhilePromptClosed(t *testing.T) {
 
 func Test_UIFollowKeyMakesLogViewFollowingWhilePromptClosed(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("k"))
 	model, _ = press(model, runtime, keys("G"))
@@ -260,7 +248,7 @@ func Test_UIFollowKeyMakesLogViewFollowingWhilePromptClosed(t *testing.T) {
 
 func Test_UIScrollKeysAreTypedWhilePromptOpen(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, tab)
 	before := logview.Bottom(model.View())
@@ -298,7 +286,7 @@ func Test_UIEscClosesHelpAndRestoresLogView(t *testing.T) {
 func Test_UIScrollKeysScrollHelpNotLogViewWhileHelpOpen(t *testing.T) {
 	// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 Help rows
 	model, feed, runtime := startSizedUI(t, 80, 5)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("h"))
 	model, _ = press(model, runtime, keys("j"))
@@ -323,7 +311,7 @@ func Test_UIIgnoresOtherKeysWhileHelpOpen(t *testing.T) {
 	} {
 		t.Run(key.String(), func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 			model, _ = press(model, runtime, keys("k"))
 			model, _ = press(model, runtime, keys("h"))
 			helpView := model.View()
@@ -433,7 +421,7 @@ func Test_UIClosesHelpOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
 
 func Test_UIScrollsLogViewOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 	model, feed, runtime := startRemappedUI(t, 80, 30, remapped)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("u"))
 	model, _ = press(model, runtime, keys("u"))
@@ -447,7 +435,7 @@ func Test_UIScrollsLogViewOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 
 func Test_UIFollowsOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
 	model, feed, runtime := startRemappedUI(t, 80, 30, remapped)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 	model, _ = press(model, runtime, keys("u"))
 
 	model, _ = press(model, runtime, keys("G"))
@@ -461,7 +449,7 @@ func Test_UIFollowsOnRemappedKeyNotTheBuiltInOne(t *testing.T) {
 func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 	// 5 rows - 1 toolbar row - 2 border rows leaves room for 2 Help rows
 	model, feed, runtime := startRemappedUI(t, 80, 5, remapped)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 	model, _ = press(model, runtime, keys("?"))
 
 	model, _ = press(model, runtime, keys("j"))
@@ -481,7 +469,7 @@ func Test_UIScrollsHelpOnRemappedKeysNotTheBuiltInOnes(t *testing.T) {
 
 func Test_UISearchKeyOpensSearchBarAndShrinksLogView(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("/"))
 	before := logview.Bottom(model.View())
@@ -497,7 +485,7 @@ func Test_UISearchKeyOpensSearchBarAndShrinksLogView(t *testing.T) {
 
 func Test_UIEnterMakesSearchBarReadOnly(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("/"))
 	model, _ = press(model, runtime, keys("err"))
@@ -524,7 +512,7 @@ func Test_UICloseSearchKeyClosesSearchBarAndRestoresLogView(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 			model, _ = press(model, runtime, keys("/"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -559,7 +547,7 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 			model, _ = press(model, runtime, keys("/"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -580,7 +568,7 @@ func Test_UIEscCancelsTypingInSearchBar(t *testing.T) {
 // withMatches - 40 Lines, two of them with a Match for "err" and one for
 // "error", all in the Log View.
 func withMatches() []string {
-	lines := numbered(40, 30)
+	lines := logfeed.Numbered(40, 30)
 	lines[35] = "error 35"
 	return lines
 }
@@ -624,7 +612,7 @@ func Test_UICloseSearchKeyFollowsOnceRegexIsEntered(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 			model = enterSearch(model, runtime, test.regex)
 			model, _ = press(model, runtime, keys("k"))
 			for _, key := range test.typed {
@@ -648,7 +636,7 @@ func Test_UIClosingSearchBarBeforeRegexIsEnteredKeepsWindow(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 			model, _ = press(model, runtime, keys("k"))
 			model, _ = press(model, runtime, keys("/"))
 			model, _ = press(model, runtime, keys("err"))
@@ -674,7 +662,7 @@ func Test_UIEscKeepsEnteredSearch(t *testing.T) {
 
 func Test_UIBadRegexShowsItsErrorInRedInSearchBar(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model = enterSearch(model, runtime, "err(")
 	model, _ = press(model, runtime, keys("k"))
@@ -814,7 +802,7 @@ func Test_UIOpensAndClosesSearchBarOnRemappedKeysNotTheBuiltInOnes(t *testing.T)
 
 func Test_UIFilterKeyOpensFilterBarAndShrinksLogView(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 
 	model, _ = press(model, runtime, keys("f"))
 	before := logview.Bottom(model.View())
@@ -830,7 +818,7 @@ func Test_UIFilterKeyOpensFilterBarAndShrinksLogView(t *testing.T) {
 
 func Test_UIEnterMakesFilterBarReadOnlyAndFiltersWithoutSearching(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40, 20, 30)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 20, 30)...)
 	model, _ = press(model, runtime, keys("k")) // Pins the Window
 
 	model, _ = press(model, runtime, keys("f"))
@@ -859,7 +847,7 @@ func Test_UICloseFilterKeyClosesFilterBarEndingFilterAndRestoresLogView(t *testi
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40, 20, 30)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 20, 30)...)
 			model, _ = press(model, runtime, keys("k")) // Pins the Window
 			model, _ = press(model, runtime, keys("f"))
 			for _, key := range test.typed {
@@ -906,7 +894,7 @@ func Test_UILogViewRedrawsWhenFilterStartsOrEnds(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40, 30)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 30)...)
 
 			for _, regex := range test.regexes {
 				model = enterFilter(model, runtime, regex)
@@ -940,7 +928,7 @@ func Test_UIEscCancelsTypingInFilterBar(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40)...)
 			model, _ = press(model, runtime, keys("f"))
 			for _, key := range test.typed {
 				model, _ = press(model, runtime, key)
@@ -1053,7 +1041,7 @@ func Test_UIStepKeysStepBetweenLinesWithMatchOnlyWhileRegexEnteredAndReadOnly(t 
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40, 10, 20, 30)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 10, 20, 30)...)
 			if !test.noSearch {
 				model = enterSearch(model, runtime, "err")
 			}
@@ -1077,7 +1065,7 @@ func Test_UILogViewRedrawsAfterStep(t *testing.T) {
 	for _, key := range []tea.KeyMsg{up, down} {
 		t.Run(key.String(), func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40, 30)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 30)...)
 			model = enterSearch(model, runtime, "err")
 
 			model, _ = press(model, runtime, key)
@@ -1091,7 +1079,7 @@ func Test_UIEnterWithNewRegexMakesWindowFollowing(t *testing.T) {
 	for _, regex := range []string{"err", "err("} {
 		t.Run(regex, func(t *testing.T) {
 			model, feed, runtime := startUI(t)
-			model = arrive(t, model, runtime, feed, numbered(40, 30)...)
+			model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 30)...)
 			model, _ = press(model, runtime, keys("k"))
 
 			model = enterSearch(model, runtime, regex)
@@ -1103,7 +1091,7 @@ func Test_UIEnterWithNewRegexMakesWindowFollowing(t *testing.T) {
 
 func Test_UIEnterWithSameRegexChangesNothing(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40, 10, 20)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 10, 20)...)
 	model = enterSearch(model, runtime, "err")
 	model, _ = press(model, runtime, up) // Pins the Window on the Current Line
 	pinned := logview.Bottom(model.View())
@@ -1117,7 +1105,7 @@ func Test_UIEnterWithSameRegexChangesNothing(t *testing.T) {
 
 func Test_UIFollowKeyDropsCurrentLineKeepingSearch(t *testing.T) {
 	model, feed, runtime := startUI(t)
-	model = arrive(t, model, runtime, feed, numbered(40, 10, 20)...)
+	model = arrive(t, model, runtime, feed, logfeed.Numbered(40, 10, 20)...)
 	model = enterSearch(model, runtime, "err")
 	model, _ = press(model, runtime, up)
 

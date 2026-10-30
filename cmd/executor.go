@@ -47,7 +47,7 @@ type Executor struct {
 	stream reader.Stream // the History of the Log Feed
 
 	mu     sync.Mutex // guards the Window and the Passes: updated in the UI's Update, read in a tea.Cmd
-	window *window    // the Lines shown, before the Filter takes in others
+	window *window    // the Lines shown, taking in others while the Filter hides some
 	passes []Pass     // every Pass but the Search and the Gutter: the Filter first, then the others in order
 	search *search    // run after `passes`, stepping through the History they leave
 	gutter *gutter    // run last, over each Line as every other Pass leaves it
@@ -58,7 +58,8 @@ type Executor struct {
 // Gutter.
 func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer, others ...Pass) *Executor {
 	passes := append([]Pass{newFilter()}, others...)
-	e := &Executor{stream: stream, window: newWindow(stream), passes: passes, search: newSearch(renderer), gutter: newGutter()}
+	e := &Executor{stream: stream, passes: passes, search: newSearch(renderer), gutter: newGutter()}
+	e.window = newWindow(stream, e.runOthers)
 	e.search.attach(shownHistory{e})
 	return e
 }
@@ -103,13 +104,8 @@ func (e *Executor) Close() {
 func (e *Executor) Lines() []reader.Line {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.gutter.Run(e.search.Run(e.takeIn(e.runOthers(e.window.lines()))))
+	return e.gutter.Run(e.search.Run(e.window.shown()))
 }
-
-// maxTakenIn - the most Lines beyond the Window a read takes in to fill it
-// while the Filter hides Lines: as many as the Live Buffer holds, so a Filter
-// that rarely matches never reads the whole History on every render.
-const maxTakenIn = reader.DefaultCapacity
 
 // shownHistory - the History as the Passes before the Search leave it, given
 // to the Search; called from its Update, with mu held.
@@ -145,56 +141,10 @@ func (h shownHistory) Read(from, to int) []reader.Line {
 // PinCentredOn - Pins the Window centred on line `number`.
 func (h shownHistory) PinCentredOn(number int) { h.e.window.pinCentredOn(number) }
 
+// Follow - makes the Window Following.
+func (h shownHistory) Follow() { h.e.window.follow() }
+
 // ------------------------- Private
-
-// takeIn - `lines` after every Pass but the Search and the Gutter, with as many
-// older Lines before them, then newer ones after them, run over by the same
-// Passes, as it takes to show as many Lines as the Window's height; it stops
-// at the first and the newest Line, once a read finds nothing, and after
-// maxTakenIn Lines. Callers hold mu.
-func (e *Executor) takeIn(lines []reader.Line) []reader.Line {
-	first, total, height := e.stream.First(), e.stream.Total(), e.window.height
-	budget := maxTakenIn
-	for _, older := range []bool{true, false} {
-		for {
-			missing := min(height-shownCount(lines), budget) // reads no more Lines than it may show
-			if missing <= 0 || len(lines) == 0 {
-				return lines
-			}
-			from, to := lines[0].Number-missing, lines[0].Number
-			if !older {
-				from = lines[len(lines)-1].Number + 1
-				to = from + missing
-			}
-			from, to = max(from, first), min(to, total)
-			if from >= to { // at the first, or the newest, Line
-				break
-			}
-			read := e.runOthers(e.stream.Read(from, to))
-			if len(read) == 0 { // the Log File has failed to read
-				break
-			}
-			budget -= len(read)
-			if older {
-				lines = append(read, lines...)
-			} else {
-				lines = append(lines, read...)
-			}
-		}
-	}
-	return lines
-}
-
-// shownCount - how many of `lines` the Filter does not hide.
-func shownCount(lines []reader.Line) int {
-	count := 0
-	for _, line := range lines {
-		if !line.Filter.Hide {
-			count++
-		}
-	}
-	return count
-}
 
 // runOthers - copies of `lines` after every Pass but the Search and the
 // Gutter, the Filter first. Callers hold mu.

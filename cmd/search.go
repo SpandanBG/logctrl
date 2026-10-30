@@ -38,6 +38,7 @@ type history interface {
 	First() int                      // Line Number of the oldest line that can be read
 	Read(from, to int) []reader.Line // lines in [from, to) as the other Passes leave them
 	PinCentredOn(number int)         // Pins the Window centred on line `number`
+	Follow()                         // makes the Window Following
 }
 
 // search - the Pass marking where the Search regex matches each Line, and
@@ -57,44 +58,30 @@ type search struct {
 // Update - steps on PreviousMatch and NextMatch, finding the Current Line
 // first if there is none, unless a scan is running, returning once its scan
 // ends. Any other message cancels any scan running and forgets the Lines with
-// a Match found so far (see docs/adr/0007). Follow drops the Current Line. On
-// SearchFor, searches for its regex, or goes idle if it is empty; a regex that
-// does not compile leaves the Search idle and is returned as the error.
+// a Match found so far (see docs/adr/0007); Follow also drops the Current
+// Line, and SearchFor searches for its regex, unless it is the one already
+// searched for, which changes nothing.
 func (s *search) Update(msg any) error {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case PreviousMatch:
 		s.scan(s.stepOlder)
 		return nil
 	case NextMatch:
 		s.scan(s.stepNewer)
 		return nil
-	}
-
-	s.gen++
-	s.scanning = false
-	s.seen = seen{} // any message may change the shown text matched
-	if _, ok := msg.(Follow); ok {
+	case SearchFor:
+		if s.searching() && s.regex.String() == msg.Regex {
+			return nil
+		}
+		s.cancel()
+		return s.searchFor(msg.Regex)
+	case Follow:
+		s.cancel()
 		s.current = -1
 		s.dropped = -1
 		return nil
 	}
-	searchFor, ok := msg.(SearchFor)
-	if !ok {
-		return nil
-	}
-
-	s.regex = nil
-	s.current = -1
-	s.dropped = -1
-	if searchFor.Regex == "" {
-		return nil
-	}
-
-	compiled, err := regexp.Compile(searchFor.Regex)
-	if err != nil {
-		return err
-	}
-	s.regex = compiled
+	s.cancel()
 	return nil
 }
 
@@ -133,6 +120,35 @@ func newSearch(renderer *lipgloss.Renderer) *search {
 			Foreground(lipgloss.Color("0")).
 			Background(lipgloss.Color("3")),
 	}
+}
+
+// cancel - cancels any scan running and forgets the Lines with a Match found
+// so far, as any message may change the shown text matched.
+func (s *search) cancel() {
+	s.gen++
+	s.scanning = false
+	s.seen = seen{}
+}
+
+// searchFor - searches for `regex`, dropping the Current Line, and makes the
+// Window Following; goes idle, keeping the Window's mode, if `regex` is empty.
+// A regex that does not compile leaves the Search idle, still Following, and
+// is returned as the error.
+func (s *search) searchFor(regex string) error {
+	s.regex = nil
+	s.current = -1
+	s.dropped = -1
+	if regex == "" {
+		return nil
+	}
+
+	s.history.Follow()
+	compiled, err := regexp.Compile(regex)
+	if err != nil {
+		return err
+	}
+	s.regex = compiled
+	return nil
 }
 
 // attach - gives the Search the History to step through.

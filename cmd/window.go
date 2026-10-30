@@ -2,22 +2,35 @@ package cmd
 
 import "github.com/SpandanBG/logctrl/reader"
 
+// maxTakenIn - the most Lines beyond the Window a read takes in to fill it
+// while the Filter hides Lines: as many as the Live Buffer holds, so a Filter
+// that rarely matches never reads the whole History on every render.
+const maxTakenIn = reader.DefaultCapacity
+
 // window - the range of Line Numbers [start, end) being shown, read from the
 // History through a reader.Stream. While Following, the range is derived on
 // read from the newest Lines and start/end are not used (see docs/adr/0002).
 type window struct {
-	stream    reader.Stream // the History read from
-	height    int           // the Lines shown, as tall as the Log View
-	start     int           // Line Number of the first Line shown, while Pinned
-	end       int           // Line Number after the last Line shown, while Pinned
-	following bool          // shows the newest Lines, whatever start and end are
+	stream    reader.Stream                     // the History read from
+	run       func([]reader.Line) []reader.Line // the Passes before the Search, run over the Lines it takes in; called with the Executor's lock held
+	height    int                               // the Lines shown, as tall as the Log View
+	start     int                               // Line Number of the first Line shown, while Pinned
+	end       int                               // Line Number after the last Line shown, while Pinned
+	following bool                              // shows the newest Lines, whatever start and end are
 }
 
 // ------------------------- Private
 
-// newWindow - a Following window over the History of `stream`.
-func newWindow(stream reader.Stream) *window {
-	return &window{stream: stream, following: true}
+// newWindow - a Following window over the History of `stream`, taking in
+// Lines while `run`, the Passes before the Search, hides some.
+func newWindow(stream reader.Stream, run func([]reader.Line) []reader.Line) *window {
+	return &window{stream: stream, run: run, following: true}
+}
+
+// shown - the Lines in the window after `run`, with as many Lines taken in
+// as it takes to show as many as its height. Callers hold the Executor's lock.
+func (w *window) shown() []reader.Line {
+	return w.takeIn(w.run(w.lines()))
 }
 
 // lines - the Lines in the window.
@@ -99,4 +112,52 @@ func (w *window) clamp() {
 // lastStart - start of the window when it shows the newest Lines.
 func (w *window) lastStart() int {
 	return max(w.stream.First(), w.stream.Total()-w.height)
+}
+
+// takeIn - `lines`, with as many older Lines before them, then newer ones
+// after them, run over by `run`, as it takes to show as many Lines as the
+// window's height; it stops at the first and the newest Line, once a read
+// finds nothing, and after maxTakenIn Lines. Callers hold the Executor's lock.
+func (w *window) takeIn(lines []reader.Line) []reader.Line {
+	first, total, height := w.stream.First(), w.stream.Total(), w.height
+	budget := maxTakenIn
+	for _, older := range []bool{true, false} {
+		for {
+			missing := min(height-shownCount(lines), budget) // reads no more Lines than it may show
+			if missing <= 0 || len(lines) == 0 {
+				return lines
+			}
+			from, to := lines[0].Number-missing, lines[0].Number
+			if !older {
+				from = lines[len(lines)-1].Number + 1
+				to = from + missing
+			}
+			from, to = max(from, first), min(to, total)
+			if from >= to { // at the first, or the newest, Line
+				break
+			}
+			read := w.run(w.stream.Read(from, to))
+			if len(read) == 0 { // the Log File has failed to read
+				break
+			}
+			budget -= len(read)
+			if older {
+				lines = append(read, lines...)
+			} else {
+				lines = append(lines, read...)
+			}
+		}
+	}
+	return lines
+}
+
+// shownCount - how many of `lines` the Filter does not hide.
+func shownCount(lines []reader.Line) int {
+	count := 0
+	for _, line := range lines {
+		if !line.Filter.Hide {
+			count++
+		}
+	}
+	return count
 }

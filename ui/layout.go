@@ -41,8 +41,6 @@ type uiModel struct {
 	actionOf     map[string]config.Action               // the Action each key in the Keymap triggers
 	promptActive bool                                   // the Prompt is open, and keys go to it
 	helpActive   bool                                   // the Help is open, in place of the Log View
-	regex        string                                 // the regex being searched for; "" if none
-	filter       string                                 // the regex being filtered for; "" if none
 }
 
 // NewUI - the app over `logs`, keyed by `keymap`, styled by `renderer`.
@@ -102,25 +100,14 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return u.executeKeystroke(msg)
 	case components.TeaRegexEntered:
 		if msg.Bar == components.FilterBar {
-			if msg.Regex == u.filter {
-				return u, nil
-			}
-			u.filter = msg.Regex
 			if err := u.logs.Update(cmd.FilterFor{Regex: msg.Regex}); err != nil {
-				u.filter = ""
 				u, _ = u.updateBar(components.FilterBar, components.TeaRegexFailed{Err: err})
 			}
 			return u, nil
 		}
-		if msg.Regex == u.regex {
-			return u, nil
-		}
-		u.regex = msg.Regex
 		if err := u.logs.Update(cmd.SearchFor{Regex: msg.Regex}); err != nil {
-			u.regex = ""
 			u, _ = u.updateBar(components.SearchBar, components.TeaRegexFailed{Err: err})
 		}
-		u.follow()
 		return u, nil
 	}
 
@@ -376,7 +363,6 @@ func (u uiModel) closeBar(which components.Bar) (tea.Model, tea.Cmd) {
 	case components.SearchBar:
 		u = u.endSearch()
 	case components.FilterBar:
-		u.filter = ""
 		u.logs.Update(cmd.FilterFor{}) // ending a Filter never fails
 	}
 	u, _ = u.updateBar(which, components.TeaRegexClose{})
@@ -396,7 +382,6 @@ func (u uiModel) cancelBar(which components.Bar) (tea.Model, tea.Cmd) {
 // endSearch - ends the Search: once a regex has been entered, the Window
 // Follows; until then, it keeps its mode.
 func (u uiModel) endSearch() uiModel {
-	u.regex = ""
 	u.logs.Update(cmd.SearchFor{}) // ending a Search never fails
 	if u.bars[components.SearchBar].Entered() {
 		u.follow()

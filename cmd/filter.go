@@ -19,7 +19,8 @@ type filter struct {
 
 // Update - on FilterFor, filters for its regex, or goes idle if it is empty; a
 // regex that does not compile leaves the Filter idle and is returned as the
-// error.
+// error. The regex already filtered for is compiled again, hiding the same
+// Lines.
 func (f *filter) Update(msg any) error {
 	filterFor, ok := msg.(FilterFor)
 	if !ok {

@@ -67,6 +67,35 @@ func Test_ExecutorSearchForKeepsWindowFollowingWithNoCurrentLine(t *testing.T) {
 	testutil.Equal(t, "[[{0 3}] [] [] [] []]", matches(exec.Lines()))
 }
 
+func Test_ExecutorNewSearchRegexMakesWindowFollowing(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		regex string
+	}{
+		{name: "a regex that compiles", regex: "ok"},
+		{name: "a regex that does not compile", regex: "ok("},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			exec, _ := start(t, 5, logfeed.Numbered(20, 12, 16)...)
+			enter(t, exec, "err") // Pins the Window on the Current Line
+
+			exec.Update(cmd.SearchFor{Regex: test.regex}) // a bad regex ends the Search: its error is tested elsewhere
+
+			testutil.Equal(t, "[15 16 17 18 19]", numbers(exec.Lines()))
+		})
+	}
+}
+
+func Test_ExecutorSameSearchRegexAgainChangesNothing(t *testing.T) {
+	exec, _ := start(t, 5, logfeed.Numbered(20, 12, 16)...)
+	enter(t, exec, "err") // Pins the Window on the Current Line
+
+	update(t, exec, cmd.SearchFor{Regex: "err"})
+
+	testutil.Equal(t, "[14 15 16 17 18]", numbers(exec.Lines()))
+	testutil.Equal(t, 16, currentLine(exec))
+}
+
 func Test_ExecutorFirstStepCentresWindowOnNewestLineWithMatchAtOrAboveBottom(t *testing.T) {
 	for _, test := range []struct {
 		name string

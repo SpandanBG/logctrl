@@ -54,6 +54,18 @@ func numbers(lines []reader.Line) string {
 	return fmt.Sprint(each)
 }
 
+// shownNumbers - the Line Numbers of the Lines in the Window the Filter does
+// not hide.
+func shownNumbers(exec *cmd.Executor) string {
+	var each []int
+	for _, line := range exec.Lines() {
+		if !line.Filter.Hide {
+			each = append(each, line.Number)
+		}
+	}
+	return fmt.Sprint(each)
+}
+
 func Test_ExecutorSearchForKeepsWindowFollowingWithNoCurrentLine(t *testing.T) {
 	exec, feed := start(t, 5, logfeed.Numbered(20, 12, 16)...)
 
@@ -713,9 +725,11 @@ func Test_ExecutorWindowTakesInAtMostCapacityLinesBeyondIt(t *testing.T) {
 		{name: "an older Line further back is not", err: 0, shown: ""},
 		{name: "the Capacity-th newer Line is taken in", scroll: -reader.DefaultCapacity - 4, err: reader.DefaultCapacity + 2, shown: fmt.Sprint("err ", reader.DefaultCapacity+2)},
 		{name: "a newer Line further on is not", scroll: -reader.DefaultCapacity - 4, err: reader.DefaultCapacity + 3, shown: ""},
-		// Pinned on Lines 5 to 7, the 5 older Lines leave Capacity-5 newer ones
-		{name: "both ways, the last newer Line in the Capacity is taken in", scroll: -reader.DefaultCapacity + 4, err: reader.DefaultCapacity + 2, shown: fmt.Sprint("err ", reader.DefaultCapacity+2)},
-		{name: "both ways, a newer Line past the Capacity is not", scroll: -reader.DefaultCapacity + 4, err: reader.DefaultCapacity + 3, shown: ""},
+		// Pinned on Lines 5 to 7, the Capacity-4 newer Lines up to the newest
+		// come first, leaving 4 older ones: Lines 1 to 4
+		{name: "Pinned, newer Lines are taken in first, up to the newest", scroll: -reader.DefaultCapacity + 4, err: reader.DefaultCapacity + 3, shown: fmt.Sprint("err ", reader.DefaultCapacity+3)},
+		{name: "Pinned, then the older Lines left in the Capacity", scroll: -reader.DefaultCapacity + 4, err: 1, shown: "err 1"},
+		{name: "Pinned, an older Line past the Capacity is not", scroll: -reader.DefaultCapacity + 4, err: 0, shown: ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			exec, _ := start(t, 3, logfeed.Numbered(reader.DefaultCapacity+4, test.err)...)
@@ -766,4 +780,16 @@ func Test_ExecutorWindowStopsTakingInLinesOnceNoneCanBeRead(t *testing.T) {
 			within(t, "Lines", func() { testutil.Equal(t, "", shown(exec)) })
 		})
 	}
+}
+
+func Test_ExecutorFirstStepStartsFromBottomLineTheFilterDoesNotHide(t *testing.T) {
+	exec, _ := start(t, 3, logfeed.Numbered(20, 0, 5, 9, 15)...)
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+	update(t, exec, cmd.SearchFor{Regex: "err"})
+	update(t, exec, cmd.Scroll{N: -20}) // Pinned on line 0
+	testutil.Equal(t, "[0 5 9]", shownNumbers(exec))
+
+	update(t, exec, cmd.PreviousMatch{})
+
+	testutil.Equal(t, 9, currentLine(exec))
 }

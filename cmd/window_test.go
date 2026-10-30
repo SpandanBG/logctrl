@@ -238,3 +238,134 @@ func Test_ExecutorFollowingWindowIsAsTallAsItsHeightWhileLineArrives(t *testing.
 
 	testutil.Equal(t, "[6 7 8]", numbers(exec.Lines()))
 }
+
+func Test_ExecutorScrollMovesWindowByLinesTheFilterDoesNotHide(t *testing.T) {
+	exec, _ := start(t, 3, logfeed.Numbered(30, 2, 5, 9, 14, 20, 25, 28)...)
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+
+	for _, expected := range []struct {
+		scroll int
+		shown  string
+	}{
+		{scroll: -1, shown: "err 14\nerr 20\nerr 25"},
+		{scroll: -2, shown: "err 5\nerr 9\nerr 14"},
+		{scroll: 1, shown: "err 9\nerr 14\nerr 20"},
+	} {
+		update(t, exec, cmd.Scroll{N: expected.scroll})
+		testutil.Equal(t, expected.shown, shown(exec))
+	}
+}
+
+func Test_ExecutorScrollDownToNewestLineTheFilterDoesNotHideFollows(t *testing.T) {
+	exec, feed := start(t, 3, logfeed.Numbered(30, 5, 9, 14, 20)...) // Lines 21 to 29 are hidden
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+	update(t, exec, cmd.Scroll{N: -1})
+	testutil.Equal(t, "err 5\nerr 9\nerr 14", shown(exec))
+
+	update(t, exec, cmd.Scroll{N: 1})
+	feed.Write("err 30")
+
+	testutil.Equal(t, "err 14\nerr 20\nerr 30", shown(exec))
+}
+
+func Test_ExecutorScrollPassesOverAtMostCapacityHiddenLines(t *testing.T) {
+	newest := reader.DefaultCapacity + 9
+	exec, _ := start(t, 3, logfeed.Numbered(newest+1, 0, newest)...)
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+
+	update(t, exec, cmd.Scroll{N: -1}) // passes over Capacity hidden Lines, finding none shown
+	testutil.Equal(t, fmt.Sprint("err ", newest), shown(exec))
+
+	update(t, exec, cmd.Scroll{N: -1})
+	testutil.Equal(t, "err 0", shown(exec))
+}
+
+func Test_ExecutorPinnedWindowWhoseTopLineTheFilterHidesShowsFromNextShownLine(t *testing.T) {
+	exec, _ := start(t, 3, logfeed.Numbered(30)...)
+	update(t, exec, cmd.Scroll{N: -17}) // Pinned on line 10
+
+	update(t, exec, cmd.FilterFor{Regex: "[13]$"}) // hides line 10, but not lines 1 and 3 above it
+	testutil.Equal(t, "ok 11\nok 13\nok 21", shown(exec))
+
+	update(t, exec, cmd.FilterFor{})
+	testutil.Equal(t, "ok 10\nok 11\nok 12", shown(exec))
+}
+
+func Test_ExecutorWindowCentresOnCurrentLineAmongLinesTheFilterDoesNotHide(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		height   int
+		current  int
+		expected string
+	}{
+		{name: "in the middle", height: 3, current: 12, expected: "[8 12 16]"},
+		{name: "upper middle when its height is even", height: 4, current: 12, expected: "[8 12 16 20]"},
+		{name: "stops at the first shown Line", height: 3, current: 4, expected: "[4 8 12]"},
+		{name: "stops at the newest shown Line", height: 3, current: 28, expected: "[20 24 28]"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			exec, feed := start(t, test.height, logfeed.Numbered(30, 4, 8, 12, 16, 20, 24, 28)...)
+			update(t, exec, cmd.FilterFor{Regex: "err"})
+
+			enter(t, exec, fmt.Sprintf("^err %d$", test.current))
+			feed.Write("err 30")
+
+			testutil.Equal(t, test.expected, shownNumbers(exec)) // Pinned: line 30 is not shown
+		})
+	}
+}
+
+func Test_ExecutorWindowCentresOnCurrentLineLookingBackAtMostCapacityLines(t *testing.T) {
+	current := reader.DefaultCapacity + 5
+	exec, _ := start(t, 3, logfeed.Numbered(current+10, 0, current, current+1)...)
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+
+	enter(t, exec, fmt.Sprintf("^err %d$", current)) // line 0 is further back than Capacity Lines
+
+	testutil.Equal(t, fmt.Sprint([]int{current, current + 1}), shownNumbers(exec))
+}
+
+func Test_ExecutorWindowMovedUpToNewestLineTheFilterDoesNotHideFollows(t *testing.T) {
+	unread := &cutOff{}
+	exec, feed := startOver(t, func(stream reader.Stream) reader.Stream {
+		unread.Stream = stream
+		return unread
+	}, 3, logfeed.Numbered(20, 15, 16)...) // Lines 17 to 19 are hidden
+	update(t, exec, cmd.Scroll{N: -50}) // Pinned on the first Lines
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+
+	unread.first = 15
+	exec.Lines() // moves up to 15: its bottom is the newest shown Line
+	feed.Write("err 20", "err 21")
+
+	testutil.Equal(t, "[16 20 21]", shownNumbers(exec))
+}
+
+// counted - a reader.Stream counting its reads.
+type counted struct {
+	reader.Stream     // the stream read from
+	reads         int // the reads so far
+}
+
+// Read - the Lines in [from, to), counting the read.
+func (c *counted) Read(from, to int) []reader.Line {
+	c.reads++
+	return c.Stream.Read(from, to)
+}
+
+func Test_ExecutorScrollPastManyHiddenLinesReadsInFewBatches(t *testing.T) {
+	reads := &counted{}
+	newest := reader.DefaultCapacity + 9
+	exec, _ := startOver(t, func(stream reader.Stream) reader.Stream {
+		reads.Stream = stream
+		return reads
+	}, 3, logfeed.Numbered(newest+1, 0, newest)...)
+	update(t, exec, cmd.FilterFor{Regex: "err"})
+
+	reads.reads = 0
+	update(t, exec, cmd.Scroll{N: -1}) // passes over Capacity hidden Lines
+
+	if reads.reads > 50 {
+		t.Fatalf("a Scroll read the History %d times, expected at most 50", reads.reads)
+	}
+}

@@ -10,3 +10,4 @@ ADR 0007 had the Executor find and step between Lines with a Match itself, so th
 
 - A Pass can no longer be counted on to see only the Window: the Search reads the History through its port. No Pass can write to the History, and the only way a Pass can move the Window is to Pin it.
 - The Executor keeps no Search state. Its `Update` hands every message to every Pass, the Search last, and joins their errors.
+- Amended (#18): the port's `Window` gives the Line Numbers of the Lines in the Window the Filter does not hide, Lines taken in included, so the first step starts from the bottom shown Line; `PinCentredOn` centres the Current Line among those Lines. The Search itself is unchanged.

@@ -62,7 +62,7 @@ The Window mode in which its top Line stays the same while new Lines arrive, eve
 _Avoid_: frozen, paused, locked
 
 **Scroll**:
-Moving the Window a number of lines up (toward older lines, as far back as the first line of the session) or down (toward newer lines); scrolling down to the newest line makes it Following again.
+Moving the Window a number of the Lines the Filter does not hide up (toward older lines, as far back as the first line of the session) or down (toward newer lines); scrolling down to the newest of them makes it Following again.
 _Avoid_: move, step, navigate
 
 **Search**:

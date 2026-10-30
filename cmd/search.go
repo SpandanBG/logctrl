@@ -33,7 +33,7 @@ const scanBatch = 1_000
 // history - what the Search may see of the History, and do to the Window
 // (see docs/adr/0008).
 type history interface {
-	Window() []int                   // Line Numbers of the Lines in the Window
+	Window() []int                   // Line Numbers of the Lines in the Window the Filter does not hide
 	Total() int                      // lines received so far
 	First() int                      // Line Number of the oldest line that can be read
 	Read(from, to int) []reader.Line // lines in [from, to) as the other Passes leave them

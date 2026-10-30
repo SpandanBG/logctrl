@@ -123,14 +123,18 @@ func Test_LogsNotifiesWhenNewLineArrives(t *testing.T) {
 func Test_LogsScrollMovesWindowByItsLines(t *testing.T) {
 	for _, test := range []struct {
 		name     string
+		filter   string
 		scrolls  []int
 		expected string
 	}{
 		{name: "up", scrolls: []int{-1}, expected: "[ok 6 ok 7 ok 8]"},
 		{name: "down", scrolls: []int{-3, 1}, expected: "[ok 5 ok 6 ok 7]"},
+		{name: "up, passing over the Lines the Filter hides", filter: "[13579]$", scrolls: []int{-1}, expected: "[ok 3 ok 5 ok 7]"},
+		{name: "down, passing over the Lines the Filter hides", filter: "[13579]$", scrolls: []int{-3, 1}, expected: "[ok 3 ok 5 ok 7]"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			logs, _ := start(t, 3, logfeed.Numbered(10)...)
+			update(t, logs, cmd.FilterFor{Regex: test.filter})
 
 			for _, n := range test.scrolls {
 				update(t, logs, cmd.Scroll{N: n})

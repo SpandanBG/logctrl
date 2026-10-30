@@ -831,7 +831,7 @@ func Test_UIEnterMakesFilterBarReadOnlyAndFiltersWithoutSearching(t *testing.T) 
 	view := ansi.Strip(model.View())
 	testutil.Equal(t, false, strings.Contains(fmt.Sprint(logview.ShownLines(model.View())), "err"))
 	testutil.Equal(t, "[]", logview.Highlighted(model.View()))
-	testutil.Equal(t, "ok 35", logview.Bottom(model.View())) // scrolled, never Following
+	testutil.Equal(t, "ok 37", logview.Bottom(model.View())) // scrolled one shown Line, never Following
 	testutil.Equal(t, 25, logRows(model))
 	testutil.Equal(t, true, strings.Contains(view, "f: ok"))
 	testutil.Equal(t, false, strings.Contains(view, "okk"))

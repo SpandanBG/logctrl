@@ -113,12 +113,14 @@ type shownHistory struct {
 	e *Executor // the Executor whose History and Window the Search sees
 }
 
-// Window - the Line Numbers of the Lines in the Window.
+// Window - the Line Numbers of the Lines in the Window the Filter does not
+// hide.
 func (h shownHistory) Window() []int {
-	lines := h.e.window.lines()
-	numbers := make([]int, 0, len(lines))
-	for _, line := range lines {
-		numbers = append(numbers, line.Number)
+	var numbers []int
+	for _, line := range h.e.window.shown() {
+		if !line.Filter.Hide {
+			numbers = append(numbers, line.Number)
+		}
 	}
 	return numbers
 }

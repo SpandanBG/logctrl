@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	// ChildEnvVar - the environment variable naming the pipe's fd, set on the child
 	ChildEnvVar = "logctrl_child"
 )
 
@@ -46,6 +47,8 @@ const (
 //     and still accepts interactive input through the PTY slave.
 //
 // ────────────────────────────────────────────────────────────────────────────────
+//
+// main - runs the parent, or the child once ChildEnvVar is set.
 func main() {
 	// Load the Keymap before anything else, so a bad user Keymap file stops
 	// us while the terminal is still in its normal state.
@@ -183,10 +186,10 @@ func startPTY(logReader *os.File) (ptm *os.File) {
 	return ptm
 }
 
-// startDataPump
-//   - perform writing to `logWritter` from `os.Stdin`.
-//   - pumps keyboard input from `console` to `ptm`.
-//   - pumps pty output's  to `os.Stdout`.
+// startDataPump - pumps the parent's three directions:
+//   - `os.Stdin` (the Log Feed) to `logWritter`;
+//   - keyboard input from `console` to `ptm`;
+//   - the child's screen output from `ptm` to `os.Stdout`.
 func startDataPump(ptm, logWritter, console *os.File) {
 	// Pump A’s output (parent’s stdin) into the pipe → child
 	go func() {
@@ -208,6 +211,7 @@ func startDataPump(ptm, logWritter, console *os.File) {
 	io.Copy(os.Stdout, ptm)
 }
 
+// resizePty - makes the PTY behind `ptm` as large as the parent's terminal.
 func resizePty(ptm *os.File) {
 	// Setup PTY window size to parent window size
 	if err := pty.InheritSize(os.Stdout, ptm); err != nil {

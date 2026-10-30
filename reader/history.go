@@ -9,9 +9,9 @@ import (
 // LiveBuffer, older ones from Chunks of `chunkSize` lines loaded from the Log
 // File through a sparse line index (see docs/adr/0004).
 type History struct {
-	lb        *LiveBuffer
-	logFile   io.ReaderAt
-	chunkSize int
+	lb        *LiveBuffer    // the newest lines, held in memory
+	logFile   io.ReaderAt    // the Log File older lines are read back from
+	chunkSize int            // lines per Chunk
 	index     []int64        // index[c] - byte offset in the Log File of line c*chunkSize
 	size      int64          // bytes of the Log File taken up by pushed lines
 	chunks    map[int][]Line // at most `maxChunks`, by chunk number
@@ -121,6 +121,7 @@ func text(raw string) string {
 	return strings.TrimSuffix(strings.TrimSuffix(raw, "\n"), "\r")
 }
 
+// abs - `n` without its sign.
 func abs(n int) int {
 	return max(n, -n)
 }

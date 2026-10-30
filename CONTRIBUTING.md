@@ -19,6 +19,8 @@ make hooks   # use the committed pre-commit hook
 go test -bench=. ./reader   # benchmarks
 scripts/prove-fails.sh <file> <old> <new> <go test args>   # break code, run tests, restore (TDD-4)
 scripts/check-dividers.sh [file.go...]                     # CC-9 Private divider (run by make test)
+scripts/check-comments.sh [file.go...]                     # GO-8 doc and field comments (run by make test)
+scripts/check-doc-names.sh [doc.md...]                     # docs name only code that exists (run by make test)
 ```
 
 ## Workflow

@@ -148,9 +148,9 @@ func Test_ExecutorFollowMakesWindowFollowing(t *testing.T) {
 // read, as once the Log File fails to read: like the History's, its First
 // moves up only once a read reaches them (see docs/adr/0004).
 type cutOff struct {
-	reader.Stream
-	first  int
-	failed bool // a read has reached Lines older than `first`
+	reader.Stream      // the stream read from
+	first         int  // the Line Number of the oldest Line that can still be read
+	failed        bool // a read has reached Lines older than `first`
 }
 
 // Read - the Lines in [from, to), leaving out any older than `first`.
@@ -218,8 +218,8 @@ func Test_ExecutorWindowMovedUpToNewestLineFollows(t *testing.T) {
 // arriving - a reader.Stream whose newest Line arrives just after its Total is
 // first read, as when a Line arrives while the Window is read.
 type arriving struct {
-	reader.Stream
-	read bool // Total has been read
+	reader.Stream      // the stream read from
+	read          bool // Total has been read
 }
 
 // Total - one Line short the first time, as the newest is still arriving.

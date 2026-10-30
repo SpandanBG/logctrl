@@ -23,6 +23,7 @@ func typeText(model tea.Model, text string) tea.Model {
 	return model
 }
 
+// newSizedPrompt - a Prompt fitted to an 80x30 terminal, 16 rows tall.
 func newSizedPrompt() tea.Model {
 	prompt := components.NewPrompt(ui.SizeRatio(1), ui.SizeFixed(16))
 	prompt, _ = prompt.Update(tea.WindowSizeMsg{Width: 80, Height: 30})

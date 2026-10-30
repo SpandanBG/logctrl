@@ -11,7 +11,7 @@ import (
 
 // SearchFor - the message starting a Search for Regex; an empty Regex ends it.
 type SearchFor struct {
-	Regex string
+	Regex string // the regex to search for; "" ends the Search
 }
 
 // PreviousMatch - the message stepping from the Current Line to the previous
@@ -50,7 +50,7 @@ type search struct {
 	dropped   int            // a Current Line dropped once it could not be read; -1 if none
 	gen       int            // counts the messages that are not steps; a scan from an older one is cancelled
 	scanning  bool           // a scan for message `gen` is running
-	history   history
+	history   history        // the History to step through, as the Passes before the Search leave it
 	highlight lipgloss.Style // how each Match is shown
 }
 
@@ -118,8 +118,8 @@ func (s *search) Run(lines []reader.Line) []reader.Line {
 // in [from, to) has been scanned, and `lines` holds those with a Match, oldest
 // first.
 type seen struct {
-	from, to int
-	lines    []int
+	from, to int   // the Line Numbers scanned: [from, to)
+	lines    []int // the Line Numbers of those with a Match, oldest first
 }
 
 // ------------------------- Private

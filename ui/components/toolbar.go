@@ -8,18 +8,22 @@ import (
 )
 
 var (
+	// toolbarStyle - the Toolbar's teal background and black text
 	toolbarStyle = lipgloss.NewStyle().
 		Background(lipgloss.Color("43")).
 		Foreground(lipgloss.Color("0"))
 )
 
+// toolbar - the Toolbar: the bar at the top listing the main keys.
 type toolbar struct {
-	width    ui.SizeI
-	height   ui.SizeI
-	help     string
-	rendered string
+	width    ui.SizeI // width modifier
+	height   ui.SizeI // height modifier
+	help     string   // the keys it lists, coloured
+	rendered string   // the Toolbar as last fitted to the terminal
 }
 
+// NewToolbar - the Toolbar listing the main keys of `keymap`, sized by the
+// `width` and `height` modifiers.
 func NewToolbar(width, height ui.SizeI, keymap []config.Entry) tea.Model {
 	return toolbar{
 		width:  width,
@@ -28,12 +32,14 @@ func NewToolbar(width, height ui.SizeI, keymap []config.Entry) tea.Model {
 	}
 }
 
+// Init - asks for the terminal's size.
 func (t toolbar) Init() tea.Cmd {
 	return tea.Batch(
 		tea.WindowSize(),
 	)
 }
 
+// Update - fits the Toolbar to a new terminal size.
 func (t toolbar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -43,6 +49,7 @@ func (t toolbar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return t, nil
 }
 
+// View - the Toolbar, as last fitted.
 func (t toolbar) View() string {
 	return t.rendered
 }
@@ -68,6 +75,7 @@ func helpText(keymap []config.Entry) string {
 		ui.Reset_Color
 }
 
+// updateView - renders the Toolbar into its share of the terminal `size`.
 func (t toolbar) updateView(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	size = ui.ModifySize(size, t.width, t.height)
 

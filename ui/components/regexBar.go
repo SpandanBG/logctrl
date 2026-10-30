@@ -12,8 +12,8 @@ import (
 type Bar int
 
 const (
-	SearchBar Bar = iota
-	FilterBar
+	SearchBar Bar = iota // the Search Bar
+	FilterBar            // the Filter Bar
 )
 
 // barHeight - the rows a shown regex bar takes: its grey top line, then its
@@ -22,8 +22,8 @@ const barHeight = 2
 
 // barPrompt - what a regex bar shows before its regex.
 type barPrompt struct {
-	text       string
-	background lipgloss.Color
+	text       string         // the prompt itself, such as "/:"
+	background lipgloss.Color // the colour behind it
 }
 
 // prompts - the prompt of each regex bar.
@@ -46,13 +46,13 @@ type TeaRegexCancel struct{}
 
 // TeaRegexEntered - the user entered `Regex` in `Bar`, now read-only.
 type TeaRegexEntered struct {
-	Bar   Bar
-	Regex string
+	Bar   Bar    // the regex bar it was entered in
+	Regex string // the regex entered
 }
 
 // TeaRegexFailed - the regex last entered cannot be used, because of `Err`.
 type TeaRegexFailed struct {
-	Err error
+	Err error // why the regex cannot be used
 }
 
 // RegexBar - an input for a regex, such as the Search Bar or the Filter Bar:
@@ -60,18 +60,18 @@ type TeaRegexFailed struct {
 // why it cannot be used. Typing() implies Shown(); Entered() stays true after
 // TeaRegexFailed, until the regex bar is closed.
 type RegexBar struct {
-	bar           Bar
-	width         ui.SizeI
-	view          textinput.Model
-	shown         bool           // whether the regex bar is shown
-	entered       string         // the regex last entered
-	failed        error          // why the regex last entered cannot be searched for, if so
-	errorWidth    int            // how much of `failed` fits after the prompt
-	errorStyle    lipgloss.Style // how `failed` is shown
-	editStyle     lipgloss.Style // how the regex is shown while editing
-	readOnlyStyle lipgloss.Style // how the regex is shown once entered: dimmed, with no cursor
-	promptStyle   lipgloss.Style // how the prompt is shown, in every state
-	barStyle      lipgloss.Style // the grey line along the top of the regex bar, as wide as it
+	bar           Bar             // which regex bar it is
+	width         ui.SizeI        // width modifier
+	view          textinput.Model // the input the regex is typed in
+	shown         bool            // whether the regex bar is shown
+	entered       string          // the regex last entered
+	failed        error           // why the regex last entered cannot be searched for, if so
+	errorWidth    int             // how much of `failed` fits after the prompt
+	errorStyle    lipgloss.Style  // how `failed` is shown
+	editStyle     lipgloss.Style  // how the regex is shown while editing
+	readOnlyStyle lipgloss.Style  // how the regex is shown once entered: dimmed, with no cursor
+	promptStyle   lipgloss.Style  // how the prompt is shown, in every state
+	barStyle      lipgloss.Style  // the grey line along the top of the regex bar, as wide as it
 }
 
 // NewRegexBar - the regex bar `bar`, hidden, `width` wide, styled by

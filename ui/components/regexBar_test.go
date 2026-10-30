@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	edit  = components.TeaRegexEdit{}
-	enter = tea.KeyMsg{Type: tea.KeyEnter}
+	edit  = components.TeaRegexEdit{}      // opens a regex bar to type in
+	enter = tea.KeyMsg{Type: tea.KeyEnter} // the enter key
 )
 
 var (
@@ -58,10 +58,10 @@ func viewRows(view string) int {
 
 // barState - what the layout reads from a regex bar, and its prompt row.
 type barState struct {
-	shown   bool
-	typing  bool
-	entered bool
-	height  int
+	shown   bool   // Shown()
+	typing  bool   // Typing()
+	entered bool   // Entered()
+	height  int    // Height(), in rows
 	row     string // "" while hidden
 }
 

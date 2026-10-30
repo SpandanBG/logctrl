@@ -21,19 +21,19 @@ import (
 type Action string
 
 const (
-	OpenHelp      Action = "open_help"
-	Quit          Action = "quit"
-	OpenPrompt    Action = "open_prompt"
-	Close         Action = "close"
-	ScrollUp      Action = "scroll_up"
-	ScrollDown    Action = "scroll_down"
-	Follow        Action = "follow"
-	OpenSearch    Action = "open_search"
-	CloseSearch   Action = "close_search"
-	PreviousMatch Action = "previous_match"
-	NextMatch     Action = "next_match"
-	OpenFilter    Action = "open_filter"
-	CloseFilter   Action = "close_filter"
+	OpenHelp      Action = "open_help"      // opens the Help
+	Quit          Action = "quit"           // quits logctrl
+	OpenPrompt    Action = "open_prompt"    // opens the Prompt
+	Close         Action = "close"          // closes the Help or the Prompt
+	ScrollUp      Action = "scroll_up"      // Scrolls up a Line
+	ScrollDown    Action = "scroll_down"    // Scrolls down a Line
+	Follow        Action = "follow"         // returns the Window to Following, dropping the Current Line
+	OpenSearch    Action = "open_search"    // opens the Search Bar
+	CloseSearch   Action = "close_search"   // closes the Search Bar, ending the Search
+	PreviousMatch Action = "previous_match" // steps to the previous (older) Line with a Match
+	NextMatch     Action = "next_match"     // steps to the next (newer) Line with a Match
+	OpenFilter    Action = "open_filter"    // opens the Filter Bar
+	CloseFilter   Action = "close_filter"   // closes the Filter Bar, ending the Filter
 )
 
 // Reserved - the keys that always Quit, outside the Keymap, so no Keymap file
@@ -46,11 +46,13 @@ var whileTyping = []Action{Close, CloseSearch, CloseFilter}
 
 // Entry - one Action with the key that triggers it and its description.
 type Entry struct {
-	Key         string `json:"key"`
-	Action      Action `json:"action"`
-	Description string `json:"description"`
+	Key         string `json:"key"`         // the key, as bubbletea names it
+	Action      Action `json:"action"`      // what the key makes logctrl do
+	Description string `json:"description"` // what the Help shows for it
 }
 
+// builtInKeymap - config/keymap.json, the built-in Keymap.
+//
 //go:embed keymap.json
 var builtInKeymap []byte
 

@@ -15,8 +15,8 @@ const maxWaiting = 100
 // and once armed makes them wait until released, so a test can act while a
 // scan is running.
 type Gated struct {
-	reader.Stream
-	Reading chan struct{} // receives once per read waiting
+	reader.Stream               // the stream read from
+	Reading       chan struct{} // receives once per read waiting
 
 	window  int           // the most Lines a read of the Window takes
 	scans   atomic.Int64  // reads of more than `window` Lines so far

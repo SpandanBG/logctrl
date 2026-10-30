@@ -19,8 +19,8 @@ var windowSizeRequest = reflect.TypeOf(tea.WindowSize()())
 // can drive a model through its public Update/View. Like the tea runtime, it
 // answers `tea.WindowSize()` with the size of its terminal.
 type Runtime struct {
-	msgs     chan tea.Msg
-	terminal tea.WindowSizeMsg
+	msgs     chan tea.Msg      // the messages tea commands have returned, not yet taken
+	terminal tea.WindowSizeMsg // the size of its terminal, as tea.WindowSize() answers
 }
 
 // NewRuntime - a runtime for a terminal `width` columns by `height` rows.

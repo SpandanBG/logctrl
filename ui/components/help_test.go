@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// keymap - a Keymap of two entries for the Help to list.
 var keymap = []config.Entry{
 	{Key: "h", Action: config.OpenHelp, Description: "Open the Help"},
 	{Key: "q", Action: config.Quit, Description: "Quit logctrl"},

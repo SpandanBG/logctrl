@@ -37,8 +37,8 @@ func texts(lines []Line) string {
 
 // history - a History over an in-memory Log File, and that file.
 type history struct {
-	*History
-	file *logFile
+	*History          // the History under test
+	file     *logFile // its Log File, written as lines are pushed
 }
 
 // newHistory - a History holding `capacity` lines in its Live Buffer and

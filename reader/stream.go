@@ -10,8 +10,11 @@ import (
 )
 
 const (
+	// logFileLocation - the directory the Log File is made in: "" for os.TempDir
 	logFileLocation = ""
-	logFileName     = "logCtrl_logFile.txt"
+
+	// logFileName - the pattern os.CreateTemp names the Log File after
+	logFileName = "logCtrl_logFile.txt"
 
 	// DefaultCapacity - max lines held in the live buffer (see docs/adr/0001)
 	DefaultCapacity = 10_000
@@ -29,17 +32,13 @@ type Stream interface {
 	Close()
 }
 
+// stream - a Stream over a Log Feed, teed into the Log File as it is read.
 type stream struct {
-	// log files
-	logFile *os.File
-	logFeed *os.File
-
-	// every Line received; `mu` guards it
-	mu      sync.Mutex
-	history *History
-
-	// notification channel
-	next chan bool
+	logFile *os.File   // the Log File, every line received
+	logFeed *os.File   // the Log Feed read from
+	mu      sync.Mutex // guards history: pushed to as lines arrive, read by the UI
+	history *History   // every Line received
+	next    chan bool  // notified after each Line is held
 }
 
 // NewStream - Creates a new stream object from the `logFeed` provided.

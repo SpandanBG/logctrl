@@ -507,8 +507,10 @@ func Test_ExecutorFilterShowsEachLineItsRegexMatchesAnywhere(t *testing.T) {
 // masked - a Pass replacing the shown text of every Line.
 type masked struct{}
 
+// Update - ignores every message.
 func (masked) Update(msg any) error { return nil }
 
+// Run - sets the shown text of each Line to "***".
 func (masked) Run(lines []reader.Line) []reader.Line {
 	for i := range lines {
 		lines[i].Shown = "***"
@@ -702,10 +704,11 @@ func Test_ExecutorWindowTakesInAtMostCapacityLinesBeyondIt(t *testing.T) {
 // unreadable - a reader.Stream whose reads of any Line outside [from, to)
 // find nothing, as when the Log File fails to read before First has moved up.
 type unreadable struct {
-	reader.Stream
-	from, to int
+	reader.Stream     // the stream read from
+	from, to      int // the Lines that can be read: [from, to)
 }
 
+// Read - the Lines in [from, to), or none if any lies outside u's range.
 func (u unreadable) Read(from, to int) []reader.Line {
 	if from < u.from || to > u.to {
 		return nil

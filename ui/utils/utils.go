@@ -2,6 +2,7 @@ package utils
 
 import tea "github.com/charmbracelet/bubbletea"
 
+// ModifySize - `size` with its width changed by `w` and its height by `h`.
 func ModifySize(size tea.WindowSizeMsg, w, h SizeI) tea.WindowSizeMsg {
 	size.Width = updateSize(size.Width, w)
 	size.Height = updateSize(size.Height, h)
@@ -10,6 +11,7 @@ func ModifySize(size tea.WindowSizeMsg, w, h SizeI) tea.WindowSizeMsg {
 
 // ------------------------- Private
 
+// updateSize - `x` changed by `xm`.
 func updateSize(x int, xm SizeI) int {
 	switch xm.Type() {
 	case Ratio:

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 make dev       # Run in development mode: go run main.go
 make build     # Build binary to bin/out
 make mock      # Run mock logger (requires Node.js): node ./tests/tools/mockLogger.js
-make test      # gofmt check + go vet + CC-9 divider check + go test -race ./...
+make test      # gofmt check + go vet + CC-9 divider, GO-8 comment and doc-name checks + go test -race ./...
 make cover     # Coverage check against COVER_MIN (excludes main and internal/; counted across packages), as run in CI
 make hooks     # Enable the committed pre-commit hook (.githooks/), which runs `make test`
 go test -bench=. ./reader  # Run benchmarks

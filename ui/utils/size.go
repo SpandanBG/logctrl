@@ -1,40 +1,40 @@
 package utils
 
+// SizeType - how a SizeI changes a size.
 type SizeType uint
 
 const (
-	Ratio SizeType = iota
-	Fixed
-	Modifier
+	Ratio    SizeType = iota // a SizeRatio: the size times it
+	Fixed                    // a SizeFixed: it, whatever the size
+	Modifier                 // a SizeModifier: the size plus it
 )
 
+// SizeI - a change to a width or a height (see ModifySize).
 type SizeI interface {
 	Type() SizeType
 }
 
-// ------------ SizeRatio
-// Will hold the % with which the size is to be multiplied
-// Value between: 0 and 1
+// SizeRatio - the fraction of a size to take, between 0 and 1.
 type SizeRatio float32
 
+// Type - Ratio.
 func (sr SizeRatio) Type() SizeType {
 	return Ratio
 }
 
-// ------------ SizeFixed
-// Will hold the absolute value of the size
+// SizeFixed - a size in cells, taken whatever the size it changes.
 type SizeFixed int
 
+// Type - Fixed.
 func (sf SizeFixed) Type() SizeType {
 	return Fixed
 }
 
-// ------------ SizeModifier
-// Will specify how much the size is to be adjusted by.
-// e.g. if 4 provides and W is the width => new width = W + 4.
-// Values can be set as negative to denote reduction of size.
+// SizeModifier - the cells to add to a size: 4 makes a width W into W + 4,
+// and a negative one makes it smaller.
 type SizeModifier int
 
+// Type - Modifier.
 func (sm SizeModifier) Type() SizeType {
 	return Modifier
 }

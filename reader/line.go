@@ -17,8 +17,8 @@ type Line struct {
 // Match - a section of a Line's shown text that the Search regex matches, as
 // byte offsets [Start, End).
 type Match struct {
-	Start int
-	End   int
+	Start int // byte offset of its first byte
+	End   int // byte offset just after its last byte
 }
 
 // FilterContext - what the Filter works out about a Line.
@@ -30,7 +30,7 @@ type FilterContext struct {
 // Gutter Pass may mark in its Gutter, by the Pass that worked it out (see
 // docs/adr/0009).
 type GutterContext struct {
-	Search SearchContext
+	Search SearchContext // what the Search leaves
 }
 
 // SearchContext - what the Search leaves for the Gutter Pass.

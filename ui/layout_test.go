@@ -22,16 +22,17 @@ import (
 )
 
 var (
-	tab   = tea.KeyMsg{Type: tea.KeyTab}
-	esc   = tea.KeyMsg{Type: tea.KeyEsc}
-	enter = tea.KeyMsg{Type: tea.KeyEnter}
-	ctrlL = tea.KeyMsg{Type: tea.KeyCtrlL}
-	ctrlF = tea.KeyMsg{Type: tea.KeyCtrlF}
+	tab   = tea.KeyMsg{Type: tea.KeyTab}   // the tab key
+	esc   = tea.KeyMsg{Type: tea.KeyEsc}   // the esc key
+	enter = tea.KeyMsg{Type: tea.KeyEnter} // the enter key
+	ctrlL = tea.KeyMsg{Type: tea.KeyCtrlL} // ctrl+l
+	ctrlF = tea.KeyMsg{Type: tea.KeyCtrlF} // ctrl+f
 )
 
 // topLine - the grey line along the top of a regex bar, as wide as the screen.
 var topLine = strings.Repeat("─", 80)
 
+// keys - the key message typing `text`.
 func keys(text string) tea.KeyMsg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(text)}
 }
@@ -1022,8 +1023,8 @@ func Test_UIReservedKeysDoNotQuitWhilePromptOpen(t *testing.T) {
 }
 
 var (
-	up   = tea.KeyMsg{Type: tea.KeyUp}
-	down = tea.KeyMsg{Type: tea.KeyDown}
+	up   = tea.KeyMsg{Type: tea.KeyUp}   // the up arrow
+	down = tea.KeyMsg{Type: tea.KeyDown} // the down arrow
 )
 
 func Test_UIStepKeysStepBetweenLinesWithMatchOnlyWhileRegexEnteredAndReadOnly(t *testing.T) {

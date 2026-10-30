@@ -11,6 +11,7 @@ import (
 	"github.com/SpandanBG/logctrl/internal/testutil"
 )
 
+// builtIn - the built-in Keymap, as config/keymap.json gives it.
 var builtIn = []config.Entry{
 	{Key: "h", Action: config.OpenHelp, Description: "Open the Help"},
 	{Key: "q", Action: config.Quit, Description: "Quit logctrl"},

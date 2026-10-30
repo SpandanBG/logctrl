@@ -6,6 +6,7 @@ import (
 	"syscall"
 )
 
+// OnTerminalResize - calls `callback` each time the terminal is resized (SIGWINCH).
 func OnTerminalResize(callback func()) {
 	sigCh := make(chan os.Signal, 1)
 

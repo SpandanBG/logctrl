@@ -37,7 +37,7 @@ Source tags:
 
 ### Comments
 
-- **GO-8** _house_ Every top-level declaration, exported or not, has a doc comment in the form `name - what it is or does.`, as in `// NewRegexBar - the regex bar ...`. Struct fields say what they hold in a trailing comment. This overrides the upstream `Name does ...` sentence form (CRC "Comment Sentences", GSG).
+- **GO-8** _house_ Every top-level declaration, exported or not, has a doc comment in the form `name - what it is or does.`, as in `// NewRegexBar - the regex bar ...`. Struct fields say what they hold in a trailing comment, embedded ones too, and so does each entry of a `const`, `var` or `type` group unless it has a doc comment of its own. Test functions (`Test…`, `Benchmark…`, `Example…`, `Fuzz…`) are exempt: their name is their spec (TDD-12). Checked by `scripts/check-comments.sh` in `make test`. This overrides the upstream `Name does ...` sentence form (CRC "Comment Sentences", GSG).
 - **GO-9** Package comments sit directly above the `package` clause, with no blank line. _(CRC, GSG)_
 
 ### Errors
@@ -118,7 +118,6 @@ Existing code that breaks a rule above. Don't flag these in a diff that doesn't 
 |---|---|---|
 | GO-3 | `utils/`, `ui/utils/` | package names say nothing about what they hold |
 | GO-15 | `cmd.Stream` | one adapter, the `Executor`, since #7 deleted `fakestream`; defined in `cmd`, not in `headless`, which uses it |
-| GO-8 | `main.go` (`ChildEnvVar`, `resizePty`, `startDataPump`) | missing or non-house doc comments |
 | CLI-9 | `main.go` `ChildEnvVar = "logctrl_child"` | lower-case environment variable ([#14](https://github.com/SpandanBG/logctrl/issues/14)) |
 | CLI-10 | `main.go` | no `-h` / `--help`; with nothing piped in, it waits on stdin ([#13](https://github.com/SpandanBG/logctrl/issues/13)) |
 | CLI-8 | `main.go` `loadKeymap` | `~/.config/logCtrl` is hard-coded; `XDG_CONFIG_HOME` is ignored ([#14](https://github.com/SpandanBG/logctrl/issues/14)) |

@@ -12,18 +12,23 @@ import (
 )
 
 // ----- Public tea.Msg
+
+// TeaLogSizeUpdate - gives the Log View new width and height modifiers.
 type TeaLogSizeUpdate struct {
-	Width  ui.SizeI
-	Height ui.SizeI
+	Width  ui.SizeI // the new width modifier
+	Height ui.SizeI // the new height modifier
 }
 
 // ----- Private tea.Msg
+
+// teaLogCmd - the Window, read in a tea.Cmd once it may have changed.
 type teaLogCmd struct {
 	shown  string // the Window's shown text
 	gutter string // the Gutter cells of its Lines
 }
 
 var (
+	// logViewStyle - the Log View's border
 	logViewStyle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("63"))
@@ -51,6 +56,7 @@ func NewLogView(width, height ui.SizeI, logs *headless.Logs, renderer *lipgloss.
 	}
 }
 
+// Init - asks for the terminal's size, and waits for the Window to change.
 func (l logView) Init() tea.Cmd {
 	return tea.Batch(
 		tea.WindowSize(),
@@ -58,6 +64,8 @@ func (l logView) Init() tea.Cmd {
 	)
 }
 
+// Update - resizes on a new terminal size or size modifiers, and draws the
+// Window once read, waiting for it to change again.
 func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -70,6 +78,7 @@ func (l logView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return l, nil
 }
 
+// View - the Gutter and the viewport side by side, in the Log View's border.
 func (l logView) View() string {
 	return logViewStyle.Render(
 		lipgloss.JoinHorizontal(lipgloss.Top, l.gutter.View(), l.view.View()),
@@ -102,6 +111,7 @@ func (l logView) updateViewSize(size tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	return l, nil
 }
 
+// refreshView - draws `window`, then waits for the Window to change again.
 func (l logView) refreshView(window teaLogCmd) (tea.Model, tea.Cmd) {
 	l = l.display(window)
 	return l, l.fetchLog()
@@ -127,6 +137,8 @@ func (l logView) display(window teaLogCmd) logView {
 	return l
 }
 
+// updateSize - takes the size modifiers of `update`, asking for the
+// terminal's size to fit them.
 func (l logView) updateSize(update TeaLogSizeUpdate) (tea.Model, tea.Cmd) {
 	l.width = update.Width
 	l.height = update.Height

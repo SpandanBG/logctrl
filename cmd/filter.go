@@ -8,7 +8,7 @@ import (
 
 // FilterFor - the message starting a Filter for Regex; an empty Regex ends it.
 type FilterFor struct {
-	Regex string
+	Regex string // the regex to filter for; "" ends the Filter
 }
 
 // filter - the Pass hiding each Line whose shown text the Filter regex does

@@ -14,17 +14,9 @@ import (
 )
 
 const (
-	toolbarSize = 1
-	promptSize  = 16
+	toolbarSize = 1  // the rows the Toolbar takes
+	promptSize  = 16 // the rows the Prompt takes while open
 )
-
-var (
-	logViewStyle = lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("63"))
-)
-
-type logTeaCmd string
 
 // closeActions - the Action that closes each regex bar, by its
 // components.Bar.
@@ -40,17 +32,17 @@ var barOrder = []components.Bar{components.FilterBar, components.SearchBar}
 // uiModel - the app: the Toolbar over the Log View (or the Help), then the
 // regex bars and the Prompt while they are shown.
 type uiModel struct {
-	logs         *headless.Logs // the Window the Log View shows, and the Passes run over it
-	toolbar      tea.Model
-	logView      tea.Model
-	prompt       tea.Model
-	help         tea.Model
+	logs         *headless.Logs                         // the Window the Log View shows, and the Passes run over it
+	toolbar      tea.Model                              // the Toolbar, along the top
+	logView      tea.Model                              // the Log View, under the Toolbar
+	prompt       tea.Model                              // the Prompt, at the bottom while open
+	help         tea.Model                              // the Help, in place of the Log View while open
 	bars         [len(closeActions)]components.RegexBar // each regex bar, by its components.Bar
 	actionOf     map[string]config.Action               // the Action each key in the Keymap triggers
-	promptActive bool
-	helpActive   bool
-	regex        string // the regex being searched for; "" if none
-	filter       string // the regex being filtered for; "" if none
+	promptActive bool                                   // the Prompt is open, and keys go to it
+	helpActive   bool                                   // the Help is open, in place of the Log View
+	regex        string                                 // the regex being searched for; "" if none
+	filter       string                                 // the regex being filtered for; "" if none
 }
 
 // NewUI - the app over `logs`, keyed by `keymap`, styled by `renderer`.
@@ -71,6 +63,8 @@ func NewUI(logs *headless.Logs, keymap []config.Entry, renderer *lipgloss.Render
 	return
 }
 
+// Init - starts every panel: each asks for the terminal's size, and the Log
+// View waits for the Window to change.
 func (u uiModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		u.toolbar.Init(),
@@ -84,6 +78,10 @@ func (u uiModel) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// Update - hands a key to the Prompt while it is open; else a Reserved key
+// Quits, and a key goes to a regex bar being typed in, the Help, or the Action
+// it triggers. A regex entered starts or ends a Search or a Filter; any other
+// message goes to every panel.
 func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -129,6 +127,7 @@ func (u uiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return u.batchUpdate(msg)
 }
 
+// View - the panels shown, top to bottom.
 func (u uiModel) View() string {
 	return u.batchView()
 }
@@ -173,6 +172,7 @@ func newModel(logs *headless.Logs, keymap []config.Entry, renderer *lipgloss.Ren
 	}
 }
 
+// executeKeystroke - does the Action the key `msg` triggers in the Keymap.
 func (u uiModel) executeKeystroke(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch u.actionOf[msg.String()] {
 	case config.Quit:
@@ -232,6 +232,7 @@ func (u uiModel) scroll(n int) {
 	u.logs.Update(cmd.Scroll{N: n}) // Scrolling never fails
 }
 
+// receivePrompt - closes the Prompt on Close, else types the key `msg` in it.
 func (u uiModel) receivePrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if u.actionOf[msg.String()] == config.Close {
 		return u.togglePrompt()
@@ -242,6 +243,8 @@ func (u uiModel) receivePrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return u, cmd
 }
 
+// receiveHelp - closes the Help on Close and scrolls it on Scroll up or down;
+// any other key does nothing while it is open.
 func (u uiModel) receiveHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch u.actionOf[msg.String()] {
 	case config.Close:
@@ -255,12 +258,14 @@ func (u uiModel) receiveHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return u, nil
 }
 
+// scrollHelp - scrolls the Help `n` rows: negative is up, positive is down.
 func (u uiModel) scrollHelp(n int) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	u.help, cmd = u.help.Update(components.TeaHelpScroll(n))
 	return u, cmd
 }
 
+// batchUpdate - hands `msg` to every panel, the Prompt only while it is open.
 func (u uiModel) batchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	updateCount := u.getUpdateCount()
 	cmds := make([]tea.Cmd, updateCount)
@@ -284,6 +289,8 @@ func (u uiModel) batchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return u, tea.Batch(cmds...)
 }
 
+// batchView - the Toolbar, the Log View or the Help, then the regex bars and
+// the Prompt that are shown, joined top to bottom.
 func (u uiModel) batchView() string {
 	views := []string{u.toolbar.View(), u.logView.View()}
 	if u.helpActive {
@@ -303,6 +310,8 @@ func (u uiModel) batchView() string {
 	return strings.Join(views, "\n")
 }
 
+// getUpdateCount - how many panels batchUpdate updates first: the Toolbar and
+// the Log View, and the Prompt while it is open.
 func (u uiModel) getUpdateCount() int {
 	updateCount := 2
 	if u.promptActive {
@@ -312,6 +321,8 @@ func (u uiModel) getUpdateCount() int {
 	return updateCount
 }
 
+// togglePrompt - opens the Prompt, focused, or closes it, resizing the Log
+// View to fit.
 func (u uiModel) togglePrompt() (tea.Model, tea.Cmd) {
 	u.promptActive = !u.promptActive
 

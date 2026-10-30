@@ -22,12 +22,12 @@ var _ Stream = (*Executor)(nil)
 // Scroll - the message Scrolling the Window N Lines: negative is up (older),
 // positive is down (newer).
 type Scroll struct {
-	N int
+	N int // the Lines to Scroll: negative is up, positive is down
 }
 
 // Resize - the message making the Window Height Lines tall.
 type Resize struct {
-	Height int
+	Height int // the Lines the Window shows
 }
 
 // Pass - processing run over each Line in the Window before it is shown,
@@ -114,9 +114,10 @@ const maxTakenIn = reader.DefaultCapacity
 // shownHistory - the History as the Passes before the Search leave it, given
 // to the Search; called from its Update, with mu held.
 type shownHistory struct {
-	e *Executor
+	e *Executor // the Executor whose History and Window the Search sees
 }
 
+// Window - the Line Numbers of the Lines in the Window.
 func (h shownHistory) Window() []int {
 	lines := h.e.window.lines()
 	numbers := make([]int, 0, len(lines))
@@ -126,8 +127,10 @@ func (h shownHistory) Window() []int {
 	return numbers
 }
 
+// Total - the lines received so far.
 func (h shownHistory) Total() int { return h.e.stream.Total() }
 
+// First - the Line Number of the oldest line that can be read.
 func (h shownHistory) First() int { return h.e.stream.First() }
 
 // Read - reads with mu released, so the UI can render and send messages
@@ -139,6 +142,7 @@ func (h shownHistory) Read(from, to int) []reader.Line {
 	return h.e.runOthers(lines)
 }
 
+// PinCentredOn - Pins the Window centred on line `number`.
 func (h shownHistory) PinCentredOn(number int) { h.e.window.pinCentredOn(number) }
 
 // ------------------------- Private

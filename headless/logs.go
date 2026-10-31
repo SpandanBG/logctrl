@@ -63,8 +63,8 @@ func (l *Logs) Window() (shown, gutter []string) {
 }
 
 // Update - hands `msg` to the stream, which moves the Window on cmd.Scroll,
-// cmd.Resize and cmd.Follow and hands it to every Pass but for cmd.Resize;
-// returns its error, then notifies.
+// cmd.Resize and cmd.Follow and hands it to every Pass; returns its error,
+// then notifies.
 func (l *Logs) Update(msg any) error {
 	defer l.notify()
 	return l.stream.Update(msg)

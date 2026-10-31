@@ -19,6 +19,30 @@ type window struct {
 	following bool                              // shows the newest Lines, whatever the anchor is
 }
 
+var _ Pass = (*window)(nil)
+
+// Update - Scrolls the window on Scroll, resizes it on Resize and makes it
+// Following on Follow; ignores any other message. Callers hold the
+// Executor's lock.
+func (w *window) Update(msg any) error {
+	switch msg := msg.(type) {
+	case Scroll:
+		w.moveBy(msg.N)
+	case Resize:
+		w.resize(msg.Height)
+	case Follow:
+		w.follow()
+	}
+	return nil
+}
+
+// Run - the Lines shown (see shown); the window is where the Lines come from,
+// so `lines` is not used. It satisfies Pass, as the Executor drives it like the
+// Passes: Update, then Run. Callers hold the Executor's lock.
+func (w *window) Run([]reader.Line) []reader.Line {
+	return w.shown()
+}
+
 // ------------------------- Private
 
 // newWindow - a Following window over the History of `stream`, taking in

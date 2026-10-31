@@ -13,7 +13,7 @@ import (
 type Stream interface {
 	Start(next chan bool) // starts reading the Log Feed, notifying `next` as each Line arrives
 	Lines() []reader.Line // the Lines in the Window, after every Pass
-	Update(msg any) error // moves the Window (Scroll, Resize, Follow) and hands `msg` to every Pass, such as SearchFor
+	Update(msg any) error // hands `msg` to the Window (Scroll, Resize, Follow), then every Pass, such as SearchFor
 	Close()               // stops reading the Log Feed
 }
 
@@ -64,25 +64,13 @@ func NewExecutor(stream reader.Stream, renderer *lipgloss.Renderer, others ...Pa
 	return e
 }
 
-// Update - hands `msg` to the Filter, then every other Pass, then the Search,
-// then the Gutter, and returns their errors joined. Resize only resizes the
-// Window, never reaching the Passes, so it cancels no step. Scroll and Follow
-// then move the Window, under the same lock as the Passes, so no step still
-// scanning can Pin the Window after a Follow.
+// Update - hands `msg` to the Window, then the Filter, then every other Pass,
+// then the Search, then the Gutter, and returns their errors joined, all under
+// one lock, so no step still scanning can Pin the Window after a Follow.
 func (e *Executor) Update(msg any) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	switch msg := msg.(type) {
-	case Resize:
-		e.window.resize(msg.Height)
-		return nil
-	case Scroll:
-		defer e.window.moveBy(msg.N)
-	case Follow:
-		defer e.window.follow()
-	}
-
-	var errs []error
+	errs := []error{e.window.Update(msg)}
 	for _, pass := range e.passes {
 		errs = append(errs, pass.Update(msg))
 	}
@@ -104,7 +92,7 @@ func (e *Executor) Close() {
 func (e *Executor) Lines() []reader.Line {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.gutter.Run(e.search.Run(e.window.shown()))
+	return e.gutter.Run(e.search.Run(e.window.Run(nil)))
 }
 
 // shownHistory - the History as the Passes before the Search leave it, given

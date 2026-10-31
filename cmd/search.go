@@ -57,10 +57,11 @@ type search struct {
 
 // Update - steps on PreviousMatch and NextMatch, finding the Current Line
 // first if there is none, unless a scan is running, returning once its scan
-// ends. Any other message cancels any scan running and forgets the Lines with
-// a Match found so far (see docs/adr/0007); Follow also drops the Current
-// Line, and SearchFor searches for its regex, unless it is the one already
-// searched for, which changes nothing.
+// ends. Resize changes nothing, so it cancels no step. Any other message
+// cancels any scan running and forgets the Lines with a Match found so far
+// (see docs/adr/0007); Follow also drops the Current Line, and SearchFor
+// searches for its regex, unless it is the one already searched for, which
+// changes nothing.
 func (s *search) Update(msg any) error {
 	switch msg := msg.(type) {
 	case PreviousMatch:
@@ -68,6 +69,8 @@ func (s *search) Update(msg any) error {
 		return nil
 	case NextMatch:
 		s.scan(s.stepNewer)
+		return nil
+	case Resize:
 		return nil
 	case SearchFor:
 		if s.searching() && s.regex.String() == msg.Regex {
